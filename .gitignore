@@ -13,7 +13,10 @@ models/
 *.pt
 *.onnx
 
-# artefact
-*.egg-info/
+# Packaging
+/dist/
+/build/
+/*.egg-info
+modelcub.egg-info
 
 .pypirc
