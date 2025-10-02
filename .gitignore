@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+
+# OS
+.DS_Store
+
+# Project
+runs/
+models/
+*.pt
+*.onnx
+
+# artefact
+*.egg-info/
