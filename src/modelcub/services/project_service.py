@@ -75,6 +75,21 @@ def delete_project(req: DeleteProjectRequest) -> tuple[int, str]:
         # We keep this guard to be safe.
         return 2, "Refusing to delete without confirmation (--yes)."
 
+    # SAFETY CHECK: Prevent deleting if it looks like a development repository
+    danger_files = {".git", "pyproject.toml", "setup.py", "setup.cfg", "src"}
+    repo_markers = {f for f in danger_files if (root / f).exists()}
+
+    if len(repo_markers) >= 2:
+        return 2, (
+            f"🚨 SAFETY: Refusing to delete {root}\n"
+            f"Detected development files: {', '.join(sorted(repo_markers))}\n"
+            f"This appears to be a source repository, not a ModelCub project!\n"
+            f"\nTo delete a ModelCub project:\n"
+            f"  1. Navigate OUT of the project directory first\n"
+            f"  2. Run: modelcub project delete <project-path> --yes\n"
+            f"\nOr delete manually with: rm -rf {root}"
+        )
+
     delete_tree(root)
     bus.publish(ProjectDeleted(path=str(root)))
     return 0, f"Deleted project directory: {root}"

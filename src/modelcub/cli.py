@@ -3,11 +3,15 @@ import argparse
 
 from .commands.project import run as project_run
 from .commands.dataset import run as dataset_run
-from .commands.about import run as about_run  # keep existing
+from .commands.about import run as about_run
+from .core.hardware import warn_cpu_mode, is_inside_project, suppress_warning, is_warning_suppressed
+from .events import GPUWarningSuppressed, bus
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="modelcub", description="ModelCub CLI")
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser.add_argument("--suppress-absent-gpu", action="store_true",
+                       help="Suppress GPU/CPU warning for the rest of this terminal session")
+    sub = parser.add_subparsers(dest="command", required=False)
 
     # ---- project ----
     p_proj = sub.add_parser("project", help="Project-level actions")
@@ -65,6 +69,24 @@ def main(argv=None):
     p_about.set_defaults(func=about_run)
 
     args = parser.parse_args(argv)
+
+    # Handle suppress flag - set for session and publish event
+    if args.suppress_absent_gpu:
+        suppress_warning()
+        bus.publish(GPUWarningSuppressed())
+        print("✓ GPU warning suppressed for this terminal session.")
+        if args.command is None:
+            return 0
+
+    # Show GPU warning only if inside project and not suppressed
+    if is_inside_project():
+        warn_cpu_mode()
+
+    # If no command given, show help
+    if args.command is None:
+        parser.print_help()
+        return 0
+
     return args.func(args)
 
 if __name__ == "__main__":

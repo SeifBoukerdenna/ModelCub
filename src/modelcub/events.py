@@ -31,6 +31,11 @@ class DatasetDeleted(Event):
     name: str
     path: str
 
+@dataclass(frozen=True)
+class GPUWarningSuppressed(Event):
+    """Event fired when GPU warning is suppressed for the session."""
+    pass
+
 # ---------- Event Bus ----------
 class EventBus:
     def __init__(self) -> None:
