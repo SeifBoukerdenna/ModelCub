@@ -1,22 +1,84 @@
-# Python
+# ---- Python bytecode / caches ----
 __pycache__/
 *.py[cod]
+*.pyo
+*$py.class
+.python-version
 .venv/
+venv/
+env/
 .env
+.env.*
+pip-wheel-metadata/
 
-# OS
+# ---- Packaging / build outputs ----
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+wheels/
+sdist/
+MANIFEST
+
+# ---- Testing / coverage / tooling ----
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.coverage.*
+.cache/
+.mypy_cache/
+.pytype/
+.ruff_cache/
+.dmypy.json
+.pyre/
+.tox/
+.nox/
+.hypothesis/
+
+# ---- Logs / runtime ----
+*.log
+logs/
+profile/
+prof/
+celerybeat-schedule
+instance/
+
+# ---- Notebooks ----
+.ipynb_checkpoints/
+
+# ---- Editors / OS cruft ----
+# VS Code (keep recommendations files)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.iml
 .DS_Store
+Thumbs.db
 
-# Project
+# ---- Docs (Sphinx / mkdocs) ----
+docs/_build/
+site/
+
+# ---- Project-specific (model/training artifacts) ----
 runs/
 models/
-*.pt
-*.onnx
+data/
+data/**/*
+!data/.gitkeep
 
-# Packaging
-/dist/
-/build/
-/*.egg-info
-modelcub.egg-info
-
+# ---- Secrets / creds (avoid committing!)
 .pypirc
+*.pem
+*.key
+*.crt
+*.der
+*.p12
+*.enc
+
+# ---- Misc ----
+*.tmp
+*.swp
+*.swo
