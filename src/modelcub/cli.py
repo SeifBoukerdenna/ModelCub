@@ -1,9 +1,11 @@
+# src/modelcub/cli.py
 from __future__ import annotations
 import argparse
 
 from .commands.project import run as project_run
 from .commands.dataset import run as dataset_run
 from .commands.about import run as about_run
+from .commands.annotate import run as annotate_run  # NEW
 from .core.hardware import warn_cpu_mode, is_inside_project, suppress_warning, is_warning_suppressed
 from .events import GPUWarningSuppressed, bus
 
@@ -63,6 +65,14 @@ def main(argv=None):
     p_ds_info = ds_sub.add_parser("info", help="Show dataset manifest and quick stats")
     p_ds_info.add_argument("name", help="Dataset name under data/")
     p_ds_info.set_defaults(func=dataset_run)
+
+    # ---- annotate (NEW) ----
+    p_annotate = sub.add_parser("annotate", help="Launch annotation studio for labeling images")
+    p_annotate.add_argument("--port", type=int, default=8000, help="Port for web server (default: 8000)")
+    p_annotate.add_argument("--data-dir", default="data", help="Directory containing images (default: data)")
+    p_annotate.add_argument("--output-dir", default="data/labels", help="Directory for annotations (default: data/labels)")
+    p_annotate.add_argument("--no-browser", action="store_true", help="Don't auto-open browser")
+    p_annotate.set_defaults(func=annotate_run)
 
     # ---- about ----
     p_about = sub.add_parser("about", help="Show version and environment info.")
