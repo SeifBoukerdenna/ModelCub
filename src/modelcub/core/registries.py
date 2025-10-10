@@ -27,23 +27,17 @@ class DatasetRegistry:
 
     def _parse_yaml(self, content: str) -> dict:
         """Simple YAML parser for registry format."""
-        # For now, use JSON as intermediate (registries can be JSON)
-        # In production, you'd use a proper YAML parser
         if not content.strip():
             return {"datasets": {}}
 
         try:
-            # Try JSON first (easier to work with)
             return json.loads(content)
         except:
-            # Fallback to empty
             return {"datasets": {}}
 
     def save(self) -> None:
         """Save registry to disk."""
         self.registry_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Use JSON for simplicity (still human-readable)
         content = json.dumps(self._data, indent=2)
         self.registry_path.write_text(content, encoding="utf-8")
 

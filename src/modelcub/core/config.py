@@ -8,14 +8,13 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-import json
 
 
 @dataclass
 class ProjectConfig:
     """Project metadata configuration."""
-    name: str
-    created: str
+    name: str = "unnamed"
+    created: str = ""
     version: str = "1.0.0"
 
 
@@ -55,17 +54,20 @@ class Config:
     @classmethod
     def from_dict(cls, data: dict) -> Config:
         """Load from dictionary."""
+        project_data = data.get("project", {})
+        defaults_data = data.get("defaults", {})
+        paths_data = data.get("paths", {})
+
         return cls(
-            project=ProjectConfig(**data["project"]),
-            defaults=DefaultsConfig(**data.get("defaults", {})),
-            paths=PathsConfig(**data.get("paths", {}))
+            project=ProjectConfig(**project_data) if project_data else ProjectConfig(),
+            defaults=DefaultsConfig(**defaults_data) if defaults_data else DefaultsConfig(),
+            paths=PathsConfig(**paths_data) if paths_data else PathsConfig()
         )
 
     def to_yaml_string(self) -> str:
         """Convert to YAML format (without PyYAML dependency)."""
         lines = []
 
-        # Project section
         lines.append("# ModelCub Project Configuration")
         lines.append("project:")
         lines.append(f"  name: \"{self.project.name}\"")
@@ -73,7 +75,6 @@ class Config:
         lines.append(f"  version: \"{self.project.version}\"")
         lines.append("")
 
-        # Defaults section
         lines.append("defaults:")
         lines.append(f"  device: \"{self.defaults.device}\"")
         lines.append(f"  batch_size: {self.defaults.batch_size}")
@@ -82,7 +83,6 @@ class Config:
         lines.append(f"  format: \"{self.defaults.format}\"")
         lines.append("")
 
-        # Paths section
         lines.append("paths:")
         lines.append(f"  data: \"{self.paths.data}\"")
         lines.append(f"  runs: \"{self.paths.runs}\"")
@@ -101,19 +101,27 @@ class Config:
 
         for line in lines:
             if line.endswith(":") and not line.startswith(" "):
-                current_section = line[:-1]
+                section_name = line[:-1].strip()
+                if section_name in data:
+                    current_section = section_name
             elif ":" in line and current_section:
-                key, value = line.split(":", 1)
-                key = key.strip()
-                value = value.strip().strip('"')
+                parts = line.split(":", 1)
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    value = parts[1].strip().strip('"').strip("'")
 
-                # Type conversion
-                if value.isdigit():
-                    value = int(value)
-                elif value in ("true", "false"):
-                    value = value == "true"
+                    if value.isdigit():
+                        value = int(value)
+                    elif value.lower() in ("true", "false"):
+                        value = value.lower() == "true"
+                    elif value.replace(".", "", 1).isdigit():
+                        try:
+                            value = float(value)
+                        except:
+                            pass
 
-                data[current_section][key] = value
+                    if current_section and key:
+                        data[current_section][key] = value
 
         return cls.from_dict(data)
 
