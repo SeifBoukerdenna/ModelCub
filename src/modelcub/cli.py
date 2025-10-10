@@ -18,9 +18,15 @@ def main(argv=None):
     proj_sub = p_proj.add_subparsers(dest="proj_cmd", required=True)
 
     p_proj_init = proj_sub.add_parser("init", help="Create a new ModelCub project")
-    p_proj_init.add_argument("path", nargs="?", default=".", help="Project directory (default: current).")
-    p_proj_init.add_argument("--name", default=None, help="Project name (defaults to folder name).")
-    p_proj_init.add_argument("--force", action="store_true", help="Overwrite existing files.")
+    p_proj_init.add_argument(
+        "name",
+        help="Project name - creates ./<name>/ directory with full structure"
+    )
+    p_proj_init.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing project"
+    )
     p_proj_init.set_defaults(func=project_run)
 
     p_proj_delete = proj_sub.add_parser("delete", help="Delete a ModelCub project (destructive)")

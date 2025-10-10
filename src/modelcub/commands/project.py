@@ -14,8 +14,12 @@ def _confirm(prompt: str) -> bool:
 def run(args):
     cmd = getattr(args, "proj_cmd", None)
     if cmd == "init":
-        code, msg = init_project(InitProjectRequest(args.path, args.name, bool(args.force)))
-        print(msg); return code
+        name = args.name
+        path = name
+        code, msg = init_project(InitProjectRequest(path, name, bool(args.force)))
+        print(msg)
+        return code
+
     if cmd == "delete":
         # ask here; service stays pure/guarded
         req = DeleteProjectRequest(getattr(args, "target", None), bool(args.yes))
