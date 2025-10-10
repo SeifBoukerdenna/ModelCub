@@ -27,6 +27,11 @@ def main(argv=None):
         action="store_true",
         help="Overwrite existing project"
     )
+    p_proj_init.add_argument(
+        "--template",
+        choices=["detection", "segmentation", "classification"],
+        help="Project template (future proof)"
+    )
     p_proj_init.set_defaults(func=project_run)
 
     p_proj_delete = proj_sub.add_parser("delete", help="Delete a ModelCub project (destructive)")

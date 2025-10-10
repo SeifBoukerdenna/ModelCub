@@ -1,0 +1,17 @@
+# ModelCub Project Configuration
+project:
+  name: "test-mc"
+  created: "2025-10-10T18:31:17Z"
+  version: "1.0.0"
+
+defaults:
+  device: "cuda"
+  batch_size: 16
+  image_size: 640
+  workers: 8
+  format: "yolo"
+
+paths:
+  data: "data"
+  runs: "runs"
+  reports: "reports"

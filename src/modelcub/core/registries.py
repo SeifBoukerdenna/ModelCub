@@ -1,7 +1,7 @@
 """
 Dataset and Run registries.
 
-Manages .modelcub/datasets.yaml and .modelcub/runs.yaml
+Manages .modelcub/datasets.json and .modelcub/runs.json
 """
 from __future__ import annotations
 from pathlib import Path
@@ -10,11 +10,11 @@ import json
 
 
 class DatasetRegistry:
-    """Manages .modelcub/datasets.yaml - tracks all datasets in project."""
+    """Manages .modelcub/datasets.json - tracks all datasets in project."""
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
-        self.registry_path = project_root / ".modelcub" / "datasets.yaml"
+        self.registry_path = project_root / ".modelcub" / "datasets.json"
         self._data = self._load()
 
     def _load(self) -> dict:
@@ -67,11 +67,11 @@ class DatasetRegistry:
 
 
 class RunRegistry:
-    """Manages .modelcub/runs.yaml - tracks all training runs."""
+    """Manages .modelcub/runs.json - tracks all training runs."""
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
-        self.registry_path = project_root / ".modelcub" / "runs.yaml"
+        self.registry_path = project_root / ".modelcub" / "runs.json"
         self._data = self._load()
 
     def _load(self) -> dict:
@@ -108,8 +108,8 @@ class RunRegistry:
 
 def initialize_registries(project_root: Path) -> None:
     """Initialize empty registry files."""
-    datasets_path = project_root / ".modelcub" / "datasets.yaml"
-    runs_path = project_root / ".modelcub" / "runs.yaml"
+    datasets_path = project_root / ".modelcub" / "datasets.json"
+    runs_path = project_root / ".modelcub" / "runs.json"
 
     datasets_path.parent.mkdir(parents=True, exist_ok=True)
 
