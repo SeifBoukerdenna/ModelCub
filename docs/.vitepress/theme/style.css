@@ -1,0 +1,32 @@
+/**
+ * Customize default theme styling by overriding CSS variables:
+ * https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
+ */
+
+:root {
+    --vp-c-brand-1: #3eaf7c;
+    --vp-c-brand-2: #34a06f;
+    --vp-c-brand-3: #2a8f62;
+    --vp-c-brand-soft: rgba(62, 175, 124, 0.14);
+}
+
+.dark {
+    --vp-c-brand-1: #42d392;
+    --vp-c-brand-2: #3eaf7c;
+    --vp-c-brand-3: #34a06f;
+    --vp-c-brand-soft: rgba(66, 211, 146, 0.16);
+}
+
+/**
+ * Component: Custom styling
+ */
+
+/* Make code blocks slightly rounded */
+.vp-doc div[class*='language-'] {
+    border-radius: 8px;
+}
+
+/* Custom container styling */
+.custom-block.tip {
+    border-color: var(--vp-c-brand-1);
+}

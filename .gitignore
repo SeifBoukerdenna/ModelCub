@@ -82,3 +82,8 @@ data/**/*
 *.tmp
 *.swp
 *.swo
+
+
+# --- Docs ---
+docs/node_modules
+docs/.vitepress/cache

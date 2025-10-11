@@ -1,0 +1,3 @@
+# Mission
+
+Our mission is to democratize computer vision...
