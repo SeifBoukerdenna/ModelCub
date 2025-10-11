@@ -1,0 +1,32 @@
+[build]
+  command = "npm run build"
+  publish = ".vitepress/dist"
+  base = "docs"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[build.ignore]
+  command = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- docs/"
+
+[[redirects]]
+  from = "https://modelcub.com/*"
+  to   = "https://docs.modelcub.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://www.modelcub.com/*"
+  to   = "https://docs.modelcub.com/:splat"
+  status = 301
+  force = true
+
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer-when-downgrade"
+    Content-Security-Policy = "upgrade-insecure-requests"
