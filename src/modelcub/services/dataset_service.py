@@ -40,7 +40,7 @@ class DeleteDatasetRequest:
 
 # ---------- Helpers ----------
 def _dataset_dir(name: str) -> Path:
-    return project_root() / "data" / name
+    return project_root() / "data" / "datasets" / name
 
 def _read_manifest(root: Path) -> Optional[dict]:
     f = root / "manifest.json"
@@ -59,7 +59,7 @@ def _write_manifest(root: Path, name: str, classes: List[str] | None, extra: dic
 
 # ---------- Service ----------
 def list_datasets() -> tuple[int, str]:
-    data_dir = project_root() / "data"
+    data_dir = project_root() / "data" / "datasets"
     if not data_dir.exists():
         return 0, "No data/ directory. Run: modelcub project init"
     rows = []
@@ -78,20 +78,27 @@ def info_dataset(name: str) -> tuple[int, str]:
     mani = _read_manifest(ds_dir)
     if not mani:
         return 2, f"No manifest found for dataset '{name}' at {ds_dir}."
+
+    # Check for both labeled (train/valid) and unlabeled structures
     train_dir = ds_dir / "train"
     valid_dir = ds_dir / "valid"
+    unlabeled_dir = ds_dir / "images" / "unlabeled"
+
     n_train = sum(1 for _ in train_dir.glob("*.*")) if train_dir.exists() else 0
     n_valid = sum(1 for _ in valid_dir.glob("*.*")) if valid_dir.exists() else 0
+    n_unlabeled = sum(1 for _ in unlabeled_dir.glob("*.*")) if unlabeled_dir.exists() else 0
+
     payload = {
         "name": name,
         "path": str(ds_dir),
         "classes": mani.get("classes", []),
+        "status": mani.get("status", "unknown"),
         "train_images": n_train,
         "valid_images": n_valid,
+        "unlabeled_images": n_unlabeled,
+        "total_images": mani.get("images", {}).get("total", n_train + n_valid + n_unlabeled),
+        "source": mani.get("source"),
         "source_url": mani.get("source_url"),
-        "auto_split": mani.get("auto_split"),
-        "train_frac": mani.get("train_frac"),
-        "generator": mani.get("generator"),
     }
     return 0, json.dumps(payload, indent=2)
 

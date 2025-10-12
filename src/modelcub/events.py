@@ -1,52 +1,69 @@
-from __future__ import annotations
+"""
+Event system for ModelCub.
+"""
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Type, Any
+from typing import Any, Callable
 
-# ---------- Event Types ----------
-@dataclass(frozen=True)
-class Event: ...
 
-@dataclass(frozen=True)
-class ProjectInitialized(Event):
+@dataclass
+class ProjectInitialized:
     path: str
     name: str
 
-@dataclass(frozen=True)
-class ProjectDeleted(Event):
+
+@dataclass
+class ProjectDeleted:
     path: str
 
-@dataclass(frozen=True)
-class DatasetAdded(Event):
+
+@dataclass
+class DatasetImported:
     name: str
     path: str
-    classes: list[str]
+    image_count: int
+    source: str
 
-@dataclass(frozen=True)
-class DatasetEdited(Event):
-    name: str
-    classes: list[str]
 
-@dataclass(frozen=True)
-class DatasetDeleted(Event):
+@dataclass
+class DatasetAdded:
     name: str
     path: str
 
-@dataclass(frozen=True)
-class GPUWarningSuppressed(Event):
-    """Event fired when GPU warning is suppressed for the session."""
-    pass
 
-# ---------- Event Bus ----------
+@dataclass
+class DatasetEdited:
+    name: str
+    old_name: str | None
+
+
+@dataclass
+class DatasetDeleted:
+    name: str
+    path: str
+
+
 class EventBus:
-    def __init__(self) -> None:
-        self._subs: Dict[Type[Event], List[Callable[[Event], Any]]] = {}
+    """Simple event bus for internal events."""
 
-    def subscribe(self, etype: Type[Event], fn: Callable[[Event], Any]) -> None:
-        self._subs.setdefault(etype, []).append(fn)
+    def __init__(self):
+        self._handlers: dict[type, list[Callable]] = {}
 
-    def publish(self, e: Event) -> None:
-        for fn in self._subs.get(type(e), []):
-            fn(e)
+    def subscribe(self, event_type: type, handler: Callable) -> None:
+        """Subscribe to an event type."""
+        if event_type not in self._handlers:
+            self._handlers[event_type] = []
+        self._handlers[event_type].append(handler)
 
-# Global, simple bus (replace with DI if you want)
+    def publish(self, event: Any) -> None:
+        """Publish an event to all subscribers."""
+        event_type = type(event)
+        if event_type in self._handlers:
+            for handler in self._handlers[event_type]:
+                try:
+                    handler(event)
+                except Exception:
+                    pass  # Silent failure for now
+
+
+# Global event bus instance
 bus = EventBus()
