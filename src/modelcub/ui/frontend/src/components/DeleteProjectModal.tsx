@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { Project } from '@/types'
 
 interface DeleteProjectModalProps {
+    project: Project
     isOpen: boolean
-    projectName: string
-    projectPath: string
     onClose: () => void
     onConfirm: () => void
     isDeleting: boolean
@@ -12,8 +12,7 @@ interface DeleteProjectModalProps {
 
 const DeleteProjectModal: React.FC<DeleteProjectModalProps> = ({
     isOpen,
-    projectName,
-    projectPath,
+    project,
     onClose,
     onConfirm,
     isDeleting,
@@ -21,14 +20,14 @@ const DeleteProjectModal: React.FC<DeleteProjectModalProps> = ({
     const [confirmText, setConfirmText] = useState('')
 
     const handleConfirm = () => {
-        if (confirmText === projectName) {
+        if (confirmText === project.name) {
             onConfirm()
         }
     }
 
     if (!isOpen) return null
 
-    const isConfirmed = confirmText === projectName
+    const isConfirmed = confirmText === project.name
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -52,25 +51,25 @@ const DeleteProjectModal: React.FC<DeleteProjectModalProps> = ({
 
                     <div style={{ marginBottom: 'var(--spacing-lg)' }}>
                         <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-600)', marginBottom: 'var(--spacing-xs)' }}>
-                            <strong>Project:</strong> {projectName}
+                            <strong>Project:</strong> {project.name}
                         </div>
                         <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-600)' }}>
                             <strong>Path:</strong>
                             <code style={{ display: 'block', marginTop: 'var(--spacing-xs)', padding: 'var(--spacing-xs)', backgroundColor: 'var(--color-gray-100)', borderRadius: 'var(--border-radius-sm)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {projectPath}
+                                {project.path}
                             </code>
                         </div>
                     </div>
 
                     <div className="form-group">
                         <label htmlFor="confirm-delete" className="form-label">
-                            Type <strong>{projectName}</strong> to confirm deletion:
+                            Type <strong>{project.name}</strong> to confirm deletion:
                         </label>
                         <input
                             id="confirm-delete"
                             type="text"
                             className="form-input"
-                            placeholder={projectName}
+                            placeholder={project.name}
                             value={confirmText}
                             onChange={(e) => setConfirmText(e.target.value)}
                             disabled={isDeleting}

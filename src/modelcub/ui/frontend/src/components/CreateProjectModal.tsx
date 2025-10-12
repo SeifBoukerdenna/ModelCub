@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { toast } from '@/lib/toast'
 
@@ -6,6 +6,15 @@ interface CreateProjectModalProps {
     isOpen: boolean
     onClose: () => void
     onSuccess: () => void
+}
+
+const validateName = (name: string): string | null => {
+    if (!name) return 'Project name is required.'
+    if (/^\d/.test(name)) return 'Project name cannot start with a number.'
+    if (/\s/.test(name)) return 'Project name cannot contain spaces.'
+    if (!/^[a-zA-Z0-9-_]+$/.test(name))
+        return 'Only letters, numbers, hyphens, and underscores are allowed.'
+    return null
 }
 
 const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
@@ -16,24 +25,34 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     const [name, setName] = useState('')
     const [path, setPath] = useState('')
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const [submitError, setSubmitError] = useState<string | null>(null)
+
+    // live validation
+    const nameError = useMemo(() => validateName(name), [name])
+    const canSubmit = !nameError && !!name && !loading
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setLoading(true)
-        setError(null)
+        setSubmitError(null)
 
+        const err = validateName(name)
+        if (err) {
+            setSubmitError(err)
+            toast.error(err)
+            return
+        }
+
+        setLoading(true)
         try {
             await api.createProject(name, path || undefined)
             toast.success(`Project "${name}" created successfully!`)
             onSuccess()
             onClose()
-            // Reset form
             setName('')
             setPath('')
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to create project'
-            setError(message)
+            setSubmitError(message)
             toast.error(message)
         } finally {
             setLoading(false)
@@ -49,11 +68,11 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     <h2 className="modal__title">Create New Project</h2>
                 </div>
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <div className="modal__body">
-                        {error && (
+                        {(submitError || nameError) && (
                             <div className="error" style={{ marginBottom: 'var(--spacing-md)' }}>
-                                {error}
+                                {submitError || nameError}
                             </div>
                         )}
 
@@ -64,13 +83,20 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                             <input
                                 id="project-name"
                                 type="text"
-                                className="form-input"
+                                className={`form-input ${nameError ? 'is-invalid' : ''}`}
                                 placeholder="my-project"
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                required
+                                onChange={(e) => setName(e.target.value.trimStart())}
+                                autoComplete="off"
+                                spellCheck={false}
+                                inputMode="text"
                                 disabled={loading}
+                                aria-invalid={!!nameError}
+                                aria-describedby="project-name-help"
                             />
+                            <p id="project-name-help" className="form-help">
+                                Allowed: <code>a–z</code>, <code>A–Z</code>, <code>0–9</code>, <code>-</code>, <code>_</code>. No spaces. Cannot start with a number.
+                            </p>
                         </div>
 
                         <div className="form-group">
@@ -81,12 +107,14 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                                 id="project-path"
                                 type="text"
                                 className="form-input"
-                                placeholder={`./my-project`}
+                                placeholder="./my-project"
                                 value={path}
                                 onChange={(e) => setPath(e.target.value)}
                                 disabled={loading}
                             />
-                            <p className="form-help">Leave empty to use default: ./{name || 'project-name'}</p>
+                            <p className="form-help">
+                                Leave empty to use default: <code>./{name || 'project-name'}</code>
+                            </p>
                         </div>
                     </div>
 
@@ -99,7 +127,7 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                         >
                             Cancel
                         </button>
-                        <button type="submit" className="btn btn--primary" disabled={loading || !name}>
+                        <button type="submit" className="btn btn--primary" disabled={!canSubmit}>
                             {loading ? 'Creating...' : 'Create Project'}
                         </button>
                     </div>

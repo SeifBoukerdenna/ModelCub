@@ -69,7 +69,7 @@ const Sidebar: React.FC = () => {
 
                 <div className="sidebar__links">
                     <a
-                        href="https://github.com/yourusername/modelcub"
+                        href="https://github.com/seifboukerdenna/modelcub"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="sidebar__link"

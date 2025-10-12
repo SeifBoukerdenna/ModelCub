@@ -4,7 +4,6 @@ import { Activity, Database, Brain, FolderKanban, Plus, LucideIcon } from 'lucid
 import Loading from '@/components/Loading'
 import ErrorMessage from '@/components/ErrorMessage'
 import CreateProjectModal from '@/components/CreateProjectModal'
-import ProjectSwitcher from '@/components/ProjectSwitcher'
 
 interface StatCardData {
     name: string
@@ -14,8 +13,13 @@ interface StatCardData {
 }
 
 const Dashboard: React.FC = () => {
-    const { project, projects, loading, error, reload, setActiveProject } = useProject()
+    const { project, projects, loading, error, reload } = useProject()
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+
+    const handleCreateSuccess = async () => {
+        // Reload projects after creation to sync store
+        await reload()
+    }
 
     if (loading) {
         return <Loading text="Loading projects..." />
@@ -48,7 +52,7 @@ const Dashboard: React.FC = () => {
                 <CreateProjectModal
                     isOpen={isCreateModalOpen}
                     onClose={() => setIsCreateModalOpen(false)}
-                    onSuccess={reload}
+                    onSuccess={handleCreateSuccess}
                 />
             </>
         )
@@ -56,249 +60,154 @@ const Dashboard: React.FC = () => {
 
     // Should never happen, but just in case
     if (!project) {
-        return <ErrorMessage message="Unable to load project data" />
+        return (
+            <ErrorMessage message="No project selected. Please select a project from the dropdown above." />
+        )
     }
 
+    // Placeholder stats - in real app, these would come from API
     const stats: StatCardData[] = [
         {
             name: 'Datasets',
             value: '0',
             icon: Database,
-            iconColor: 'stat-card__icon--blue',
+            iconColor: 'var(--color-primary-500)',
         },
         {
             name: 'Models',
             value: '0',
             icon: Brain,
-            iconColor: 'stat-card__icon--purple',
+            iconColor: 'var(--color-success)',
         },
         {
             name: 'Training Runs',
             value: '0',
             icon: Activity,
-            iconColor: 'stat-card__icon--green',
+            iconColor: 'var(--color-info)',
         },
     ]
 
     return (
         <div>
-            {/* Header with Project Switcher */}
-            <div
-                style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    marginBottom: 'var(--spacing-xl)',
-                }}
-            >
-                <div style={{ flex: 1 }}>
-                    {projects.length > 1 ? (
-                        <ProjectSwitcher
-                            currentProject={project}
-                            projects={projects}
-                            onProjectChange={setActiveProject}
-                        />
-                    ) : (
-                        <div>
-                            <h1>{project.name}</h1>
-                            <p className="u-text-gray-500 u-mt-1">
-                                Created {new Date(project.created).toLocaleDateString()}
-                            </p>
-                        </div>
-                    )}
-                </div>
-                <button
-                    className="btn btn--primary"
-                    onClick={() => setIsCreateModalOpen(true)}
-                >
-                    <Plus size={20} />
-                    New Project
-                </button>
+            {/* Header */}
+            <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, marginBottom: 'var(--spacing-xs)' }}>
+                    Dashboard
+                </h1>
+                <p style={{ color: 'var(--color-text-secondary)' }}>
+                    Overview of your project: {project.name}
+                </p>
             </div>
 
             {/* Stats Grid */}
-            <div
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                    gap: 'var(--spacing-lg)',
-                    marginBottom: 'var(--spacing-2xl)',
-                }}
-            >
-                {stats.map((stat) => {
-                    const Icon = stat.icon
-                    return (
-                        <div key={stat.name} className="stat-card">
-                            <div className="stat-card__content">
-                                <div className="stat-card__label">{stat.name}</div>
-                                <div className="stat-card__value">{stat.value}</div>
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: 'var(--spacing-lg)',
+                marginBottom: 'var(--spacing-xl)'
+            }}>
+                {stats.map((stat) => (
+                    <div key={stat.name} className="card">
+                        <div className="card__body">
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div>
+                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
+                                        {stat.name}
+                                    </div>
+                                    <div style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                        {stat.value}
+                                    </div>
+                                </div>
+                                <stat.icon size={40} style={{ color: stat.iconColor, opacity: 0.8 }} />
                             </div>
-                            <Icon size={32} className={`stat-card__icon ${stat.iconColor}`} />
                         </div>
-                    )
-                })}
+                    </div>
+                ))}
             </div>
 
-            {/* Project Details Card */}
+            {/* Project Details */}
             <div className="card">
                 <div className="card__header">
                     <h2 className="card__title">Project Details</h2>
                 </div>
                 <div className="card__body">
-                    <dl
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                            gap: 'var(--spacing-lg)',
-                        }}
-                    >
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-lg)' }}>
                         <div>
-                            <dt style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)', fontWeight: 500 }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Project Name
-                            </dt>
-                            <dd
-                                style={{
-                                    marginTop: 'var(--spacing-xs)',
-                                    fontSize: 'var(--font-size-base)',
-                                    color: 'var(--color-gray-900)',
-                                }}
-                            >
+                            </div>
+                            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--color-text-primary)' }}>
                                 {project.name}
-                            </dd>
+                            </div>
                         </div>
+
                         <div>
-                            <dt style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)', fontWeight: 500 }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Project Path
-                            </dt>
-                            <dd
-                                style={{
-                                    marginTop: 'var(--spacing-xs)',
-                                    fontSize: 'var(--font-size-sm)',
-                                    color: 'var(--color-gray-600)',
-                                    fontFamily: 'monospace',
-                                    wordBreak: 'break-all',
-                                }}
-                            >
+                            </div>
+                            <div style={{ fontSize: 'var(--font-size-sm)', fontFamily: 'monospace', color: 'var(--color-text-primary)' }}>
                                 {project.path}
-                            </dd>
+                            </div>
                         </div>
+
+
                         <div>
-                            <dt style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)', fontWeight: 500 }}>
-                                Created
-                            </dt>
-                            <dd
-                                style={{
-                                    marginTop: 'var(--spacing-xs)',
-                                    fontSize: 'var(--font-size-base)',
-                                    color: 'var(--color-gray-900)',
-                                }}
-                            >
-                                {new Date(project.created).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                })}
-                            </dd>
-                        </div>
-                        <div>
-                            <dt style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)', fontWeight: 500 }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Version
-                            </dt>
-                            <dd
-                                style={{
-                                    marginTop: 'var(--spacing-xs)',
-                                    fontSize: 'var(--font-size-base)',
-                                    color: 'var(--color-gray-900)',
-                                }}
-                            >
+                            </div>
+                            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--color-text-primary)' }}>
                                 {project.version}
-                            </dd>
+                            </div>
                         </div>
-                    </dl>
+                    </div>
                 </div>
             </div>
 
-            {/* Configuration Card */}
+            {/* Configuration Section */}
             <div className="card" style={{ marginTop: 'var(--spacing-lg)' }}>
                 <div className="card__header">
                     <h2 className="card__title">Configuration</h2>
                 </div>
                 <div className="card__body">
-                    <dl
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                            gap: 'var(--spacing-lg)',
-                        }}
-                    >
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--spacing-lg)' }}>
                         <div>
-                            <dt style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)', fontWeight: 500 }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Device
-                            </dt>
-                            <dd
-                                style={{
-                                    marginTop: 'var(--spacing-xs)',
-                                    fontSize: 'var(--font-size-base)',
-                                    color: 'var(--color-gray-900)',
-                                    textTransform: 'uppercase',
-                                    fontWeight: 600,
-                                }}
-                            >
-                                {project.config?.device}
-                            </dd>
+                            </div>
+                            <div style={{ fontSize: 'var(--font-size-base)', fontFamily: 'monospace', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                                MPS
+                            </div>
                         </div>
+
                         <div>
-                            <dt style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)', fontWeight: 500 }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Batch Size
-                            </dt>
-                            <dd
-                                style={{
-                                    marginTop: 'var(--spacing-xs)',
-                                    fontSize: 'var(--font-size-base)',
-                                    color: 'var(--color-gray-900)',
-                                }}
-                            >
-                                {project.config?.batch_size}
-                            </dd>
+                            </div>
+                            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                                32
+                            </div>
                         </div>
+
                         <div>
-                            <dt style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)', fontWeight: 500 }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Image Size
-                            </dt>
-                            <dd
-                                style={{
-                                    marginTop: 'var(--spacing-xs)',
-                                    fontSize: 'var(--font-size-base)',
-                                    color: 'var(--color-gray-900)',
-                                }}
-                            >
-                                {project.config?.image_size}px
-                            </dd>
+                            </div>
+                            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                                640px
+                            </div>
                         </div>
+
                         <div>
-                            <dt style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)', fontWeight: 500 }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Format
-                            </dt>
-                            <dd
-                                style={{
-                                    marginTop: 'var(--spacing-xs)',
-                                    fontSize: 'var(--font-size-base)',
-                                    color: 'var(--color-gray-900)',
-                                    textTransform: 'uppercase',
-                                }}
-                            >
-                                {project.config?.format}
-                            </dd>
+                            </div>
+                            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                                YOLO
+                            </div>
                         </div>
-                    </dl>
+                    </div>
                 </div>
             </div>
-
-            <CreateProjectModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
-                onSuccess={reload}
-            />
         </div>
     )
 }

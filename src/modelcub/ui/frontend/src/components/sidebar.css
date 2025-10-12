@@ -1,6 +1,10 @@
+/* ============================================
+   SIDEBAR COMPONENT
+   ============================================ */
+
 .sidebar {
     width: 240px;
-    background: var(--color-sidebar-bg);
+    background: var(--color-background);
     border-right: 1px solid var(--color-border);
     display: flex;
     flex-direction: column;
@@ -23,8 +27,8 @@
 .sidebar__logo {
     width: 36px;
     height: 36px;
-    background: var(--color-primary);
-    border-radius: var(--radius-md);
+    background: var(--color-primary-500);
+    border-radius: var(--border-radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -37,7 +41,7 @@
 .sidebar__title {
     font-size: var(--font-size-lg);
     font-weight: 700;
-    color: var(--color-text);
+    color: var(--color-text-primary);
     margin: 0;
 }
 
@@ -71,14 +75,14 @@
 }
 
 .sidebar__nav-link:hover {
-    background: var(--color-hover);
-    color: var(--color-text);
+    background: var(--color-gray-100);
+    color: var(--color-text-primary);
 }
 
 .sidebar__nav-link--active {
-    background: var(--color-active);
-    color: var(--color-primary);
-    border-left-color: var(--color-primary);
+    background: var(--color-primary-50);
+    color: var(--color-primary-500);
+    border-left-color: var(--color-primary-500);
 }
 
 .sidebar__nav-icon {
@@ -94,13 +98,10 @@
     gap: var(--spacing-sm);
 }
 
-.sidebar__theme {
-    /* Theme toggle styles */
-}
-
 .sidebar__links {
     display: flex;
     gap: var(--spacing-sm);
+    justify-content: center;
 }
 
 .sidebar__link {
@@ -110,23 +111,53 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-sm);
+    border-radius: var(--border-radius-sm);
 }
 
 .sidebar__link:hover {
-    color: var(--color-text);
-    background: var(--color-hover);
+    color: var(--color-text-primary);
+    background: var(--color-gray-100);
 }
 
 .sidebar__version {
     font-size: var(--font-size-xs);
-    color: var(--color-text-muted);
+    color: var(--color-text-tertiary);
     text-align: center;
     margin-top: var(--spacing-xs);
 }
 
 /* ============================================
-   PROJECT SWITCHER - IMPROVED
+   HEADER (in main content area)
+   ============================================ */
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-background);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    min-height: 72px;
+}
+
+.header__left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex: 1;
+}
+
+.header__right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+/* ============================================
+   PROJECT SWITCHER (in header)
    ============================================ */
 
 .project-switcher {
@@ -141,17 +172,17 @@
     justify-content: space-between;
     width: 100%;
     padding: var(--spacing-sm) var(--spacing-md);
-    background: var(--color-dropdown-bg);
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--border-radius-md);
     cursor: pointer;
     transition: all 0.15s ease;
     gap: var(--spacing-sm);
 }
 
 .project-switcher__trigger:hover {
-    background: var(--color-hover);
-    border-color: var(--color-primary);
+    background: var(--color-gray-100);
+    border-color: var(--color-primary-500);
 }
 
 .project-switcher__current {
@@ -164,7 +195,7 @@
 
 .project-switcher__icon {
     flex-shrink: 0;
-    color: var(--color-primary);
+    color: var(--color-primary-500);
 }
 
 .project-switcher__info {
@@ -177,7 +208,7 @@
 .project-switcher__name {
     font-size: var(--font-size-sm);
     font-weight: 600;
-    color: var(--color-text);
+    color: var(--color-text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -201,18 +232,31 @@
 
 .project-switcher__dropdown {
     position: absolute;
-    top: calc(100% + var(--spacing-xs));
+    top: calc(100% + 8px);
     left: 0;
     right: 0;
-    background: var(--color-dropdown-bg);
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-dropdown);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-lg);
     z-index: 1000;
     max-height: 400px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .project-switcher__header {
@@ -223,12 +267,13 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border-bottom: 1px solid var(--color-border);
-    background: var(--color-dropdown-header);
+    background: var(--color-gray-100);
 }
 
 .project-switcher__list {
     overflow-y: auto;
     max-height: 320px;
+    padding: var(--spacing-xs) 0;
 }
 
 .project-switcher__item {
@@ -245,11 +290,11 @@
 }
 
 .project-switcher__item:hover {
-    background: var(--color-hover);
+    background: var(--color-gray-100);
 }
 
 .project-switcher__item--selected {
-    background: var(--color-primary-bg);
+    background: var(--color-primary-50);
 }
 
 .project-switcher__item-content {
@@ -274,7 +319,7 @@
 .project-switcher__item-name {
     font-size: var(--font-size-sm);
     font-weight: 500;
-    color: var(--color-text);
+    color: var(--color-text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -282,7 +327,7 @@
 
 .project-switcher__item-path {
     font-size: var(--font-size-xs);
-    color: var(--color-text-muted);
+    color: var(--color-text-tertiary);
     font-family: 'Monaco', 'Menlo', monospace;
     white-space: nowrap;
     overflow: hidden;
@@ -291,103 +336,25 @@
 
 .project-switcher__check {
     flex-shrink: 0;
-    color: var(--color-primary);
+    color: var(--color-primary-500);
 }
 
-/* ============================================
-   IMPROVED DARK MODE COLORS
-   ============================================ */
-
-:root {
-    /* Light mode (keep existing) */
-    --color-bg: #ffffff;
-    --color-surface: #f9fafb;
-    --color-sidebar-bg: #ffffff;
-    --color-border: #e5e7eb;
-    --color-hover: #f3f4f6;
-    --color-active: #eff6ff;
-    --color-text: #111827;
-    --color-text-secondary: #6b7280;
-    --color-text-muted: #9ca3af;
-
-    --color-primary: #3b82f6;
-    --color-primary-bg: #eff6ff;
-    --color-success: #10b981;
-    --color-success-bg: #d1fae5;
-    --color-warning: #f59e0b;
-    --color-warning-bg: #fef3c7;
-    --color-error: #ef4444;
-
-    /* Dropdown specific */
-    --color-dropdown-bg: #ffffff;
-    --color-dropdown-header: #f9fafb;
-    --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.15);
-
-    /* Success indicator */
-    --color-success-indicator-bg: #d1fae5;
-    --color-success-indicator-border: #10b981;
-    --color-success-indicator-text: #065f46;
+/* Scrollbar styling */
+.project-switcher__list::-webkit-scrollbar {
+    width: 6px;
 }
 
-[data-theme="dark"] {
-    /* Improved dark mode colors */
-    --color-bg: #0f1419;
-    --color-surface: #1a1f27;
-    --color-sidebar-bg: #151a21;
-    --color-border: #2d3748;
-    --color-hover: #1f2937;
-    --color-active: #1e3a5f;
-    --color-text: #1066bc;
-    --color-text-secondary: #cbd5e1;
-    --color-text-muted: #94a3b8;
-
-    --color-primary: #60a5fa;
-    --color-primary-bg: #1e3a5f;
-    --color-success: #34d399;
-    --color-success-bg: #064e3b;
-    --color-warning: #fbbf24;
-    --color-warning-bg: #78350f;
-    --color-error: #f87171;
-
-    /* Dropdown specific - FIXED for dark mode */
-    --color-dropdown-bg: #1a1f27;
-    --color-dropdown-header: #151a21;
-    --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.5);
-
-    /* Success indicator - Better contrast in dark mode */
-    --color-success-indicator-bg: #064e3b;
-    --color-success-indicator-border: #34d399;
-    --color-success-indicator-text: #6ee7b7;
+.project-switcher__list::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-/* ============================================
-   HEADER IMPROVEMENTS
-   ============================================ */
-
-.header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--spacing-md) var(--spacing-xl);
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-bg);
-    position: sticky;
-    top: 0;
-    z-index: 90;
-    min-height: 72px;
+.project-switcher__list::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
 }
 
-.header__left {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    flex: 1;
-}
-
-.header__right {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
+.project-switcher__list::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-secondary);
 }
 
 /* ============================================
@@ -399,12 +366,12 @@
     align-items: center;
     gap: var(--spacing-xs);
     padding: var(--spacing-xs) var(--spacing-sm);
-    background: var(--color-success-indicator-bg);
-    border: 1px solid var(--color-success-indicator-border);
-    border-radius: var(--radius-md);
+    background: var(--color-success-bg);
+    border: 1px solid var(--color-success);
+    border-radius: var(--border-radius-md);
     font-size: var(--font-size-xs);
     font-weight: 600;
-    color: var(--color-success-indicator-text);
+    color: var(--color-success);
 }
 
 .selected-indicator__icon {
@@ -422,7 +389,7 @@
 .main {
     margin-left: 240px;
     min-height: 100vh;
-    background: var(--color-bg);
+    background: var(--color-background);
 }
 
 .content {

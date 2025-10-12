@@ -38,6 +38,8 @@ export function useProject(): UseProjectReturn {
 
       // Load all available projects
       const response = await api.listProjects();
+
+      // IMPORTANT: Update the store with fresh projects
       setProjects(response.projects);
 
       // If no project is selected yet, auto-select the first one
@@ -45,6 +47,14 @@ export function useProject(): UseProjectReturn {
         // Try to find the "current" project (is_current flag)
         const currentProject = response.projects.find((p) => p.is_current);
         setSelectedProject(currentProject ?? response.projects[0] ?? null);
+      }
+
+      // If a project is selected but no longer exists, clear selection
+      if (
+        selectedProject &&
+        !response.projects.some((p) => p.path === selectedProject.path)
+      ) {
+        setSelectedProject(null);
       }
 
       setLoading(false);
