@@ -1,0 +1,54 @@
+/* ============================================
+   Button Component
+   ============================================ */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--border-radius-md);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Primary Button */
+.btn--primary {
+    background-color: var(--color-primary-600);
+    color: white;
+}
+
+.btn--primary:hover:not(:disabled) {
+    background-color: var(--color-primary-700);
+}
+
+/* Secondary Button */
+.btn--secondary {
+    background-color: white;
+    color: var(--color-gray-700);
+    border-color: var(--color-gray-300);
+}
+
+.btn--secondary:hover:not(:disabled) {
+    background-color: var(--color-gray-50);
+}
+
+/* Danger Button */
+.btn--danger {
+    background-color: var(--color-error);
+    color: white;
+}
+
+.btn--danger:hover:not(:disabled) {
+    background-color: #dc2626;
+}

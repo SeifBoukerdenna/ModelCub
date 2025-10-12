@@ -1,0 +1,23 @@
+/* ============================================
+   Layout Components
+   ============================================ */
+
+.layout {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--color-gray-50);
+}
+
+.layout__main {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    padding: var(--spacing-2xl);
+    min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+    .layout__main {
+        margin-left: 0;
+        padding: var(--spacing-lg);
+    }
+}

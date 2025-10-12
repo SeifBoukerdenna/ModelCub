@@ -1,0 +1,110 @@
+/* ============================================
+   Sidebar Component
+   ============================================ */
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    background-color: white;
+    border-right: 1px solid var(--color-gray-200);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+
+.sidebar__header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.sidebar__logo {
+    width: 2rem;
+    height: 2rem;
+    background-color: var(--color-primary-600);
+    border-radius: var(--border-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-lg);
+}
+
+.sidebar__title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-gray-900);
+}
+
+.sidebar__nav {
+    flex: 1;
+    padding: var(--spacing-md);
+    overflow-y: auto;
+}
+
+.sidebar__nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.sidebar__nav-item {
+    /* Item wrapper */
+}
+
+.sidebar__nav-link {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-lg);
+    color: var(--color-gray-700);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
+}
+
+.sidebar__nav-link:hover {
+    background-color: var(--color-gray-100);
+}
+
+.sidebar__nav-link--active {
+    background-color: var(--color-primary-50);
+    color: var(--color-primary-700);
+}
+
+.sidebar__nav-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.sidebar__footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--color-gray-200);
+}
+
+.sidebar__footer-text {
+    font-size: var(--font-size-xs);
+    color: var(--color-gray-500);
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform var(--transition-base);
+    }
+
+    .sidebar--open {
+        transform: translateX(0);
+    }
+}

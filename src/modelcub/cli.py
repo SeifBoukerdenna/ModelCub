@@ -2,6 +2,7 @@ from __future__ import annotations
 import argparse
 
 from .commands.project import run as project_run
+from .commands.ui import run as ui_run  # Fixed import
 from .commands.dataset import run as dataset_run
 from .commands.about import run as about_run
 from .core.hardware import warn_cpu_mode, is_inside_project, suppress_warning, is_warning_suppressed
@@ -41,6 +42,26 @@ def main(argv=None):
     )
     p_proj_delete.add_argument("--yes", action="store_true", help="Skip confirmation.")
     p_proj_delete.set_defaults(func=project_run)
+
+    # ---- ui ----
+    p_ui = sub.add_parser("ui", help="Launch ModelCub web UI")
+    p_ui.add_argument(
+        "--dev",
+        action="store_true",
+        help="Run in development mode with hot reload"
+    )
+    p_ui.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Server port (default: 8000)"
+    )
+    p_ui.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Server host (default: 127.0.0.1)"
+    )
+    p_ui.set_defaults(func=ui_run)
 
     # ---- dataset ----
     p_ds = sub.add_parser("dataset", help="Manage datasets within a project")

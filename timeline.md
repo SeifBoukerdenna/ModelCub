@@ -1,12 +1,32 @@
 # ModelCub: Master Timeline & Project Vision
 
-**Last Updated:** October 10, 2025  
-**Version:** 1.0 Planning Document  
+**Last Updated:** October 10, 2025
+**Version:** 1.0 Planning Document
 **Target Launch:** Week 16 (April 2026)
 
 ---
 
 ## 🎯 PROJECT VISION
+
+### The pitch
+```
+ModelCub: The Complete CV Workflow Tool
+
+Problem: CV teams waste 70% of their time on data wrangling
+Solution: One tool, full workflow, local-first
+
+Features:
+├── Import any format, export any format
+├── Auto-fix broken datasets
+├── Git-like version control for data
+├── Train models with sane defaults
+├── Beautiful reports and visualizations
+└── CLI + SDK + Web UI
+
+Open source. Runs locally. Free forever.
+
+Try it: pip install modelcub
+```
 
 ### Core Mission
 ModelCub is the open-source, local-first MLOps toolkit for computer vision. We eliminate the 70-80% of time CV teams waste on data wrangling, format conversion, and debugging broken datasets. Think "Homebrew for CV workflows" — you type one command and the chaos just works.
@@ -103,7 +123,7 @@ datasets:
     classes: ["pill", "bottle", "blister"]
     num_classes: 3
     splits:
-      train: 
+      train:
         images: 677
         labels: 677
         path: "data/datasets/pills-v1/images/train"
@@ -441,10 +461,10 @@ $ modelcub dataset validate pills-v1
    • 2 corrupt images
      → data/datasets/pills-v1/images/train/img_0234.jpg
      → data/datasets/pills-v1/images/train/img_0891.jpg
-   
+
    • 8 out-of-bounds coordinates
      → 8 label files affected (see details)
-   
+
    • 1 invalid YOLO format
      → data/datasets/pills-v1/labels/train/img_0445.txt
        Line 3: Expected 5 values, got 4
@@ -454,7 +474,7 @@ $ modelcub dataset validate pills-v1
      → img_0123.jpg == img_0456.jpg
      → img_0234.jpg == img_0567.jpg
      → (2 more pairs)
-   
+
    • 8 empty label files
      → Images with no annotations
 
@@ -726,7 +746,7 @@ $ modelcub dataset fix pills-v1 --auto --report
 
    Before: 847 images, 2,847 labels
    After:  841 images, 2,832 labels (-6 images, -15 labels)
-   
+
 📊 Detailed report: reports/pills-v1-fix-20241010-143022.html
 
 ⏱️  Estimated time saved: ~2 days of debugging
@@ -861,15 +881,15 @@ $ modelcub diff pills-v1@v1 pills-v1@v2
 🔄 Changed Annotations: 89 images
 
    Top Changes:
-   
+
    img_0234.jpg:
    [-] pill  [x:0.50, y:0.60, w:0.05, h:0.08]  ← removed
    [+] bottle [x:0.48, y:0.58, w:0.06, h:0.09]  ← relabeled
-   
+
    img_0445.jpg:
    [~] pill  [x:0.30, y:0.25, w:0.04, h:0.05]
           → [x:0.32, y:0.27, w:0.04, h:0.05]  (adjusted)
-   
+
    ... (87 more changes)
 
 ➕ New Images: 200
@@ -877,7 +897,7 @@ $ modelcub diff pills-v1@v1 pills-v1@v2
    • train: +150 images
    • val: +30 images
    • test: +20 images
-   
+
    New class "capsule": 145 samples
    Lighting diversity: +22% outdoor scenes
 
@@ -891,7 +911,7 @@ $ modelcub diff pills-v1@v1 pills-v1@v2
        Was: 80/14/6
        Now: 82/12/6
        → 23 images moved from val to train
-   
+
    [!] Class distribution shifted
        "pill": 45% → 38% (relative decrease)
        → May impact performance on pill detection
@@ -917,13 +937,13 @@ Launch localhost web app showing:
   - Left: v1 with bounding boxes
   - Right: v2 with bounding boxes
   - Slider to toggle between versions
-  
+
 - **Color coding:**
   - 🟢 Green boxes: New annotations
   - 🔴 Red boxes: Removed annotations
   - 🟡 Yellow boxes: Modified annotations
   - ⚪ White boxes: Unchanged
-  
+
 - **Filters:**
   - Show only changed images
   - Show only added images
@@ -1106,7 +1126,7 @@ Epoch 45/50:
    Best epoch: 42/50
    Best mAP50: 0.89
    Training time: 1h 32m
-   
+
    Weights:
    • Best: runs/pills-detect-20241010-153022/weights/best.pt
    • Last: runs/pills-detect-20241010-153022/weights/last.pt
@@ -1236,7 +1256,7 @@ $ modelcub evaluate pills-detect-20241010 --split val
    • Inference: 12.3ms/image
 
 📊 Per-Class Breakdown:
-   
+
    Class      mAP50    Precision  Recall    F1
    ────────────────────────────────────────────
    pill       0.912    0.894      0.883    0.888

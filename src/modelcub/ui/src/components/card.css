@@ -1,0 +1,70 @@
+/* ============================================
+   Card Component
+   ============================================ */
+
+.card {
+    background-color: white;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.card__header {
+    margin-bottom: var(--spacing-lg);
+}
+
+.card__title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-gray-900);
+}
+
+.card__body {
+    /* Body content */
+}
+
+/* Stat Cards */
+.stat-card {
+    background-color: white;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.stat-card__content {
+    flex: 1;
+}
+
+.stat-card__label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-gray-600);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-card__value {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-gray-900);
+}
+
+.stat-card__icon {
+    width: 2rem;
+    height: 2rem;
+}
+
+.stat-card__icon--blue {
+    color: var(--color-primary-600);
+}
+
+.stat-card__icon--purple {
+    color: #9333ea;
+}
+
+.stat-card__icon--green {
+    color: var(--color-success);
+}

@@ -87,3 +87,6 @@ data/**/*
 # --- Docs ---
 docs/node_modules
 docs/.vitepress/cache
+
+# --- UI ---
+src/modelcub/ui/node_modules
