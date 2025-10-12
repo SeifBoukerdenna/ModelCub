@@ -3,11 +3,12 @@
    ============================================ */
 
 .card {
-    background-color: white;
-    border: 1px solid var(--color-gray-200);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-lg);
     box-shadow: var(--shadow-sm);
+    transition: all var(--transition-base);
 }
 
 .card__header {
@@ -17,7 +18,7 @@
 .card__title {
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-semibold);
-    color: var(--color-gray-900);
+    color: var(--color-text-primary);
 }
 
 .card__body {
@@ -26,13 +27,14 @@
 
 /* Stat Cards */
 .stat-card {
-    background-color: white;
-    border: 1px solid var(--color-gray-200);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-lg);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    transition: all var(--transition-base);
 }
 
 .stat-card__content {
@@ -42,14 +44,14 @@
 .stat-card__label {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
-    color: var(--color-gray-600);
+    color: var(--color-text-secondary);
     margin-bottom: var(--spacing-xs);
 }
 
 .stat-card__value {
     font-size: var(--font-size-3xl);
     font-weight: var(--font-weight-semibold);
-    color: var(--color-gray-900);
+    color: var(--color-text-primary);
 }
 
 .stat-card__icon {

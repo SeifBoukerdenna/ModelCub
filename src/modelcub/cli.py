@@ -1,8 +1,34 @@
 from __future__ import annotations
 import argparse
+import os
+from pathlib import Path
+
+# ⭐ SMART WORKING DIRECTORY DETECTION
+def get_user_working_dir() -> str:
+    """Get the actual user's working directory, not the source directory."""
+    cwd = Path.cwd().resolve()
+
+    # Check if we're inside the ModelCub source directory
+    # Indicators: we're in src/modelcub/ or have modelcub package files
+    if (cwd / "cli.py").exists() or (cwd / "__init__.py").exists() and cwd.name == "modelcub":
+        # We're in the source directory - go up to repository root or parent
+        # Go up until we find a better directory
+        possible_root = cwd
+        while possible_root.parent != possible_root:
+            parent = possible_root.parent
+            # Stop at repository root (has .git) or reasonable directory
+            if (parent / ".git").exists() or parent.name not in ["src", "modelcub"]:
+                return str(parent)
+            possible_root = parent
+        return str(cwd.parent.parent)  # Fallback: go up 2 levels
+
+    return str(cwd)
+
+ORIGINAL_WORKING_DIR = get_user_working_dir()
+os.environ["MODELCUB_WORKING_DIR"] = ORIGINAL_WORKING_DIR
 
 from .commands.project import run as project_run
-from .commands.ui import run as ui_run  # Fixed import
+from .commands.ui import run as ui_run
 from .commands.dataset import run as dataset_run
 from .commands.about import run as about_run
 from .core.hardware import warn_cpu_mode, is_inside_project, suppress_warning, is_warning_suppressed

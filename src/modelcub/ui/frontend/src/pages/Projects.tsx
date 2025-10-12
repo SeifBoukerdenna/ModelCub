@@ -6,12 +6,14 @@ import type { Project } from '@/types'
 import Loading from '@/components/Loading'
 import ErrorMessage from '@/components/ErrorMessage'
 import CreateProjectModal from '@/components/CreateProjectModal'
+import DeleteProjectModal from '@/components/DeleteProjectModal'
 
 const Projects: React.FC = () => {
     const [projects, setProjects] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+    const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
     const [deletingProject, setDeletingProject] = useState<string | null>(null)
 
     const loadProjects = async () => {
@@ -33,15 +35,14 @@ const Projects: React.FC = () => {
         loadProjects()
     }, [])
 
-    const handleDeleteProject = async (project: Project) => {
-        if (!window.confirm(`Are you sure you want to delete "${project.name}"?`)) {
-            return
-        }
+    const handleDeleteProject = async () => {
+        if (!projectToDelete) return
 
         try {
-            setDeletingProject(project.path)
-            await api.deleteProject(project.path, true)
-            toast.success(`Project "${project.name}" deleted`)
+            setDeletingProject(projectToDelete.path)
+            await api.deleteProject(projectToDelete.path, true)
+            toast.success(`Project "${projectToDelete.name}" deleted`)
+            setProjectToDelete(null)
             loadProjects()
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to delete project'
@@ -175,7 +176,7 @@ const Projects: React.FC = () => {
                                 <button
                                     className="btn btn--danger"
                                     style={{ padding: 'var(--spacing-xs)' }}
-                                    onClick={() => handleDeleteProject(project)}
+                                    onClick={() => setProjectToDelete(project)}
                                     disabled={deletingProject === project.path}
                                     title="Delete project"
                                 >
@@ -211,6 +212,15 @@ const Projects: React.FC = () => {
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
                 onSuccess={handleCreateSuccess}
+            />
+
+            <DeleteProjectModal
+                isOpen={!!projectToDelete}
+                projectName={projectToDelete?.name || ''}
+                projectPath={projectToDelete?.path || ''}
+                onClose={() => setProjectToDelete(null)}
+                onConfirm={handleDeleteProject}
+                isDeleting={!!deletingProject}
             />
         </div>
     )

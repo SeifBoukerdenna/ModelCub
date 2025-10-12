@@ -1,4 +1,4 @@
-"""Model training API routes (placeholder)."""
+"""Model training API routes (placeholder for future)."""
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/api/models")

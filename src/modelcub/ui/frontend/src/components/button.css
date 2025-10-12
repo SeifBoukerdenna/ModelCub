@@ -26,29 +26,59 @@
 .btn--primary {
     background-color: var(--color-primary-600);
     color: white;
+    border-color: var(--color-primary-600);
 }
 
 .btn--primary:hover:not(:disabled) {
     background-color: var(--color-primary-700);
+    border-color: var(--color-primary-700);
+}
+
+.btn--primary:active:not(:disabled) {
+    background-color: var(--color-primary-800);
+    border-color: var(--color-primary-800);
 }
 
 /* Secondary Button */
 .btn--secondary {
-    background-color: white;
-    color: var(--color-gray-700);
-    border-color: var(--color-gray-300);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    border-color: var(--color-border);
 }
 
 .btn--secondary:hover:not(:disabled) {
-    background-color: var(--color-gray-50);
+    background-color: var(--color-gray-100);
+    border-color: var(--color-gray-300);
+}
+
+[data-theme='dark'] .btn--secondary:hover:not(:disabled) {
+    background-color: var(--color-gray-100);
 }
 
 /* Danger Button */
 .btn--danger {
     background-color: var(--color-error);
     color: white;
+    border-color: var(--color-error);
 }
 
 .btn--danger:hover:not(:disabled) {
     background-color: #dc2626;
+    border-color: #dc2626;
+}
+
+.btn--danger:active:not(:disabled) {
+    background-color: #b91c1c;
+    border-color: #b91c1c;
+}
+
+/* Button sizes */
+.btn--sm {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
+}
+
+.btn--lg {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-base);
 }

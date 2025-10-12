@@ -1,4 +1,4 @@
-"""Dataset management API routes (placeholder)."""
+"""Dataset management API routes (placeholder for future)."""
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/api/datasets")

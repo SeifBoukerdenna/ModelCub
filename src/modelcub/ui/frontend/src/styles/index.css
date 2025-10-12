@@ -2,6 +2,7 @@
    ModelCub UI Styles - Main Entry Point
    ============================================ */
 
+@import '../components/alert.css';
 @import '../components/toast.css';
 @import '../components/layout.css';
 @import '../components/sidebar.css';
@@ -10,10 +11,11 @@
 @import '../components/loading.css';
 @import '../components/modal.css';
 @import '../components/form.css';
+@import '../components/theme-toggle.css';
 
-/* CSS Variables (Design Tokens) */
+/*============================================CSS Variables (Design Tokens)============================================*/
 :root {
-    /* Colors */
+    /* Colors - Light Mode */
     --color-primary-50: #eff6ff;
     --color-primary-100: #dbeafe;
     --color-primary-200: #bfdbfe;
@@ -25,6 +27,20 @@
     --color-primary-800: #1e40af;
     --color-primary-900: #1e3a8a;
 
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #3b82f6;
+
+    /* Light theme colors */
+    --color-background: #ffffff;
+    --color-surface: #f9fafb;
+    --color-border: #e5e7eb;
+    --color-text-primary: #111827;
+    --color-text-secondary: #6b7280;
+    --color-text-tertiary: #9ca3af;
+
+    /* Grays (for backwards compatibility) */
     --color-gray-50: #f9fafb;
     --color-gray-100: #f3f4f6;
     --color-gray-200: #e5e7eb;
@@ -36,14 +52,9 @@
     --color-gray-800: #1f2937;
     --color-gray-900: #111827;
 
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
-    --color-error: #ef4444;
-    --color-info: #3b82f6;
-
     /* Typography */
-    --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+        'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     --font-family-mono: 'Menlo', 'Monaco', 'Courier New', monospace;
 
     --font-size-xs: 0.75rem;
@@ -89,6 +100,33 @@
     --header-height: 4rem;
 }
 
+/* Dark Theme */
+[data-theme='dark'] {
+    --color-background: #111827;
+    --color-surface: #1f2937;
+    --color-border: #374151;
+    --color-text-primary: #f9fafb;
+    --color-text-secondary: #d1d5db;
+    --color-text-tertiary: #9ca3af;
+
+    /* Update specific grays for dark mode */
+    --color-gray-50: #1f2937;
+    --color-gray-100: #374151;
+    --color-gray-200: #4b5563;
+    --color-gray-300: #6b7280;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #d1d5db;
+    --color-gray-600: #e5e7eb;
+    --color-gray-700: #f3f4f6;
+    --color-gray-800: #f9fafb;
+    --color-gray-900: #ffffff;
+
+    /* Adjust shadows for dark mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+}
+
 /* ============================================
    Base Styles
    ============================================ */
@@ -110,10 +148,11 @@ body {
     font-family: var(--font-family-base);
     font-size: var(--font-size-base);
     line-height: 1.5;
-    color: var(--color-gray-900);
-    background-color: var(--color-gray-50);
+    color: var(--color-text-primary);
+    background-color: var(--color-surface);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color var(--transition-base), color var(--transition-base);
 }
 
 #root {
@@ -133,6 +172,7 @@ h6 {
     margin: 0;
     font-weight: var(--font-weight-semibold);
     line-height: 1.2;
+    color: var(--color-text-primary);
 }
 
 h1 {
@@ -149,6 +189,7 @@ h3 {
 
 p {
     margin: 0;
+    color: var(--color-text-primary);
 }
 
 code {
@@ -157,6 +198,7 @@ code {
     padding: 0.125rem 0.375rem;
     background-color: var(--color-gray-100);
     border-radius: var(--border-radius-sm);
+    color: var(--color-text-primary);
 }
 
 /* ============================================
@@ -168,15 +210,15 @@ code {
 }
 
 .u-text-gray-500 {
-    color: var(--color-gray-500);
+    color: var(--color-text-secondary);
 }
 
 .u-text-gray-600 {
-    color: var(--color-gray-600);
+    color: var(--color-text-secondary);
 }
 
 .u-text-gray-900 {
-    color: var(--color-gray-900);
+    color: var(--color-text-primary);
 }
 
 .u-mt-1 {

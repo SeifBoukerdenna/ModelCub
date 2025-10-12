@@ -15,14 +15,7 @@ class ConnectionManager:
         self.active_connections: Dict[str, WebSocket] = {}
 
     async def connect(self, websocket: WebSocket) -> str:
-        """Accept new WebSocket connection.
-
-        Args:
-            websocket: FastAPI WebSocket connection
-
-        Returns:
-            Unique client ID
-        """
+        """Accept new WebSocket connection."""
         await websocket.accept()
         client_id = str(uuid4())
         self.active_connections[client_id] = websocket
@@ -33,11 +26,7 @@ class ConnectionManager:
         return client_id
 
     def disconnect(self, client_id: str) -> None:
-        """Remove WebSocket connection.
-
-        Args:
-            client_id: Client identifier
-        """
+        """Remove WebSocket connection."""
         if client_id in self.active_connections:
             del self.active_connections[client_id]
             logger.info(
@@ -46,12 +35,7 @@ class ConnectionManager:
             )
 
     async def send_to_client(self, client_id: str, message: dict) -> None:
-        """Send message to specific client.
-
-        Args:
-            client_id: Target client ID
-            message: Message data (will be JSON serialized)
-        """
+        """Send message to specific client."""
         websocket = self.active_connections.get(client_id)
         if websocket:
             try:
@@ -61,12 +45,7 @@ class ConnectionManager:
                 self.disconnect(client_id)
 
     async def broadcast(self, message: dict, exclude: Optional[str] = None) -> None:
-        """Broadcast message to all connected clients.
-
-        Args:
-            message: Message data (will be JSON serialized)
-            exclude: Optional client ID to exclude from broadcast
-        """
+        """Broadcast message to all connected clients."""
         disconnected = []
 
         for client_id, websocket in self.active_connections.items():

@@ -1,10 +1,13 @@
 """Project management API routes."""
 from typing import Optional, List
 from pathlib import Path
+import os
+import logging
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+# Import from core services (outside ui/)
 from modelcub.services.project_service import (
     init_project,
     delete_project,
@@ -13,6 +16,7 @@ from modelcub.services.project_service import (
 )
 from modelcub.core.config import load_config
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/projects")
 
 
@@ -29,21 +33,22 @@ class DeleteProjectBody(BaseModel):
     confirm: bool = False
 
 
-class ProjectInfo(BaseModel):
-    """Project information model."""
+class ProjectConfig(BaseModel):
+    """Project configuration."""
+    device: str
+    batch_size: int
+    image_size: int
+    format: str
+
+
+class ProjectResponse(BaseModel):
+    """Project response model."""
     name: str
     path: str
     created: str
     version: str
-    config: dict
-
-
-class ProjectListItem(BaseModel):
-    """Project list item."""
-    name: str
-    path: str
-    created: str
-    is_current: bool
+    config: ProjectConfig
+    is_current: bool = False
 
 
 class ApiResponse(BaseModel):
@@ -53,21 +58,37 @@ class ApiResponse(BaseModel):
     data: Optional[dict] = None
 
 
+# Get the working directory where the UI was launched
+WORKING_DIR = Path(os.environ.get("MODELCUB_WORKING_DIR", Path.cwd()))
+logger.info(f"🔍 API Working directory: {WORKING_DIR}")
+
+
 # Helper function to find all projects
-def find_projects(search_path: Path = Path.cwd()) -> List[ProjectListItem]:
+def find_projects(search_path: Path = None) -> List[ProjectResponse]:
     """Find all ModelCub projects in current directory and subdirectories."""
+    if search_path is None:
+        search_path = WORKING_DIR
+
+    logger.info(f"🔍 Searching for projects in: {search_path}")
     projects = []
-    current_path = Path.cwd()
+    current_path = WORKING_DIR
 
     # Check current directory
     if (search_path / ".modelcub").exists():
         config = load_config(search_path)
         if config:
-            projects.append(ProjectListItem(
+            projects.append(ProjectResponse(
                 name=config.project.name,
                 path=str(search_path),
                 created=config.project.created,
-                is_current=search_path == current_path
+                version=config.project.version,
+                config=ProjectConfig(
+                    device=config.defaults.device,
+                    batch_size=config.defaults.batch_size,
+                    image_size=config.defaults.image_size,
+                    format=config.defaults.format,
+                ),
+                is_current=search_path.resolve() == current_path.resolve()
             ))
 
     # Check subdirectories (one level deep)
@@ -77,20 +98,28 @@ def find_projects(search_path: Path = Path.cwd()) -> List[ProjectListItem]:
                 if (item / ".modelcub").exists():
                     config = load_config(item)
                     if config:
-                        projects.append(ProjectListItem(
+                        projects.append(ProjectResponse(
                             name=config.project.name,
                             path=str(item),
                             created=config.project.created,
-                            is_current=item == current_path
+                            version=config.project.version,
+                            config=ProjectConfig(
+                                device=config.defaults.device,
+                                batch_size=config.defaults.batch_size,
+                                image_size=config.defaults.image_size,
+                                format=config.defaults.format,
+                            ),
+                            is_current=item.resolve() == current_path.resolve()
                         ))
     except PermissionError:
         pass
 
+    logger.info(f"✅ Found {len(projects)} projects")
     return projects
 
 
 # Routes
-@router.get("/", response_model=dict)
+@router.get("/")
 async def list_projects():
     """List all ModelCub projects in current directory."""
     try:
@@ -98,20 +127,23 @@ async def list_projects():
         return {
             "success": True,
             "projects": [p.model_dump() for p in projects],
-            "count": len(projects)
+            "count": len(projects),
+            "working_dir": str(WORKING_DIR)
         }
     except Exception as e:
+        logger.error(f"❌ Failed to list projects: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list projects: {str(e)}"
         )
 
 
-@router.get("/current", response_model=dict)
+@router.get("/current")
 async def get_current_project():
     """Get current project information."""
     try:
-        config = load_config(Path.cwd())
+        logger.info(f"🔍 Loading current project from: {WORKING_DIR}")
+        config = load_config(WORKING_DIR)
 
         if not config:
             return {
@@ -125,7 +157,7 @@ async def get_current_project():
                 "name": config.project.name,
                 "created": config.project.created,
                 "version": config.project.version,
-                "path": str(Path.cwd()),
+                "path": str(WORKING_DIR),
                 "config": {
                     "device": config.defaults.device,
                     "batch_size": config.defaults.batch_size,
@@ -135,51 +167,73 @@ async def get_current_project():
             }
         }
     except Exception as e:
+        logger.error(f"❌ Failed to load project: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load project: {str(e)}"
         )
 
 
-@router.post("/", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_project(request: CreateProjectRequest):
     """Create a new ModelCub project."""
     try:
+        # Resolve path relative to WORKING_DIR
+        if request.path:
+            # If absolute path provided, use it
+            if Path(request.path).is_absolute():
+                project_path = request.path
+            else:
+                # Relative path: resolve from working dir
+                project_path = str(WORKING_DIR / request.path)
+        else:
+            # Default: create in working dir
+            project_path = str(WORKING_DIR / request.name)
+
+        logger.info(f"📁 Creating project '{request.name}' at: {project_path}")
+        logger.info(f"   Working dir: {WORKING_DIR}")
+
         req = InitProjectRequest(
             name=request.name,
-            path=request.path or f"./{request.name}",
+            path=project_path,
             force=request.force
         )
 
         code, msg = init_project(req)
 
         if code != 0:
+            logger.error(f"❌ Project creation failed: {msg}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=msg
             )
+
+        logger.info(f"✅ Project created successfully at: {project_path}")
 
         return ApiResponse(
             success=True,
             message=f"Project '{request.name}' created successfully",
             data={
                 "name": request.name,
-                "path": req.path
+                "path": project_path
             }
         )
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"❌ Unexpected error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create project: {str(e)}"
         )
 
 
-@router.delete("/{project_path:path}", response_model=ApiResponse)
+@router.delete("/{project_path:path}")
 async def delete_project_route(project_path: str, body: DeleteProjectBody):
     """Delete a ModelCub project."""
     try:
+        logger.info(f"🗑️  Deleting project: {project_path}")
+
         req = DeleteProjectRequest(
             target=project_path,
             yes=body.confirm
@@ -193,6 +247,8 @@ async def delete_project_route(project_path: str, body: DeleteProjectBody):
                 detail=msg
             )
 
+        logger.info(f"✅ Project deleted: {project_path}")
+
         return ApiResponse(
             success=True,
             message="Project deleted successfully"
@@ -200,6 +256,7 @@ async def delete_project_route(project_path: str, body: DeleteProjectBody):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"❌ Failed to delete: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete project: {str(e)}"

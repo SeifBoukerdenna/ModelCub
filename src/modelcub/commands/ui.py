@@ -2,49 +2,57 @@
 import sys
 import subprocess
 import multiprocessing
+import os
 from pathlib import Path
 from typing import NoReturn
 
 
 def run_api(host: str, port: int) -> None:
-    """Run FastAPI server in separate process."""
-    from modelcub.api.main import run_server
-    # Don't use reload in multiprocess context - causes daemon issues
+    """Run FastAPI server in separate process.
+
+    Note: MODELCUB_WORKING_DIR is already set in cli.py
+    """
+    from modelcub.ui.backend.main import run_server
     run_server(host=host, port=port, reload=False)
 
 
 def run_dev_mode(host: str, port: int) -> None:
     """Run in development mode (separate Vite + FastAPI servers)."""
-    ui_dir = Path(__file__).parent.parent / "ui"
+    frontend_dir = Path(__file__).parent.parent / "ui" / "frontend"
 
-    if not ui_dir.exists():
-        print("❌ UI directory not found", file=sys.stderr)
+    # Get working dir from environment (set in cli.py)
+    working_dir = os.environ.get("MODELCUB_WORKING_DIR", str(Path.cwd()))
+
+    if not frontend_dir.exists():
+        print("❌ Frontend directory not found", file=sys.stderr)
         sys.exit(1)
 
     # Check if node_modules exists
-    if not (ui_dir / "node_modules").exists():
-        print("📦 Installing UI dependencies...")
+    if not (frontend_dir / "node_modules").exists():
+        print("📦 Installing frontend dependencies...")
         try:
             subprocess.run(
                 ["npm", "install"],
-                cwd=ui_dir,
+                cwd=frontend_dir,
                 check=True
             )
         except subprocess.CalledProcessError:
             print("❌ Failed to install dependencies", file=sys.stderr)
             sys.exit(1)
 
+    print(f"📁 Working directory: {working_dir}")
+
     # Start FastAPI in separate process (NOT daemon)
     api_process = multiprocessing.Process(
         target=run_api,
         args=(host, port),
-        daemon=False  # Changed to False to avoid daemon issue
+        daemon=False
     )
     api_process.start()
 
     try:
         # Start Vite dev server (blocking)
-        subprocess.run(["npm", "run", "dev"], cwd=ui_dir, check=True)
+        subprocess.run(["npm", "run", "dev"], cwd=frontend_dir, check=True)
     except KeyboardInterrupt:
         print("\n👋 Shutting down...")
     except subprocess.CalledProcessError as e:
@@ -60,19 +68,23 @@ def run_dev_mode(host: str, port: int) -> None:
 
 def run_production_mode(host: str, port: int) -> NoReturn:
     """Run in production mode (serve built UI from FastAPI)."""
-    from modelcub.api.main import run_server
+    # Get working dir from environment (set in cli.py)
+    working_dir = os.environ.get("MODELCUB_WORKING_DIR", str(Path.cwd()))
+
+    from modelcub.ui.backend.main import run_server
 
     # Check if UI is built
-    ui_build = Path(__file__).parent.parent / "api" / "static"
+    ui_build = Path(__file__).parent.parent / "ui" / "frontend" / "dist"
     if not ui_build.exists():
         print(
-            "❌ UI not built. Build it first:\n"
-            "   cd src/modelcub/ui && npm run build\n"
+            "❌ Frontend not built. Build it first:\n"
+            "   cd src/modelcub/ui/frontend && npm run build\n"
             "   Or use --dev flag for development mode.",
             file=sys.stderr
         )
         sys.exit(1)
 
+    print(f"📁 Working directory: {working_dir}")
     run_server(host=host, port=port, reload=False)
 
 

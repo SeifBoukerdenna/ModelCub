@@ -1,0 +1,54 @@
+/* ============================================
+   Alert Component
+   ============================================ */
+
+.alert {
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    border-left: 4px solid;
+    font-size: var(--font-size-sm);
+}
+
+.alert--danger {
+    background-color: #fef2f2;
+    border-left-color: var(--color-error);
+    color: #991b1b;
+}
+
+[data-theme='dark'] .alert--danger {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+}
+
+.alert--warning {
+    background-color: #fffbeb;
+    border-left-color: var(--color-warning);
+    color: #92400e;
+}
+
+[data-theme='dark'] .alert--warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #fcd34d;
+}
+
+.alert--info {
+    background-color: #eff6ff;
+    border-left-color: var(--color-info);
+    color: #1e40af;
+}
+
+[data-theme='dark'] .alert--info {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #93c5fd;
+}
+
+.alert--success {
+    background-color: #f0fdf4;
+    border-left-color: var(--color-success);
+    color: #166534;
+}
+
+[data-theme='dark'] .alert--success {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #6ee7b7;
+}
