@@ -1,77 +1,83 @@
+// src/modelcub/ui/frontend/src/hooks/useProject.ts
 /**
- * React hook for project data with multi-project support
+ * React hook for project data with Zustand global state
  */
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useProjectStore } from "@/stores/projectStore";
 import { api } from "@/lib/api";
-import type { Project, LoadingState } from "@/types";
+import type { Project } from "@/types";
 
 interface UseProjectReturn {
   project: Project | null;
-  projects: Project[]; // All available projects
+  projects: Project[];
   loading: boolean;
   error: string | null;
-  state: LoadingState;
   reload: () => Promise<void>;
-  setActiveProject: (project: Project) => void;
+  setSelectedProject: (project: Project) => void;
+  selectProject: (project: Project) => void;
+  clearSelection: () => void;
 }
 
 export function useProject(): UseProjectReturn {
-  const [project, setProject] = useState<Project | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [state, setState] = useState<LoadingState>("loading");
-  const [error, setError] = useState<string | null>(null);
+  const {
+    selectedProject,
+    projects,
+    loading,
+    error,
+    setSelectedProject,
+    setProjects,
+    setLoading,
+    setError,
+    clearError,
+  } = useProjectStore();
 
-  const loadProject = async () => {
+  const loadProjects = async () => {
     try {
-      setState("loading");
-      setError(null);
+      setLoading(true);
+      clearError();
 
-      // Step 1: Try to get current project (in working directory)
-      const currentResponse = await api.getCurrentProject();
+      // Load all available projects
+      const response = await api.listProjects();
+      setProjects(response.projects);
 
-      // Step 2: Always load all available projects
-      const projectsResponse = await api.listProjects();
-      setProjects(projectsResponse.projects);
-
-      // Step 3: Determine which project to show
-      if (currentResponse.project) {
-        // Current project exists in working dir
-        setProject(currentResponse.project);
-      } else if (projectsResponse.projects.length > 0) {
-        // No current project, use first available or one marked as current
-        const activeProject =
-          projectsResponse.projects.find((p) => p.is_current) ||
-          projectsResponse.projects[0];
-        setProject(activeProject ?? null);
-      } else {
-        // No projects at all
-        setProject(null);
+      // If no project is selected yet, auto-select the first one
+      if (!selectedProject && response.projects.length > 0) {
+        // Try to find the "current" project (is_current flag)
+        const currentProject = response.projects.find((p) => p.is_current);
+        setSelectedProject(currentProject ?? response.projects[0] ?? null);
       }
 
-      setState("success");
+      setLoading(false);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to load project";
+        err instanceof Error ? err.message : "Failed to load projects";
       setError(message);
-      setState("error");
+      setLoading(false);
     }
   };
 
+  // Load projects on mount
   useEffect(() => {
-    loadProject();
+    loadProjects();
   }, []);
 
-  const setActiveProject = (newProject: Project) => {
-    setProject(newProject);
+  // Alias for better semantics
+  const selectProject = (project: Project) => {
+    setSelectedProject(project);
+  };
+
+  const clearSelection = () => {
+    setSelectedProject(null);
   };
 
   return {
-    project,
+    project: selectedProject,
     projects,
-    loading: state === "loading",
+    loading,
     error,
-    state,
-    reload: loadProject,
-    setActiveProject,
+    reload: loadProjects,
+    setSelectedProject: selectProject, // Keep old name for compatibility
+    selectProject,
+    clearSelection,
   };
 }

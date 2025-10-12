@@ -14,7 +14,8 @@ from modelcub.services.project_service import (
     InitProjectRequest,
     DeleteProjectRequest
 )
-from modelcub.core.config import load_config
+from modelcub.core.config import load_config, save_config
+from modelcub.sdk.project import Project
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/projects")
@@ -27,11 +28,11 @@ class CreateProjectRequest(BaseModel):
     path: Optional[str] = None
     force: bool = False
 
+
 class SetConfigRequest(BaseModel):
     """Request model for setting config."""
     key: str
     value: str | int | bool | float
-
 
 
 class DeleteProjectBody(BaseModel):
@@ -44,6 +45,7 @@ class ProjectConfig(BaseModel):
     device: str
     batch_size: int
     image_size: int
+    workers: int
     format: str
 
 
@@ -92,6 +94,7 @@ def find_projects(search_path: Path = None) -> List[ProjectResponse]:
                     device=config.defaults.device,
                     batch_size=config.defaults.batch_size,
                     image_size=config.defaults.image_size,
+                    workers=config.defaults.workers,
                     format=config.defaults.format,
                 ),
                 is_current=search_path.resolve() == current_path.resolve()
@@ -113,6 +116,7 @@ def find_projects(search_path: Path = None) -> List[ProjectResponse]:
                                 device=config.defaults.device,
                                 batch_size=config.defaults.batch_size,
                                 image_size=config.defaults.image_size,
+                                workers=config.defaults.workers,
                                 format=config.defaults.format,
                             ),
                             is_current=item.resolve() == current_path.resolve()
@@ -168,6 +172,7 @@ async def get_current_project():
                     "device": config.defaults.device,
                     "batch_size": config.defaults.batch_size,
                     "image_size": config.defaults.image_size,
+                    "workers": config.defaults.workers,
                     "format": config.defaults.format
                 }
             }
@@ -268,38 +273,148 @@ async def delete_project_route(project_path: str, body: DeleteProjectBody):
             detail=f"Failed to delete project: {str(e)}"
         )
 
-@router.post("/{project_path:path}/config")
-async def set_project_config(project_path: str, request: SetConfigRequest):
-    """Set a project configuration value."""
+
+@router.get("/config")
+async def get_project_config(path: str):
+    """Get configuration for a specific project by path."""
     try:
-        from modelcub.sdk.project import Project
+        # Resolve path
+        full_path = Path(path)
+        if not full_path.is_absolute():
+            full_path = WORKING_DIR / path
 
-        logger.info(f"🔧 Setting config: {project_path} -> {request.key} = {request.value}")
+        logger.info(f"⚙️  Loading config from: {full_path}")
 
-        # Load project
-        project = Project.load(project_path)
+        # Check if project exists
+        if not (full_path / ".modelcub").exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project not found at: {full_path}"
+            )
 
-        # Validate key exists and is not project metadata
+        # Load config directly (don't use SDK Project class)
+        config = load_config(full_path)
+
+        if not config:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Configuration not found at: {full_path}"
+            )
+
+        return {
+            "success": True,
+            "config": {
+                "project": {
+                    "name": config.project.name,
+                    "created": config.project.created,
+                    "version": config.project.version
+                },
+                "defaults": {
+                    "device": config.defaults.device,
+                    "batch_size": config.defaults.batch_size,
+                    "image_size": config.defaults.image_size,
+                    "workers": config.defaults.workers,
+                    "format": config.defaults.format
+                },
+                "paths": {
+                    "data": config.paths.data,
+                    "runs": config.paths.runs,
+                    "reports": config.paths.reports
+                }
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to load config: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load config: {str(e)}"
+        )
+
+
+@router.post("/config")
+async def set_project_config(path: str, request: SetConfigRequest):
+    """Set a configuration value for a specific project."""
+    try:
+        # Resolve path
+        full_path = Path(path)
+        if not full_path.is_absolute():
+            full_path = WORKING_DIR / path
+
+        logger.info(f"⚙️  Setting config for: {full_path}")
+        logger.info(f"    {request.key} = {request.value}")
+
+        # Check if project exists
+        if not (full_path / ".modelcub").exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project not found at: {full_path}"
+            )
+
+        # Prevent changing project metadata
         if request.key.startswith("project."):
+            logger.warning(f"⚠️  Attempted to modify immutable project metadata: {request.key}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot modify project metadata (name, created, version)"
+                detail="Cannot modify project metadata (name, created, version). These fields are immutable."
             )
 
-        # Set value
-        try:
-            project.set_config(request.key, request.value)
-            project.save_config()
-
-            return ApiResponse(
-                success=True,
-                message=f"Configuration updated: {request.key} = {request.value}"
+        # Load config
+        config = load_config(full_path)
+        if not config:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Configuration not found at: {full_path}"
             )
-        except ValueError as e:
+
+        # Get old value for logging
+        parts = request.key.split(".")
+        if len(parts) != 2:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
+                detail=f"Invalid key format: {request.key}. Use format 'section.key' (e.g. 'defaults.device')"
             )
+
+        section, key = parts
+
+        # Validate section and key exist
+        if section == "defaults":
+            if not hasattr(config.defaults, key):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid key: {request.key}. Available: defaults.device, defaults.batch_size, defaults.image_size, defaults.workers"
+                )
+            old_value = getattr(config.defaults, key)
+            setattr(config.defaults, key, request.value)
+        elif section == "paths":
+            if not hasattr(config.paths, key):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid key: {request.key}. Available: paths.data, paths.runs, paths.reports"
+                )
+            old_value = getattr(config.paths, key)
+            setattr(config.paths, key, request.value)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid section: {section}. Use 'defaults' or 'paths'"
+            )
+
+        # Save config
+        save_config(full_path, config)
+
+        logger.info(f"✅ Config updated: {request.key}: {old_value} → {request.value}")
+
+        return {
+            "success": True,
+            "message": f"Configuration updated successfully",
+            "data": {
+                "key": request.key,
+                "old_value": old_value,
+                "new_value": request.value
+            }
+        }
 
     except HTTPException:
         raise

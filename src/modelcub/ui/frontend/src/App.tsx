@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import Datasets from './pages/Datasets'
 import Models from './pages/Models'
+import Settings from './pages/Settings'
 
 const App: React.FC = () => {
     return (
@@ -18,6 +19,7 @@ const App: React.FC = () => {
                     <Route path="projects" element={<Projects />} />
                     <Route path="datasets" element={<Datasets />} />
                     <Route path="models" element={<Models />} />
+                    <Route path="settings" element={<Settings />} />
                 </Route>
             </Routes>
         </BrowserRouter>
