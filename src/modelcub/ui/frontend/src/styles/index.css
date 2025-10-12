@@ -9,6 +9,7 @@
 @import '../components/card.css';
 @import '../components/button.css';
 @import '../components/loading.css';
+@import '../components//project-switcher.css';
 @import '../components/modal.css';
 @import '../components/form.css';
 @import '../components/theme-toggle.css';

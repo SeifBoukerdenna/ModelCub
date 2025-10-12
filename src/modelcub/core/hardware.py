@@ -1,7 +1,43 @@
+"""Hardware detection and configuration."""
 from __future__ import annotations
 import sys
 import os
 from pathlib import Path
+
+
+def detect_device() -> str:
+    """
+    Detect the best available device for training/inference.
+
+    Priority:
+    1. CUDA (NVIDIA GPU) - Best performance for most cases
+    2. MPS (Apple Silicon) - Good performance on M1/M2/M3
+    3. CPU - Always available fallback
+
+    Returns:
+        str: Device string ("cuda", "mps", or "cpu")
+    """
+    try:
+        import torch
+
+        # Check for CUDA (NVIDIA GPU)
+        if torch.cuda.is_available():
+            return "cuda"
+
+        # Check for MPS (Apple Silicon)
+        if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            return "mps"
+
+        # Fallback to CPU
+        return "cpu"
+
+    except ImportError:
+        # PyTorch not installed, default to CPU
+        return "cpu"
+    except Exception:
+        # Any other error, default to CPU
+        return "cpu"
+
 
 def check_gpu_availability() -> tuple[bool, str]:
     """
@@ -15,20 +51,25 @@ def check_gpu_availability() -> tuple[bool, str]:
         if torch.cuda.is_available():
             device_name = torch.cuda.get_device_name(0)
             return True, f"GPU detected: {device_name}"
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            return True, "Apple Silicon GPU (MPS) detected"
         else:
-            return False, "No CUDA-capable GPU detected"
+            return False, "No GPU detected (CUDA or MPS)"
     except ImportError:
         return False, "PyTorch not installed"
     except Exception as e:
         return False, f"GPU check failed: {e}"
 
+
 def is_warning_suppressed() -> bool:
     """Check if GPU warning has been suppressed for this session."""
     return os.environ.get("MODELCUB_SUPPRESS_GPU_WARNING") == "1"
 
+
 def suppress_warning() -> None:
     """Suppress GPU warning for the current terminal session."""
     os.environ["MODELCUB_SUPPRESS_GPU_WARNING"] = "1"
+
 
 def warn_cpu_mode() -> None:
     """
@@ -50,6 +91,7 @@ def warn_cpu_mode() -> None:
         )
         # Use stderr for warnings to not interfere with command output
         print(warning, file=sys.stderr)
+
 
 def is_inside_project() -> bool:
     """Check if current working directory is inside a ModelCub project."""

@@ -27,6 +27,12 @@ class CreateProjectRequest(BaseModel):
     path: Optional[str] = None
     force: bool = False
 
+class SetConfigRequest(BaseModel):
+    """Request model for setting config."""
+    key: str
+    value: str | int | bool | float
+
+
 
 class DeleteProjectBody(BaseModel):
     """Request body for deleting a project."""
@@ -260,4 +266,46 @@ async def delete_project_route(project_path: str, body: DeleteProjectBody):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete project: {str(e)}"
+        )
+
+@router.post("/{project_path:path}/config")
+async def set_project_config(project_path: str, request: SetConfigRequest):
+    """Set a project configuration value."""
+    try:
+        from modelcub.sdk.project import Project
+
+        logger.info(f"🔧 Setting config: {project_path} -> {request.key} = {request.value}")
+
+        # Load project
+        project = Project.load(project_path)
+
+        # Validate key exists and is not project metadata
+        if request.key.startswith("project."):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot modify project metadata (name, created, version)"
+            )
+
+        # Set value
+        try:
+            project.set_config(request.key, request.value)
+            project.save_config()
+
+            return ApiResponse(
+                success=True,
+                message=f"Configuration updated: {request.key} = {request.value}"
+            )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to set config: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to set config: {str(e)}"
         )

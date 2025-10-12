@@ -7,7 +7,7 @@ export interface Project {
   path: string;
   created: string;
   version?: string;
-  config?: ProjectConfig;
+  config: ProjectConfig;
   is_current?: boolean;
 }
 

@@ -17,9 +17,6 @@ class ModelCubAPIError extends Error {
 class ModelCubAPI {
   private readonly baseURL = "/api";
 
-  /**
-   * Make HTTP request to API
-   */
   private async request<T>(
     endpoint: string,
     options?: RequestInit
@@ -33,7 +30,6 @@ class ModelCubAPI {
         ...options,
       });
 
-      // Handle non-JSON responses (like when API is down)
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         throw new ModelCubAPIError(
@@ -59,7 +55,6 @@ class ModelCubAPI {
         throw error;
       }
 
-      // Network errors
       if (error instanceof TypeError && error.message.includes("fetch")) {
         throw new ModelCubAPIError(
           "Cannot connect to API server. Is it running on port 8000?"
@@ -72,27 +67,18 @@ class ModelCubAPI {
     }
   }
 
-  /**
-   * Health check
-   */
   async healthCheck(): Promise<{ status: string; version: string }> {
     return this.request("/health");
   }
 
-  /**
-   * List all projects
-   */
   async listProjects(): Promise<{
     success: boolean;
     projects: Project[];
     count: number;
   }> {
-    return this.request("/projects/"); // Added trailing slash
+    return this.request("/projects/");
   }
 
-  /**
-   * Get current project
-   */
   async getCurrentProject(): Promise<{
     exists: boolean;
     project: Project | null;
@@ -100,24 +86,17 @@ class ModelCubAPI {
     return this.request("/projects/current");
   }
 
-  /**
-   * Create new project
-   */
   async createProject(
     name: string,
     path?: string,
     force = false
   ): Promise<ApiResponse<Project>> {
     return this.request("/projects/", {
-      // Added trailing slash
       method: "POST",
       body: JSON.stringify({ name, path, force }),
     });
   }
 
-  /**
-   * Delete project
-   */
   async deleteProject(path: string, confirm = false): Promise<ApiResponse> {
     return this.request(`/projects/${encodeURIComponent(path)}`, {
       method: "DELETE",
@@ -126,15 +105,23 @@ class ModelCubAPI {
   }
 
   /**
-   * List datasets
+   * Set project configuration value
    */
+  async setProjectConfig(
+    projectPath: string,
+    key: string,
+    value: string | number | boolean
+  ): Promise<ApiResponse> {
+    return this.request(`/projects/${encodeURIComponent(projectPath)}/config`, {
+      method: "POST",
+      body: JSON.stringify({ key, value }),
+    });
+  }
+
   async listDatasets(): Promise<{ datasets: unknown[] }> {
     return this.request("/datasets/");
   }
 
-  /**
-   * List models
-   */
   async listModels(): Promise<{ models: unknown[] }> {
     return this.request("/models/");
   }
