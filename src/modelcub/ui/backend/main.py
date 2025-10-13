@@ -1,16 +1,17 @@
-"""FastAPI application for ModelCub UI."""
+"""FastAPI application for ModelCub UI - Refactored."""
 from pathlib import Path
 import logging
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .routes import projects, datasets, models
 from .websockets import ConnectionManager
+from .middleware import APIResponseMiddleware, ErrorHandlerMiddleware, ProjectContextMiddleware
+from ..shared.api.config import APIConfig, Endpoints
+from ..shared.api.schemas import APIResponse
 
 # Configure logging
 logging.basicConfig(
@@ -23,12 +24,12 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="ModelCub API",
     description="Local-first computer vision platform",
-    version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
+    version=APIConfig.VERSION,
+    docs_url=f"{APIConfig.PREFIX}/docs",
+    redoc_url=f"{APIConfig.PREFIX}/redoc",
 )
 
-# CORS middleware for development
+# Add middleware (order matters - first added is outermost)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -36,81 +37,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ErrorHandlerMiddleware)
+app.add_middleware(ProjectContextMiddleware)
+app.add_middleware(APIResponseMiddleware)
 
 # WebSocket connection manager
 manager = ConnectionManager()
 
-
-# Custom exception handlers
-@app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request, exc):
-    """Handle HTTP exceptions."""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "success": False,
-            "error": exc.detail,
-            "status_code": exc.status_code
-        }
-    )
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    """Handle validation errors."""
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "success": False,
-            "error": "Validation error",
-            "details": exc.errors()
-        }
-    )
-
-
-@app.exception_handler(Exception)
-async def general_exception_handler(request, exc):
-    """Handle unexpected exceptions."""
-    logger.error(f"Unexpected error: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "success": False,
-            "error": "Internal server error"
-        }
-    )
-
-
-# @app.get("/api/datasets/")
-# async def get_datasets():
-#     """TEST"""
-#     return {
-#         "success": True,
-#         "datasets": [],
-#         "count": -10,
-#         "message": "LMFAOOO -- API"
-#     }
-
-
-# Include API routers
-app.include_router(projects.router, tags=["Projects"])
-app.include_router(datasets.router, tags=["Datasets"])
-app.include_router(models.router, tags=["Models"])
+# Include API routers with versioned prefix
+app.include_router(projects.router, prefix=APIConfig.PREFIX)
+app.include_router(datasets.router, prefix=APIConfig.PREFIX)
+app.include_router(models.router, prefix=APIConfig.PREFIX)
 
 
 # Health check
-@app.get("/api/health")
-async def health_check():
+@app.get(f"{APIConfig.PREFIX}{Endpoints.HEALTH}")
+async def health_check() -> APIResponse[dict]:
     """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "service": "modelcub-api",
-        "version": "1.0.0"
-    }
+    return APIResponse(
+        success=True,
+        data={
+            "status": "healthy",
+            "service": "modelcub-api",
+            "version": APIConfig.VERSION
+        }
+    )
 
 
 # WebSocket endpoint
-@app.websocket("/ws")
+@app.websocket(Endpoints.WS)
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket connection for real-time updates."""
     client_id = await manager.connect(websocket)
@@ -140,6 +95,10 @@ if FRONTEND_BUILD_DIR.exists():
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         """Serve React SPA with client-side routing support."""
+        # Don't serve API routes
+        if full_path.startswith("api/"):
+            return {"error": "Not found"}, 404
+
         file_path = FRONTEND_BUILD_DIR / full_path
 
         if file_path.is_file():
@@ -149,10 +108,7 @@ if FRONTEND_BUILD_DIR.exists():
         if index_path.exists():
             return FileResponse(index_path)
 
-        return JSONResponse(
-            status_code=404,
-            content={"error": "Not found"}
-        )
+        return {"error": "Not found"}, 404
 
 
 def run_server(
@@ -164,6 +120,7 @@ def run_server(
     import uvicorn
 
     logger.info(f"🚀 Starting ModelCub API at http://{host}:{port}")
+    logger.info(f"📚 API Documentation: http://{host}:{port}{APIConfig.PREFIX}/docs")
     if reload:
         logger.info("🔄 Auto-reload enabled")
 

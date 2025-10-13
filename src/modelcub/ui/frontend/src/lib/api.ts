@@ -2,18 +2,10 @@
  * API client for ModelCub backend
  * Path: frontend/src/lib/api.ts
  */
-import type { Project, ApiResponse, ApiError } from "@/types";
+import { useState, useCallback } from "react";
+import type { Project } from "@/types";
 
-class ModelCubAPIError extends Error {
-  constructor(
-    message: string,
-    public statusCode?: number,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = "ModelCubAPIError";
-  }
-}
+// ==================== TYPES ====================
 
 export interface Dataset {
   name: string;
@@ -38,16 +30,65 @@ export interface ImportDatasetRequest {
   source: string;
   name?: string;
   recursive?: boolean;
-  copy?: boolean;
+  copy_files?: boolean;
 }
 
+export interface CreateProjectRequest {
+  name: string;
+  path?: string;
+  force?: boolean;
+}
+
+export interface SetConfigRequest {
+  key: string;
+  value: string | number | boolean;
+}
+
+type LoadingState = "idle" | "loading" | "success" | "error";
+
+interface UseAPIState<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  state: LoadingState;
+}
+
+interface UseAPIResult<T, TArgs extends any[] = []> extends UseAPIState<T> {
+  execute: (...args: TArgs) => Promise<T | null>;
+  reset: () => void;
+}
+
+// ==================== ERROR CLASS ====================
+
+class ModelCubAPIError extends Error {
+  constructor(
+    message: string,
+    public statusCode?: number,
+    public details?: unknown
+  ) {
+    super(message);
+    this.name = "ModelCubAPIError";
+  }
+}
+
+// ==================== API CLIENT ====================
+
 class ModelCubAPI {
-  private readonly baseURL = "/api";
+  private readonly baseURL = "/api/v1";
   private currentProjectPath: string | null = null;
 
+  // Alias for backwards compatibility
   setCurrentProject(projectPath: string | null) {
+    this.setProjectPath(projectPath);
+  }
+
+  setProjectPath(projectPath: string | null) {
     this.currentProjectPath = projectPath;
     console.log("API: Set current project path to:", projectPath);
+  }
+
+  getProjectPath(): string | null {
+    return this.currentProjectPath;
   }
 
   private async request<T>(
@@ -55,21 +96,14 @@ class ModelCubAPI {
     options?: RequestInit
   ): Promise<T> {
     try {
-      // Build headers
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
 
-      // Add project path if set
       if (this.currentProjectPath) {
         headers["X-Project-Path"] = this.currentProjectPath;
-        console.log(
-          "API: Including X-Project-Path header:",
-          this.currentProjectPath
-        );
       }
 
-      // Merge with any provided headers
       if (options?.headers) {
         Object.assign(headers, options.headers);
       }
@@ -89,16 +123,16 @@ class ModelCubAPI {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        const error = data as ApiError;
+      if (!response.ok || !data.success) {
+        const error = data.error || data;
         throw new ModelCubAPIError(
-          error.error || `HTTP ${response.status}`,
+          error.message || error.error || `HTTP ${response.status}`,
           response.status,
           error.details
         );
       }
 
-      return data;
+      return data.data as T;
     } catch (error) {
       if (error instanceof ModelCubAPIError) {
         throw error;
@@ -116,79 +150,105 @@ class ModelCubAPI {
     }
   }
 
-  async healthCheck(): Promise<{ status: string; version: string }> {
+  // ==================== PROJECT METHODS ====================
+
+  async healthCheck(): Promise<{
+    status: string;
+    service: string;
+    version: string;
+  }> {
     return this.request("/health");
   }
 
-  async listProjects(): Promise<{
-    success: boolean;
-    projects: Project[];
-    count: number;
-  }> {
-    return this.request("/projects/");
+  async listProjects(): Promise<Project[]> {
+    return this.request("/projects");
   }
 
-  async getCurrentProject(): Promise<{
-    exists: boolean;
-    project: Project | null;
-  }> {
-    return this.request("/projects/current");
-  }
-
-  async createProject(
-    name: string,
-    path?: string,
-    force = false
-  ): Promise<ApiResponse<Project>> {
-    return this.request("/projects/", {
+  async createProject(data: CreateProjectRequest): Promise<Project> {
+    return this.request("/projects", {
       method: "POST",
-      body: JSON.stringify({ name, path, force }),
+      body: JSON.stringify(data),
     });
   }
 
-  async deleteProject(path: string, confirm = false): Promise<ApiResponse> {
-    return this.request(`/projects/${encodeURIComponent(path)}`, {
+  async getProjectByPath(path: string): Promise<Project> {
+    return this.request(`/projects/by-path?path=${encodeURIComponent(path)}`);
+  }
+
+  async deleteProject(path: string, confirm: boolean = false): Promise<void> {
+    return this.request(`/projects/delete?path=${encodeURIComponent(path)}`, {
       method: "DELETE",
       body: JSON.stringify({ confirm }),
     });
   }
 
-  async setProjectConfig(
-    projectPath: string,
-    key: string,
-    value: string | number | boolean
-  ): Promise<ApiResponse> {
-    return this.request(`/projects/${encodeURIComponent(projectPath)}/config`, {
+  async getProjectConfig(path: string): Promise<any> {
+    return this.request(`/projects/config?path=${encodeURIComponent(path)}`);
+  }
+
+  async setProjectConfig(path: string, data: SetConfigRequest): Promise<any> {
+    return this.request(`/projects/config?path=${encodeURIComponent(path)}`, {
       method: "POST",
-      body: JSON.stringify({ key, value }),
+      body: JSON.stringify(data),
     });
   }
 
-  async listDatasets(): Promise<{
-    success: boolean;
-    datasets: Dataset[];
-    count: number;
-    message?: string;
-  }> {
-    return this.request("/datasets/");
+  // ==================== DATASET METHODS ====================
+
+  async listDatasets(): Promise<Dataset[]> {
+    return this.request("/datasets");
   }
 
-  async getDataset(name: string): Promise<{
-    success: boolean;
-    dataset: DatasetDetail;
-  }> {
-    return this.request(`/datasets/${encodeURIComponent(name)}`);
+  async getDataset(datasetId: string): Promise<DatasetDetail> {
+    return this.request(`/datasets/${datasetId}`);
+  }
+
+  async importDataset(data: ImportDatasetRequest): Promise<Dataset> {
+    return this.request("/datasets/import", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadDataset(file: File, datasetName?: string): Promise<Dataset> {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (datasetName) {
+      formData.append("dataset_name", datasetName);
+    }
+
+    const headers: Record<string, string> = {};
+    if (this.currentProjectPath) {
+      headers["X-Project-Path"] = this.currentProjectPath;
+    }
+
+    const response = await fetch(`${this.baseURL}/datasets/upload`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      const error = data.error;
+      throw new ModelCubAPIError(
+        error?.message || `HTTP ${response.status}`,
+        response.status,
+        error?.details
+      );
+    }
+
+    return data.data as Dataset;
   }
 
   async importDatasetFiles(
     files: FileList,
     name?: string,
-    recursive: boolean = true,
-    onProgress?: (progress: number) => void
-  ): Promise<ApiResponse<{ dataset: Dataset }>> {
+    recursive: boolean = true
+  ): Promise<Dataset> {
     const formData = new FormData();
 
-    // Add all files
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file) {
@@ -196,71 +256,35 @@ class ModelCubAPI {
       }
     }
 
-    // Add metadata
-    if (name) {
-      formData.append("name", name);
-    }
+    if (name) formData.append("name", name);
     formData.append("recursive", String(recursive));
 
-    // Build headers (without Content-Type - browser sets it for FormData)
     const headers: Record<string, string> = {};
     if (this.currentProjectPath) {
       headers["X-Project-Path"] = this.currentProjectPath;
     }
 
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      // Track upload progress
-      if (onProgress) {
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            const progress = Math.round((e.loaded / e.total) * 100);
-            onProgress(progress);
-          }
-        });
-      }
-
-      xhr.addEventListener("load", () => {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(response);
-          } else {
-            reject(
-              new ModelCubAPIError(
-                response.detail || response.error || `HTTP ${xhr.status}`,
-                xhr.status
-              )
-            );
-          }
-        } catch (e) {
-          reject(new ModelCubAPIError("Failed to parse response"));
-        }
-      });
-
-      xhr.addEventListener("error", () => {
-        reject(new ModelCubAPIError("Network error"));
-      });
-
-      xhr.open("POST", `${this.baseURL}/datasets/import`);
-
-      // Set headers
-      Object.entries(headers).forEach(([key, value]) => {
-        xhr.setRequestHeader(key, value);
-      });
-
-      xhr.send(formData);
+    const response = await fetch(`${this.baseURL}/datasets/import-files`, {
+      method: "POST",
+      headers,
+      body: formData,
     });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new ModelCubAPIError(
+        data.error?.message || `HTTP ${response.status}`,
+        response.status
+      );
+    }
+
+    return data.data as Dataset;
   }
 
   async deleteDataset(
     name: string,
     confirm = false
-  ): Promise<{
-    success: boolean;
-    message: string;
-  }> {
+  ): Promise<{ success: boolean; message: string }> {
     return this.request(
       `/datasets/${encodeURIComponent(name)}?confirm=${confirm}`,
       {
@@ -269,10 +293,125 @@ class ModelCubAPI {
     );
   }
 
-  async listModels(): Promise<{ models: unknown[] }> {
-    return this.request("/models/");
+  // ==================== MODEL METHODS ====================
+
+  async listModels(): Promise<any[]> {
+    return this.request("/models");
   }
 }
 
+// ==================== HOOKS ====================
+
+function useAPI<T, TArgs extends any[] = []>(
+  apiCall: (...args: TArgs) => Promise<T>
+): UseAPIResult<T, TArgs> {
+  const [state, setState] = useState<UseAPIState<T>>({
+    data: null,
+    loading: false,
+    error: null,
+    state: "idle",
+  });
+
+  const execute = useCallback(
+    async (...args: TArgs): Promise<T | null> => {
+      setState({ data: null, loading: true, error: null, state: "loading" });
+
+      try {
+        const result = await apiCall(...args);
+        setState({
+          data: result,
+          loading: false,
+          error: null,
+          state: "success",
+        });
+        return result;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setState({
+          data: null,
+          loading: false,
+          error: errorMessage,
+          state: "error",
+        });
+        return null;
+      }
+    },
+    [apiCall]
+  );
+
+  const reset = useCallback(() => {
+    setState({ data: null, loading: false, error: null, state: "idle" });
+  }, []);
+
+  return {
+    ...state,
+    execute,
+    reset,
+  };
+}
+
+// Project Hooks
+export function useListProjects() {
+  return useAPI<Project[]>(() => api.listProjects());
+}
+
+export function useCreateProject() {
+  return useAPI<Project, [CreateProjectRequest]>((data) =>
+    api.createProject(data)
+  );
+}
+
+export function useGetProjectByPath() {
+  return useAPI<Project, [string]>((path) => api.getProjectByPath(path));
+}
+
+export function useGetProjectConfig() {
+  return useAPI<any, [string]>((path) => api.getProjectConfig(path));
+}
+
+export function useSetProjectConfig() {
+  return useAPI<any, [string, SetConfigRequest]>((path, data) =>
+    api.setProjectConfig(path, data)
+  );
+}
+
+export function useDeleteProject() {
+  return useAPI<void, [string, boolean]>((path, confirm) =>
+    api.deleteProject(path, confirm)
+  );
+}
+
+// Dataset Hooks
+export function useListDatasets() {
+  return useAPI<Dataset[]>(() => api.listDatasets());
+}
+
+export function useGetDataset() {
+  return useAPI<DatasetDetail, [string]>((datasetId) =>
+    api.getDataset(datasetId)
+  );
+}
+
+export function useImportDataset() {
+  return useAPI<Dataset, [ImportDatasetRequest]>((data) =>
+    api.importDataset(data)
+  );
+}
+
+export function useUploadDataset() {
+  return useAPI<Dataset, [File, string?]>((file, datasetName) =>
+    api.uploadDataset(file, datasetName)
+  );
+}
+
+// Model Hooks
+export function useListModels() {
+  return useAPI<any[]>(() => api.listModels());
+}
+
+// ==================== EXPORTS ====================
+
 export const api = new ModelCubAPI();
 export { ModelCubAPIError };
+export type { UseAPIResult, LoadingState, Project };

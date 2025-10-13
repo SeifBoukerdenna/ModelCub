@@ -1,327 +1,306 @@
-import React, { useState, useRef } from 'react'
-import { X, Upload, FolderOpen, Loader, FileImage } from 'lucide-react'
-import { api } from '@/lib/api'
-import { toast } from '@/lib/toast'
+import { useState } from 'react';
+import { Upload, FolderOpen, X, AlertCircle, File as FileIcon } from 'lucide-react';
+import { api } from '@/lib/api';
+import { toast } from '@/lib/toast';
 
 interface ImportDatasetModalProps {
-    isOpen: boolean
-    onClose: () => void
-    onSuccess: () => void
+    isOpen: boolean;
+    onClose: () => void;
+    onSuccess: () => void;
 }
 
-const ImportDatasetModal: React.FC<ImportDatasetModalProps> = ({
-    isOpen,
-    onClose,
-    onSuccess
-}) => {
-    const [name, setName] = useState('')
-    const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null)
-    const [folderName, setFolderName] = useState('')
-    const [uploadMode, setUploadMode] = useState<'folder' | 'files'>('folder')
-    const [recursive, setRecursive] = useState(true)
-    const [importing, setImporting] = useState(false)
-    const [uploadProgress, setUploadProgress] = useState(0)
-    const fileInputRef = useRef<HTMLInputElement>(null)
-
-    if (!isOpen) return null
-
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files
-        if (!files || files.length === 0) return
-
-        setSelectedFiles(files)
-
-        if (uploadMode === 'folder') {
-            const firstFile = files[0]
-            if (firstFile && firstFile.webkitRelativePath) {
-                const parts = firstFile.webkitRelativePath.split('/')
-                const folder = parts[0]
-                setFolderName(folder ?? '')
-
-                if (!name) {
-                    setName((folder ?? '').toLowerCase().replace(/[^a-z0-9-_]/g, '-'))
-                }
-            }
-        } else {
-            setFolderName(`${files.length} file${files.length !== 1 ? 's' : ''} selected`)
-
-            if (!name) {
-                setName(`upload-${Date.now()}`)
-            }
-        }
-    }
-
-    const handleBrowseClick = () => {
-        fileInputRef.current?.click()
-    }
-
-    const handleModeChange = (mode: 'folder' | 'files') => {
-        setUploadMode(mode)
-        setSelectedFiles(null)
-        setFolderName('')
-    }
+const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalProps) => {
+    const [importSource, setImportSource] = useState('');
+    const [datasetName, setDatasetName] = useState('');
+    const [recursive, setRecursive] = useState(true);
+    const [copyFiles, setCopyFiles] = useState(true);
+    const [importType, setImportType] = useState<'path' | 'files'>('path');
+    const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
+        e.preventDefault();
+        setError(null);
 
-        if (!selectedFiles || selectedFiles.length === 0) {
-            toast.error('Please select files or a folder')
-            return
-        }
-
-        try {
-            setImporting(true)
-            setUploadProgress(0)
-
-            const response = await api.importDatasetFiles(
-                selectedFiles,
-                name.trim() || undefined,
-                recursive,
-                (progress) => setUploadProgress(progress)
-            )
-
-            if (response.success) {
-                const datasetName = response.data?.dataset?.name || 'dataset'
-                const imageCount = response.data?.dataset?.images || 0
-
-                toast.success(
-                    `✨ Imported ${imageCount} image${imageCount !== 1 ? 's' : ''} into "${datasetName}"`
-                )
-
-                setName('')
-                setSelectedFiles(null)
-                setFolderName('')
-                setRecursive(true)
-                setUploadProgress(0)
-
-                onClose()
-                onSuccess()
+        if (importType === 'path') {
+            // Import from filesystem path
+            if (!importSource.trim()) {
+                toast.error('Please enter a source path');
+                return;
             }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to import dataset'
-            toast.error(message)
-        } finally {
-            setImporting(false)
-            setUploadProgress(0)
+
+            try {
+                setUploading(true);
+                await api.importDataset({
+                    source: importSource,
+                    name: datasetName || undefined,
+                    recursive,
+                    copy_files: copyFiles,
+                });
+                handleSuccess();
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to import dataset');
+            } finally {
+                setUploading(false);
+            }
+        } else {
+            // Upload files/folders
+            if (!selectedFiles || selectedFiles.length === 0) {
+                toast.error('Please select files or a folder');
+                return;
+            }
+
+            try {
+                setUploading(true);
+
+                await api.importDatasetFiles(
+                    selectedFiles,
+                    datasetName || undefined,
+                    recursive
+                );
+
+                handleSuccess();
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to upload files');
+            } finally {
+                setUploading(false);
+                setUploadProgress(0);
+            }
         }
-    }
+    };
+
+    const handleSuccess = () => {
+        setImportSource('');
+        setDatasetName('');
+        setSelectedFiles(null);
+        setUploadProgress(0);
+        onSuccess();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setSelectedFiles(e.target.files);
+        }
+    };
+
+    if (!isOpen) return null;
 
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal__header">
-                    <h2 className="modal__title">Import Dataset</h2>
-                    <button className="modal__close" onClick={onClose} disabled={importing}>
+                    <h2 className="modal__title">
+                        <Upload size={24} />
+                        Import Dataset
+                    </h2>
+                    <button className="modal__close" onClick={onClose} disabled={uploading}>
                         <X size={20} />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit}>
                     <div className="modal__body">
-                        {/* Upload Mode Selection */}
-                        <div className="form-group">
-                            <label className="form-label">Upload Mode</label>
-                            <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-                                <label style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 'var(--spacing-xs)',
-                                    cursor: 'pointer',
-                                    fontSize: 'var(--font-size-sm)'
-                                }}>
-                                    <input
-                                        type="radio"
-                                        checked={uploadMode === 'folder'}
-                                        onChange={() => handleModeChange('folder')}
-                                        disabled={importing}
-                                        style={{ cursor: 'pointer' }}
-                                    />
-                                    <FolderOpen size={16} />
-                                    <span>Folder</span>
-                                </label>
-                                <label style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 'var(--spacing-xs)',
-                                    cursor: 'pointer',
-                                    fontSize: 'var(--font-size-sm)'
-                                }}>
-                                    <input
-                                        type="radio"
-                                        checked={uploadMode === 'files'}
-                                        onChange={() => handleModeChange('files')}
-                                        disabled={importing}
-                                        style={{ cursor: 'pointer' }}
-                                    />
-                                    <FileImage size={16} />
-                                    <span>Individual Files</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        {/* Hidden file input */}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            // @ts-ignore
-                            webkitdirectory={uploadMode === 'folder' ? "true" : undefined}
-                            directory={uploadMode === 'folder' ? "true" : undefined}
-                            multiple
-                            style={{ display: 'none' }}
-                            onChange={handleFileSelect}
-                            accept="image/*"
-                        />
-
-                        {/* File/Folder Selection */}
-                        <div className="form-group">
-                            <label className="form-label">
-                                Select {uploadMode === 'folder' ? 'Folder' : 'Files'} <span style={{ color: 'var(--color-error-500)' }}>*</span>
-                            </label>
-                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                        {/* Import Type Selector */}
+                        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
                                 <button
                                     type="button"
-                                    className="btn btn--secondary"
-                                    onClick={handleBrowseClick}
-                                    disabled={importing}
-                                    style={{ flex: 1 }}
+                                    className={`btn ${importType === 'path' ? 'btn--primary' : 'btn--secondary'}`}
+                                    onClick={() => setImportType('path')}
+                                    disabled={uploading}
                                 >
-                                    {uploadMode === 'folder' ? <FolderOpen size={20} /> : <FileImage size={20} />}
-                                    {folderName || `Choose ${uploadMode === 'folder' ? 'Folder' : 'Files'}`}
+                                    <FolderOpen size={18} />
+                                    From Path
                                 </button>
-                                {selectedFiles && (
-                                    <span style={{
-                                        fontSize: 'var(--font-size-sm)',
-                                        color: 'var(--color-text-secondary)',
-                                        whiteSpace: 'nowrap'
-                                    }}>
-                                        {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}
-                                    </span>
-                                )}
+                                <button
+                                    type="button"
+                                    className={`btn ${importType === 'files' ? 'btn--primary' : 'btn--secondary'}`}
+                                    onClick={() => setImportType('files')}
+                                    disabled={uploading}
+                                >
+                                    <FileIcon size={18} />
+                                    Upload Files/Folder
+                                </button>
                             </div>
-                            <p style={{
-                                fontSize: 'var(--font-size-xs)',
-                                color: 'var(--color-text-secondary)',
-                                marginTop: 'var(--spacing-xs)'
-                            }}>
-                                {uploadMode === 'folder'
-                                    ? 'Select a folder containing images (jpg, png, etc.)'
-                                    : 'Select one or more image files to upload'
-                                }
-                            </p>
                         </div>
 
-                        {/* Dataset Name */}
-                        <div className="form-group">
-                            <label htmlFor="dataset-name" className="form-label">
-                                Dataset Name <span style={{
-                                    fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--color-text-secondary)'
-                                }}>(optional)</span>
-                            </label>
-                            <input
-                                id="dataset-name"
-                                type="text"
-                                className="form-input"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="Auto-generated if empty"
-                                disabled={importing}
-                            />
-                        </div>
-
-                        {/* Options - only show recursive for folder mode */}
-                        {uploadMode === 'folder' && (
-                            <div className="form-group">
-                                <label className="form-label">Options</label>
-
-                                <label style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 'var(--spacing-sm)',
-                                    cursor: 'pointer',
-                                    fontSize: 'var(--font-size-sm)'
-                                }}>
+                        {/* Import from Path */}
+                        {importType === 'path' && (
+                            <>
+                                <div className="form-group">
+                                    <label htmlFor="source">Source Path *</label>
                                     <input
-                                        type="checkbox"
-                                        checked={recursive}
-                                        onChange={(e) => setRecursive(e.target.checked)}
-                                        disabled={importing}
-                                        style={{ cursor: 'pointer' }}
+                                        id="source"
+                                        type="text"
+                                        placeholder="/path/to/images or https://..."
+                                        value={importSource}
+                                        onChange={(e) => setImportSource(e.target.value)}
+                                        disabled={uploading}
+                                        required
                                     />
-                                    <span>Include subdirectories (recursive)</span>
-                                </label>
-                            </div>
+                                    <small style={{ color: 'var(--color-text-secondary)' }}>
+                                        Local directory path, Roboflow URL, or remote archive
+                                    </small>
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="name">Dataset Name (Optional)</label>
+                                    <input
+                                        id="name"
+                                        type="text"
+                                        placeholder="Leave empty to use source name"
+                                        value={datasetName}
+                                        onChange={(e) => setDatasetName(e.target.value)}
+                                        disabled={uploading}
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={recursive}
+                                            onChange={(e) => setRecursive(e.target.checked)}
+                                            disabled={uploading}
+                                        />
+                                        Search subdirectories recursively
+                                    </label>
+                                </div>
+
+                                <div className="form-group">
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={copyFiles}
+                                            onChange={(e) => setCopyFiles(e.target.checked)}
+                                            disabled={uploading}
+                                        />
+                                        Copy files to project (recommended)
+                                    </label>
+                                    <small style={{ color: 'var(--color-text-secondary)' }}>
+                                        If unchecked, files will be symlinked instead
+                                    </small>
+                                </div>
+                            </>
                         )}
 
-                        {/* Upload Progress */}
-                        {importing && (
-                            <div style={{
-                                padding: 'var(--spacing-md)',
-                                backgroundColor: 'var(--color-primary-50)',
-                                borderRadius: 'var(--border-radius-md)',
-                                fontSize: 'var(--font-size-sm)',
-                            }}>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 'var(--spacing-sm)',
-                                    marginBottom: 'var(--spacing-sm)',
-                                    color: 'var(--color-primary-700)'
-                                }}>
-                                    <Loader size={16} className="spin" />
-                                    <span>Uploading images...</span>
+                        {/* Upload Files/Folders */}
+                        {importType === 'files' && (
+                            <>
+                                <div className="form-group">
+                                    <label htmlFor="files">Select Files or Folder *</label>
+                                    <input
+                                        id="files"
+                                        type="file"
+                                        onChange={handleFileChange}
+                                        disabled={uploading}
+                                        multiple
+                                        accept="image/*"  // Accept images
+                                        required
+                                    />
+                                    <small style={{ color: 'var(--color-text-secondary)' }}>
+                                        Select multiple images or use folder button below
+                                    </small>
+                                    <button
+                                        type="button"
+                                        className="btn btn--secondary btn--sm"
+                                        style={{ marginTop: 'var(--spacing-xs)', width: '100%' }}
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.multiple = true;
+                                            // @ts-ignore
+                                            input.webkitdirectory = true;
+                                            input.onchange = (e: any) => {
+                                                if (e.target.files) {
+                                                    setSelectedFiles(e.target.files);
+                                                }
+                                            };
+                                            input.click();
+                                        }}
+                                        disabled={uploading}
+                                    >
+                                        <FolderOpen size={16} />
+                                        Or Select Folder
+                                    </button>
+                                    {selectedFiles && (
+                                        <div style={{ marginTop: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)' }}>
+                                            Selected: <strong>{selectedFiles.length} file(s)</strong>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="upload-name">Dataset Name (Optional)</label>
+                                    <input
+                                        id="upload-name"
+                                        type="text"
+                                        placeholder="Leave empty to use folder name"
+                                        value={datasetName}
+                                        onChange={(e) => setDatasetName(e.target.value)}
+                                        disabled={uploading}
+                                    />
                                 </div>
 
-                                <div style={{
-                                    width: '100%',
-                                    height: '8px',
-                                    backgroundColor: 'var(--color-primary-100)',
-                                    borderRadius: '4px',
-                                    overflow: 'hidden'
-                                }}>
-                                    <div style={{
-                                        width: `${uploadProgress}%`,
-                                        height: '100%',
-                                        backgroundColor: 'var(--color-primary-500)',
-                                        transition: 'width 0.3s ease'
-                                    }} />
+                                <div className="form-group">
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={recursive}
+                                            onChange={(e) => setRecursive(e.target.checked)}
+                                            disabled={uploading}
+                                        />
+                                        Include subdirectories
+                                    </label>
                                 </div>
 
-                                <div style={{
-                                    marginTop: 'var(--spacing-xs)',
-                                    fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--color-primary-600)',
-                                    textAlign: 'right'
-                                }}>
-                                    {uploadProgress}%
-                                </div>
+                                {uploading && uploadProgress > 0 && (
+                                    <div style={{ marginTop: 'var(--spacing-md)' }}>
+                                        <div style={{
+                                            width: '100%',
+                                            height: '8px',
+                                            backgroundColor: 'var(--color-gray-200)',
+                                            borderRadius: 'var(--border-radius-sm)',
+                                            overflow: 'hidden'
+                                        }}>
+                                            <div style={{
+                                                width: `${uploadProgress}%`,
+                                                height: '100%',
+                                                backgroundColor: 'var(--color-primary-500)',
+                                                transition: 'width 0.3s ease'
+                                            }} />
+                                        </div>
+                                        <small style={{ color: 'var(--color-text-secondary)', marginTop: 'var(--spacing-xs)' }}>
+                                            Uploading: {uploadProgress}%
+                                        </small>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {error && (
+                            <div className="alert alert--error">
+                                <AlertCircle size={20} />
+                                <span>{error}</span>
                             </div>
                         )}
                     </div>
 
                     <div className="modal__footer">
-                        <button
-                            type="button"
-                            className="btn btn--secondary"
-                            onClick={onClose}
-                            disabled={importing}
-                        >
+                        <button type="button" className="btn btn--secondary" onClick={onClose} disabled={uploading}>
                             Cancel
                         </button>
-                        <button
-                            type="submit"
-                            className="btn btn--primary"
-                            disabled={importing || !selectedFiles}
-                        >
-                            {importing ? (
+                        <button type="submit" className="btn btn--primary" disabled={uploading}>
+                            {uploading ? (
                                 <>
-                                    <Loader size={20} className="spin" />
-                                    Importing...
+                                    <Upload size={18} className="spinner" />
+                                    {importType === 'path' ? 'Importing...' : `Uploading... ${uploadProgress}%`}
                                 </>
                             ) : (
                                 <>
-                                    <Upload size={20} />
-                                    Import Dataset
+                                    <Upload size={18} />
+                                    Import
                                 </>
                             )}
                         </button>
@@ -329,7 +308,7 @@ const ImportDatasetModal: React.FC<ImportDatasetModalProps> = ({
                 </form>
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default ImportDatasetModal
+export default ImportDatasetModal;

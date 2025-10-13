@@ -1,91 +1,109 @@
-import React, { useEffect, useState } from 'react'
-import { Database, TrendingUp, Settings as SettingsIcon, BarChart3 } from 'lucide-react'
-import { api } from '@/lib/api'
-import { useProjectStore, selectSelectedProject } from '@/stores/projectStore'
-import Loading from '@/components/Loading'
+import { useEffect, useState } from 'react';
+import { Database, BarChart3, FolderOpen, TrendingUp } from 'lucide-react';
+import { api } from '@/lib/api';
+import { useProjectStore, selectSelectedProject } from '@/stores/projectStore';
+import Loading from '@/components/Loading';
 
-const Dashboard: React.FC = () => {
-    const selectedProject = useProjectStore(selectSelectedProject)
-    const [stats, setStats] = useState({ datasets: 0, models: 0, runs: 0 })
-    const [loading, setLoading] = useState(false)
+const Dashboard = () => {
+    const selectedProject = useProjectStore(selectSelectedProject);
+    const [stats, setStats] = useState({
+        datasets: 0,
+        models: 0,
+        runs: 0,
+        totalImages: 0,
+    });
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (selectedProject) {
-            loadStats()
-        }
-    }, [selectedProject])
+        loadStats();
+    }, [selectedProject?.path]);
 
     const loadStats = async () => {
-        if (!selectedProject) return
+        if (!selectedProject) {
+            setLoading(false);
+            return;
+        }
 
         try {
-            setLoading(true)
-            api.setCurrentProject(selectedProject.path)
+            setLoading(true);
+            api.setProjectPath(selectedProject.path);
 
-            const datasetsRes = await api.listDatasets()
-            const datasetCount = datasetsRes.success ? datasetsRes.datasets.length : 0
+            const [datasets, models] = await Promise.all([
+                api.listDatasets().catch(() => []),
+                api.listModels().catch(() => []),
+            ]);
 
-            setStats({ datasets: datasetCount, models: 0, runs: 0 })
+            const totalImages = datasets.reduce((sum, ds) => sum + (ds.images || 0), 0);
+
+            setStats({
+                datasets: datasets.length,
+                models: models.length,
+                runs: 0,
+                totalImages,
+            });
         } catch (err) {
-            console.error('Failed to load stats:', err)
+            console.error('Failed to load stats:', err);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     if (!selectedProject) {
         return (
-            <div className="empty-state">
-                <h3 className="empty-state__title">No Project Selected</h3>
-                <p className="empty-state__description">Select a project to view dashboard</p>
+            <div>
+                <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700 }}>Dashboard</h1>
+                <div className="empty-state">
+                    <FolderOpen size={48} className="empty-state__icon" />
+                    <h3 className="empty-state__title">No Project Selected</h3>
+                    <p className="empty-state__description">Select a project to view dashboard</p>
+                </div>
             </div>
-        )
+        );
     }
 
-    if (loading) return <Loading message="Loading dashboard..." />
+    if (loading) {
+        return <Loading message="Loading dashboard..." />;
+    }
 
     return (
         <div>
-            <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, marginBottom: 'var(--spacing-xs)' }}>
-                Dashboard
-            </h1>
-            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xl)' }}>
-                Project: <strong>{selectedProject.name}</strong>
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xl)' }}>
-                <div className="card">
-                    <Database size={32} style={{ color: 'var(--color-primary-500)', marginBottom: 'var(--spacing-sm)' }} />
-                    <h3 style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                        Datasets
-                    </h3>
-                    <p style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700 }}>{stats.datasets}</p>
-                </div>
-
-                <div className="card">
-                    <SettingsIcon size={32} style={{ color: 'var(--color-primary-500)', marginBottom: 'var(--spacing-sm)' }} />
-                    <h3 style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                        Models
-                    </h3>
-                    <p style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700 }}>{stats.models}</p>
-                </div>
-
-                <div className="card">
-                    <TrendingUp size={32} style={{ color: 'var(--color-primary-500)', marginBottom: 'var(--spacing-sm)' }} />
-                    <h3 style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                        Training Runs
-                    </h3>
-                    <p style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700 }}>{stats.runs}</p>
-                </div>
+            <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, marginBottom: 'var(--spacing-xs)' }}>
+                    Dashboard
+                </h1>
+                <p style={{ color: 'var(--color-text-secondary)' }}>Project: <strong>{selectedProject.name}</strong></p>
             </div>
 
-            <div className="empty-state">
-                <BarChart3 size={48} className="empty-state__icon" />
-                <h3 className="empty-state__title">Dashboard Coming Soon</h3>
-                <p className="empty-state__description">Project overview and statistics will be displayed here</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-2xl)' }}>
+                <StatCard icon={<Database size={24} />} label="Datasets" value={stats.datasets} color="var(--color-primary-500)" />
+                <StatCard icon={<BarChart3 size={24} />} label="Models" value={stats.models} color="var(--color-success)" />
+                <StatCard icon={<TrendingUp size={24} />} label="Training Runs" value={stats.runs} color="var(--color-warning)" />
+            </div>
+
+            <div className="card" style={{ textAlign: 'center', padding: 'var(--spacing-2xl)' }}>
+                <BarChart3 size={48} style={{ margin: '0 auto', color: 'var(--color-text-secondary)' }} />
+                <h3 style={{ marginTop: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xs)' }}>Dashboard Coming Soon</h3>
+                <p style={{ color: 'var(--color-text-secondary)' }}>Project overview and statistics will be displayed here</p>
             </div>
         </div>
-    )
+    );
+};
+
+interface StatCardProps {
+    icon: React.ReactNode;
+    label: string;
+    value: number;
+    color: string;
 }
 
-export default Dashboard
+const StatCard = ({ icon, label, value, color }: StatCardProps) => (
+    <div className="card" style={{ padding: 'var(--spacing-xl)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
+            <div style={{ color }}>{icon}</div>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>{label}</span>
+        </div>
+        <div style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700 }}>{value}</div>
+    </div>
+);
+
+export default Dashboard;

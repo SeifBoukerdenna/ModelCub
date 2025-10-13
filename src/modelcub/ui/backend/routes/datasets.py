@@ -1,238 +1,345 @@
-"""Dataset management API routes."""
-from typing import Optional, List, Union, Dict, Any
+"""Dataset management API routes - Fixed."""
+from typing import List, Optional
 from pathlib import Path
 import logging
-import os
 import tempfile
 import shutil
 
-from fastapi import APIRouter, HTTPException, status, Header, UploadFile, File, Form
-from pydantic import BaseModel
+from fastapi import APIRouter, UploadFile, File, Form
 
-from modelcub.sdk import Dataset
-from modelcub.sdk.project import Project
-from modelcub.services.image_service import import_images, ImportImagesRequest
+from ..dependencies import ProjectRequired
+from ...shared.api.config import Endpoints
+from ...shared.api.schemas import (
+    APIResponse,
+    Dataset as DatasetSchema,
+    DatasetDetail as DatasetDetailSchema,
+    ImportDatasetRequest,
+)
+from ...shared.api.errors import NotFoundError, DatasetError, ErrorCode
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/datasets")
-
-WORKING_DIR = Path(os.environ.get("MODELCUB_WORKING_DIR", Path.cwd()))
+router = APIRouter(prefix=Endpoints.DATASETS, tags=["Datasets"])
 
 
-class DatasetResponse(BaseModel):
-    name: str
-    id: str
-    status: str
-    images: int
-    classes: List[str]
-    path: str
-    created: Optional[str] = None
-    source: Optional[str] = None
-    size_bytes: int = 0
-    size_formatted: str = "0 B"
-
-
-class DatasetDetailResponse(DatasetResponse):
-    train_images: int = 0
-    valid_images: int = 0
-    unlabeled_images: int = 0
-
-
-def _get_project_from_path(project_path: Optional[str] = None) -> Project:
+def _calculate_directory_size(path: Path) -> tuple[int, str]:
+    """Calculate total size of directory."""
+    total_size = 0
     try:
-        target_path = Path(project_path) if project_path else WORKING_DIR
-        if not (target_path / ".modelcub").exists():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No project at {target_path}")
-        return Project.load(str(target_path))
-    except HTTPException:
-        raise
+        for item in path.rglob("*"):
+            if item.is_file():
+                total_size += item.stat().st_size
     except Exception as e:
-        logger.error(f"Failed to load project: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.warning(f"Failed to calculate size for {path}: {e}")
+
+    # Format size string
+    size_display = total_size
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_display < 1024:
+            return total_size, f"{size_display:.1f} {unit}"  # Return original int
+        size_display /= 1024
+    return total_size, f"{size_display:.1f} TB"
 
 
-def _dataset_to_response(dataset: Union[Dataset, Dict[str, Any]], project_path: str) -> DatasetResponse:
-    """Convert Dataset to response with size."""
-    if isinstance(dataset, dict):
-        size_bytes = 0
-        size_formatted = "0 B"
+def _registry_dict_to_schema(ds_dict: dict, project_path: str) -> DatasetSchema:
+    """Convert registry dict to API schema."""
+    dataset_name = ds_dict.get("name", ds_dict.get("dataset", "unknown"))
+    dataset_path = Path(project_path) / "data" / "datasets" / dataset_name
+    size_bytes, size_formatted = _calculate_directory_size(dataset_path)
 
-        dataset_rel_path = dataset.get("path", "")
-        if dataset_rel_path:
-            full_path = Path(project_path) / dataset_rel_path
-            if full_path.exists():
-                try:
-                    size_bytes = sum(f.stat().st_size for f in full_path.rglob('*') if f.is_file())
-                    if size_bytes < 1024:
-                        size_formatted = f"{size_bytes} B"
-                    elif size_bytes < 1024 * 1024:
-                        size_formatted = f"{size_bytes / 1024:.1f} KB"
-                    elif size_bytes < 1024 * 1024 * 1024:
-                        size_formatted = f"{size_bytes / (1024 * 1024):.1f} MB"
-                    else:
-                        size_formatted = f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
-                except Exception as e:
-                    logger.error(f"Size calc error: {e}")
+    return DatasetSchema(
+        name=dataset_name,
+        id=ds_dict.get("id", dataset_name),
+        status="ready",
+        images=ds_dict.get("num_images", 0),
+        classes=ds_dict.get("classes", []),
+        path=str(dataset_path),
+        created=ds_dict.get("created"),
+        source=ds_dict.get("source"),
+        size_bytes=size_bytes,
+        size_formatted=size_formatted
+    )
 
-        return DatasetResponse(
-            name=dataset.get("name", ""),
-            id=dataset.get("id", ""),
-            status=dataset.get("status", "unknown"),
-            images=dataset.get("images", 0),
-            classes=dataset.get("classes", []),
-            path=dataset.get("path", ""),
-            created=dataset.get("created"),
-            source=dataset.get("source"),
-            size_bytes=size_bytes,
-            size_formatted=size_formatted
+
+@router.get("")
+async def list_datasets(project: ProjectRequired) -> APIResponse[List[DatasetSchema]]:
+    """List all datasets in project."""
+    try:
+        logger.info(f"Listing datasets for project: {project.name}")
+
+        # CORRECT: project.datasets is the DatasetRegistry
+        datasets_list = project.datasets.list_datasets()
+
+        dataset_schemas = [
+            _registry_dict_to_schema(ds_dict, project.path)
+            for ds_dict in datasets_list
+        ]
+
+        return APIResponse(
+            success=True,
+            data=dataset_schemas,
+            message=f"Found {len(dataset_schemas)} dataset(s)"
         )
 
-    info = dataset.info()
-    return DatasetResponse(
-        name=dataset.name,
-        id=dataset.id,
-        status=dataset.status,
-        images=dataset.images,
-        classes=dataset.classes,
-        path=str(dataset.path),
-        created=dataset.created,
-        source=dataset.source,
-        size_bytes=info.size_bytes,
-        size_formatted=info.size
-    )
-
-
-def _dataset_to_detail_response(dataset: Dataset, project_path: str) -> DatasetDetailResponse:
-    info = dataset.info()
-    return DatasetDetailResponse(
-        name=dataset.name,
-        id=dataset.id,
-        status=dataset.status,
-        images=info.total_images,
-        classes=dataset.classes,
-        path=str(dataset.path),
-        created=dataset.created,
-        source=dataset.source,
-        size_bytes=info.size_bytes,
-        size_formatted=info.size,
-        train_images=info.train_images,
-        valid_images=info.valid_images,
-        unlabeled_images=info.unlabeled_images
-    )
-
-
-@router.get("/")
-async def list_datasets(x_project_path: Optional[str] = Header(None)):
-    try:
-        project = _get_project_from_path(x_project_path)
-        datasets = project.datasets.list_datasets()
-
-        dataset_responses = []
-        for ds in datasets:
-            try:
-                response = _dataset_to_response(ds, project.path)
-                dataset_responses.append(response)
-            except Exception as e:
-                logger.error(f"Failed to convert dataset: {e}")
-                continue
-
-        return {
-            "success": True,
-            "datasets": dataset_responses,
-            "count": len(dataset_responses),
-            "message": f"Found {len(dataset_responses)} dataset(s) in project '{project.name}'"
-        }
-
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to list datasets: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise DatasetError(
+            message=f"Failed to list datasets: {str(e)}",
+            code=ErrorCode.DATASET_INVALID,
+            details={"error": str(e)}
+        )
 
 
-@router.get("/{name}")
-async def get_dataset(name: str, x_project_path: Optional[str] = Header(None)):
+@router.get("/{dataset_id}")
+async def get_dataset(
+    dataset_id: str,
+    project: ProjectRequired
+) -> APIResponse[DatasetDetailSchema]:
+    """Get dataset details."""
     try:
-        project = _get_project_from_path(x_project_path)
-        if not Dataset.exists(name):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dataset '{name}' not found")
-        dataset = Dataset.load(name)
-        return {"success": True, "dataset": _dataset_to_detail_response(dataset, project.path)}
-    except HTTPException:
+        logger.info(f"Getting dataset: {dataset_id}")
+
+        ds_dict = project.datasets.get_dataset(dataset_id)
+
+        if not ds_dict:
+            raise NotFoundError(
+                message=f"Dataset not found: {dataset_id}",
+                code=ErrorCode.DATASET_NOT_FOUND
+            )
+
+        base_schema = _registry_dict_to_schema(ds_dict, project.path)
+        dataset_path = Path(project.path) / "data" / "datasets" / dataset_id
+
+        train_count = sum(1 for _ in (dataset_path / "images" / "train").glob("*.*")) if (dataset_path / "images" / "train").exists() else 0
+        valid_count = sum(1 for _ in (dataset_path / "images" / "val").glob("*.*")) if (dataset_path / "images" / "val").exists() else 0
+        unlabeled_count = sum(1 for _ in (dataset_path / "images" / "unlabeled").glob("*.*")) if (dataset_path / "images" / "unlabeled").exists() else 0
+
+        dataset_schema = DatasetDetailSchema(
+            **base_schema.model_dump(),
+            train_images=train_count,
+            valid_images=valid_count,
+            unlabeled_images=unlabeled_count
+        )
+
+        return APIResponse(
+            success=True,
+            data=dataset_schema,
+            message=f"Dataset '{dataset_id}' loaded successfully"
+        )
+
+    except NotFoundError:
         raise
     except Exception as e:
         logger.error(f"Failed to get dataset: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise DatasetError(
+            message=f"Failed to load dataset: {str(e)}",
+            code=ErrorCode.DATASET_INVALID
+        )
 
 
 @router.post("/import")
 async def import_dataset(
+    request: ImportDatasetRequest,
+    project: ProjectRequired
+) -> APIResponse[DatasetSchema]:
+    """Import dataset from source."""
+    try:
+        logger.info(f"Importing dataset from: {request.source}")
+
+        # Use service layer for import
+        from modelcub.services.image_service import import_images, ImportImagesRequest
+
+        import_request = ImportImagesRequest(
+            project_path=project.path,
+            source=request.source,
+            dataset_name=request.name,
+            recursive=request.recursive,
+            copy=request.copy_files
+        )
+
+        result = import_images(import_request)
+
+        if not result.success:
+            raise DatasetError(
+                message=result.message or "Failed to import dataset",
+                code=ErrorCode.DATASET_IMPORT_FAILED
+            )
+
+        dataset_name = request.name or Path(request.source).name
+        ds_dict = project.datasets.get_dataset(dataset_name)
+
+        if not ds_dict:
+            raise DatasetError(
+                message="Dataset imported but not found in registry",
+                code=ErrorCode.DATASET_INVALID
+            )
+
+        dataset_schema = _registry_dict_to_schema(ds_dict, project.path)
+
+        return APIResponse(
+            success=True,
+            data=dataset_schema,
+            message=f"Dataset imported successfully: {dataset_name}"
+        )
+
+    except DatasetError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to import dataset: {e}", exc_info=True)
+        raise DatasetError(
+            message=f"Failed to import dataset: {str(e)}",
+            code=ErrorCode.DATASET_IMPORT_FAILED
+        )
+
+
+@router.post("/upload")
+async def upload_dataset(
+    file: UploadFile = File(...),
+    dataset_name: Optional[str] = Form(None),
+    project: ProjectRequired = None
+) -> APIResponse[DatasetSchema]:
+    """Upload dataset archive."""
+    temp_dir = None
+
+    try:
+        logger.info(f"Uploading dataset: {file.filename}")
+
+        if not file.filename or not file.filename.endswith(('.zip', '.tar.gz', '.tar')):
+            raise DatasetError(
+                message="Invalid file type. Only .zip, .tar.gz, and .tar files are supported.",
+                code=ErrorCode.INVALID_FILE_TYPE
+            )
+
+        temp_dir = Path(tempfile.mkdtemp())
+        archive_path = temp_dir / file.filename
+
+        with open(archive_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+
+        from modelcub.services.image_service import import_images, ImportImagesRequest
+
+        import_request = ImportImagesRequest(
+            project_path=project.path,
+            source=str(archive_path),
+            dataset_name=dataset_name,
+            recursive=True,
+            copy=True
+        )
+
+        result = import_images(import_request)
+
+        if not result.success:
+            raise DatasetError(
+                message=result.message or "Failed to import uploaded dataset",
+                code=ErrorCode.DATASET_IMPORT_FAILED
+            )
+
+        ds_name = dataset_name or Path(file.filename).stem
+        ds_dict = project.datasets.get_dataset(ds_name)
+
+        if not ds_dict:
+            raise DatasetError(
+                message="Dataset uploaded but not found in registry",
+                code=ErrorCode.DATASET_INVALID
+            )
+
+        dataset_schema = _registry_dict_to_schema(ds_dict, project.path)
+
+        return APIResponse(
+            success=True,
+            data=dataset_schema,
+            message=f"Dataset uploaded successfully: {ds_name}"
+        )
+
+    except DatasetError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to upload dataset: {e}", exc_info=True)
+        raise DatasetError(
+            message=f"Failed to upload dataset: {str(e)}",
+            code=ErrorCode.FILE_UPLOAD_FAILED
+        )
+    finally:
+        if temp_dir and temp_dir.exists():
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup temp dir: {e}")
+
+@router.post("/import-files")
+async def import_dataset_files(
     files: List[UploadFile] = File(...),
     name: Optional[str] = Form(None),
     recursive: bool = Form(True),
-    x_project_path: Optional[str] = Header(None)
-):
-    import os
+    project: ProjectRequired = None
+) -> APIResponse[DatasetSchema]:
+    """Import dataset from uploaded files."""
+    temp_dir = None
 
     try:
-        project = _get_project_from_path(x_project_path)
-        if len(files) == 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files")
+        logger.info(f"Importing {len(files)} files")
 
-        temp_dir = Path(tempfile.mkdtemp(prefix="modelcub_import_"))
+        temp_dir = Path(tempfile.mkdtemp())
+
+        # Save files
+        for file in files:
+            if not file.filename:
+                continue
+            filename = Path(file.filename).name
+            if not filename:
+                continue
+            file_path = temp_dir / filename
+            with open(file_path, "wb") as f:
+                shutil.copyfileobj(file.file, f)
+
+        logger.info(f"Saved files to {temp_dir}")
+
+        # Import using SDK
+        from modelcub.sdk.dataset import Dataset
+        import os
+
         original_cwd = os.getcwd()
-
         try:
-            for upload_file in files:
-                file_path = temp_dir / upload_file.filename
-                file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.write_bytes(await upload_file.read())
-
             os.chdir(project.path)
-
-            req = ImportImagesRequest(source=temp_dir, name=name, copy=True, validate=True, recursive=recursive, force=False)
-            code, message = import_images(req)
-
-            if code != 0:
-                raise RuntimeError(message)
-
-            import re
-            match = re.search(r'Name:\s+(\S+)', message)
-            dataset_name = match.group(1) if match else name
-            dataset = Dataset.load(dataset_name)
-
-            return {
-                "success": True,
-                "message": f"Imported {dataset.images} images",
-                "data": {"dataset": _dataset_to_response(dataset, project.path)}
-            }
+            dataset = Dataset.from_images(
+                source=temp_dir,
+                name=name,
+                recursive=False,
+                copy=True,
+                validate=True
+            )
+            dataset_name = dataset.name
         finally:
             os.chdir(original_cwd)
-            if temp_dir.exists():
-                shutil.rmtree(temp_dir)
 
-    except HTTPException:
-        raise
-    except RuntimeError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        # Count actual images
+        dataset_dir = Path(project.path) / "data" / "datasets" / dataset_name
+        images_dir = dataset_dir / "images" / "unlabeled"
+
+        if images_dir.exists():
+            image_files = list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.jpeg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.bmp"))
+            image_count = len(image_files)
+
+            # Update registry
+            ds_dict = project.datasets.get_dataset(dataset_name)
+            if ds_dict:
+                ds_dict["num_images"] = image_count
+                if "images" not in ds_dict:
+                    ds_dict["images"] = {}
+                ds_dict["images"]["total"] = image_count
+                ds_dict["images"]["unlabeled"] = image_count
+                project.datasets.add_dataset(ds_dict)
+
+        # Get updated data
+        ds_dict = project.datasets.get_dataset(dataset_name)
+        if not ds_dict:
+            raise DatasetError("Dataset not in registry", ErrorCode.DATASET_INVALID)
+
+        dataset_schema = _registry_dict_to_schema(ds_dict, project.path)
+        return APIResponse(success=True, data=dataset_schema, message=f"Imported {len(files)} files")
+
     except Exception as e:
         logger.error(f"Import failed: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
-@router.delete("/{name}")
-async def delete_dataset(name: str, confirm: bool = False, x_project_path: Optional[str] = Header(None)):
-    try:
-        project = _get_project_from_path(x_project_path)
-        if not confirm:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Must confirm")
-        if not Dataset.exists(name):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dataset '{name}' not found")
-        dataset = Dataset.load(name)
-        dataset.delete(confirm=True)
-        return {"success": True, "message": f"Deleted '{name}'"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Delete failed: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise DatasetError(f"Failed: {str(e)}", ErrorCode.FILE_UPLOAD_FAILED)
+    finally:
+        if temp_dir and temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)

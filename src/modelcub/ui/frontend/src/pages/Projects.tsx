@@ -1,130 +1,185 @@
-import React, { useEffect, useState } from 'react'
-import { Plus, Trash2, FolderKanban, RefreshCw } from 'lucide-react'
-import { api } from '@/lib/api'
-import { toast } from '@/lib/toast'
-import { useProjectStore } from '@/stores/projectStore'
-import Loading from '@/components/Loading'
-import CreateProjectModal from '@/components/CreateProjectModal'
-import DeleteProjectModal from '@/components/DeleteProjectModal'
-import type { Project } from '@/types'
+import { useEffect, useState } from 'react';
+import {
+    FolderOpen,
+    Plus,
+    RefreshCw,
+    Trash2,
+    Settings as SettingsIcon,
+    CheckCircle,
+    Calendar
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const Projects: React.FC = () => {
-    const { projects, setProjects, selectedProjectPath, setSelectedProject } = useProjectStore()
-    const [loading, setLoading] = useState(true)
-    const [showCreateModal, setShowCreateModal] = useState(false)
-    const [showDeleteModal, setShowDeleteModal] = useState(false)
-    const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
-    const [isDeleting, setIsDeleting] = useState(false)
+import {
+    useListProjects,
+    useCreateProject,
+    useDeleteProject,
+    type Project
+} from '@/lib/api';
+import { useProjectStore, selectSelectedProject } from '@/stores/projectStore';
+import { toast } from '@/lib/toast';
 
-    const loadProjects = async () => {
-        try {
-            setLoading(true)
-            const response = await api.listProjects()
+// Components
+import Loading from '@/components/Loading';
+import ErrorMessage from '@/components/ErrorMessage';
+import CreateProjectModal from '@/components/CreateProjectModal';
+import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 
-            if (response.success) {
-                setProjects(response.projects)
+const Projects = () => {
+    const navigate = useNavigate();
+    const selectedProject = useProjectStore(selectSelectedProject);
+    const setProjects = useProjectStore((state) => state.setProjects);
+    const setSelectedProject = useProjectStore((state) => state.setSelectedProject);
 
-                // Auto-select logic
-                if (response.projects.length > 0) {
-                    const savedPath = selectedProjectPath
-                    const savedExists = savedPath && response.projects.some(p => p.path === savedPath)
+    // NEW: Use API hooks
+    const {
+        data: projects,
+        loading,
+        error,
+        execute: loadProjects
+    } = useListProjects();
 
-                    if (savedExists) {
-                        // Saved project still exists, keep it selected
-                        console.log('Restored selected project:', savedPath)
-                    } else {
-                        // No saved project or it doesn't exist, select first
-                        if (response.projects[0]) {
-                            setSelectedProject(response.projects[0].path)
-                            console.log('Auto-selected first project:', response.projects[0].path)
-                        }
-                    }
-                }
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to load projects'
-            toast.error(errorMessage)
-        } finally {
-            setLoading(false)
-        }
-    }
+    const {
+        loading: creating,
+        execute: createProject
+    } = useCreateProject();
 
+    const {
+        loading: deleting,
+        execute: deleteProject
+    } = useDeleteProject();
+
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+
+    // Load projects on mount
     useEffect(() => {
-        loadProjects()
-    }, [])
+        loadProjects();
+    }, []);
 
-    const handleCreateSuccess = (projectPath: string) => {
-        loadProjects()
-        setSelectedProject(projectPath)
-    }
+    // Sync projects to Zustand store
+    useEffect(() => {
+        if (projects) {
+            setProjects(projects);
+        }
+    }, [projects, setProjects]);
 
-    const handleDeleteClick = (project: Project) => {
-        setProjectToDelete(project)
-        setShowDeleteModal(true)
-    }
+    // Handle create project
+    const handleCreateProject = async (name: string, path?: string) => {
+        const result = await createProject({ name, path: path || undefined, force: false });
 
-    const handleDeleteConfirm = async () => {
-        if (!projectToDelete) return
+        if (result) {
+            setShowCreateModal(false);
+            toast.success(`Project "${name}" created successfully`);
+            loadProjects();
+
+            // Auto-select new project
+            if (result.path) {
+                setSelectedProject(result.path);
+            }
+        }
+    };
+
+    const handleDeleteProject = async () => {
+        if (!projectToDelete) return;
 
         try {
-            setIsDeleting(true)
-            const response = await api.deleteProject(projectToDelete.path, true)
+            await deleteProject(projectToDelete.path, true);
 
-            if (response.success) {
-                toast.success(`Project "${projectToDelete.name}" deleted`)
+            toast.success(`Project "${projectToDelete.name}" deleted`);
 
-                // If we deleted the selected project, clear selection
-                if (projectToDelete.path === selectedProjectPath) {
-                    setSelectedProject(null)
-                }
-
-                setShowDeleteModal(false)
-                setProjectToDelete(null)
-                await loadProjects()
+            // Deselect if deleted
+            if (selectedProject?.path === projectToDelete.path) {
+                setSelectedProject(null);
             }
+
+            // Close modal FIRST
+            setProjectToDelete(null);
+
+            // Then reload
+            await loadProjects();
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to delete project'
-            toast.error(message)
-        } finally {
-            setIsDeleting(false)
+            toast.error(err instanceof Error ? err.message : 'Failed to delete project');
         }
+    };
+
+    // Handle select project
+    const handleSelectProject = (project: Project) => {
+        setSelectedProject(project.path);
+        toast.success(`Switched to project: ${project.name}`);
+    };
+
+    // Loading state
+    if (loading && !projects) {
+        return <Loading message="Loading projects..." />;
     }
 
-    if (loading) {
-        return <Loading message="Loading projects..." />
+    // Error state
+    if (error && !projects) {
+        return (
+            <div>
+                <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                    <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700 }}>Projects</h1>
+                </div>
+                <ErrorMessage message={error} />
+                <button
+                    onClick={() => loadProjects()}
+                    className="btn btn--secondary"
+                    style={{ marginTop: 'var(--spacing-md)' }}
+                >
+                    <RefreshCw size={18} />
+                    Retry
+                </button>
+            </div>
+        );
     }
 
     return (
         <div>
+            {/* Header */}
             <div style={{ marginBottom: 'var(--spacing-xl)' }}>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: 'var(--spacing-md)'
+                    marginBottom: 'var(--spacing-xs)'
                 }}>
-                    <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700 }}>
-                        Projects
-                    </h1>
+                    <div>
+                        <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, marginBottom: 'var(--spacing-xs)' }}>
+                            Projects
+                        </h1>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                            Manage your ModelCub projects
+                        </p>
+                    </div>
+
                     <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                        <button className="btn btn--secondary" onClick={loadProjects}>
-                            <RefreshCw size={20} />
+                        <button
+                            className="btn btn--secondary"
+                            onClick={() => loadProjects()}
+                            disabled={loading}
+                        >
+                            <RefreshCw size={18} className={loading ? 'spinner' : ''} />
                             Refresh
                         </button>
-                        <button className="btn btn--primary" onClick={() => setShowCreateModal(true)}>
-                            <Plus size={20} />
+                        <button
+                            className="btn btn--primary"
+                            onClick={() => setShowCreateModal(true)}
+                        >
+                            <Plus size={18} />
                             New Project
                         </button>
                     </div>
                 </div>
             </div>
 
-            {projects.length === 0 ? (
+            {/* Projects Grid */}
+            {!projects || projects.length === 0 ? (
                 <div className="empty-state">
-                    <FolderKanban size={48} className="empty-state__icon" />
+                    <FolderOpen size={48} className="empty-state__icon" />
                     <h3 className="empty-state__title">No projects yet</h3>
                     <p className="empty-state__description">
-                        Create your first project to get started with ModelCub
+                        Create your first ModelCub project to get started
                     </p>
                     <button
                         className="btn btn--primary"
@@ -138,95 +193,192 @@ const Projects: React.FC = () => {
             ) : (
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
                     gap: 'var(--spacing-lg)'
                 }}>
-                    {projects.map((project) => {
-                        const isSelected = project.path === selectedProjectPath
-
-                        return (
-                            <div
-                                key={project.path}
-                                className="card"
-                                style={{
-                                    cursor: 'pointer',
-                                    border: isSelected ? '2px solid var(--color-primary-500)' : undefined,
-                                    boxShadow: isSelected ? '0 0 0 3px var(--color-primary-100)' : undefined
-                                }}
-                                onClick={() => setSelectedProject(project.path)}
-                            >
-                                <div className="card__header">
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                                        <FolderKanban size={20} style={{ color: 'var(--color-primary-500)' }} />
-                                        <h3 className="card__title">{project.name}</h3>
-                                    </div>
-                                    {isSelected && (
-                                        <span className="badge" style={{
-                                            backgroundColor: 'var(--color-primary-100)',
-                                            color: 'var(--color-primary-700)'
-                                        }}>
-                                            Active
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="card__body">
-                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                        <div style={{ marginBottom: 'var(--spacing-xs)' }}>
-                                            <strong>Path:</strong>
-                                        </div>
-                                        <code style={{
-                                            display: 'block',
-                                            padding: 'var(--spacing-xs)',
-                                            backgroundColor: 'var(--color-surface)',
-                                            borderRadius: 'var(--border-radius-sm)',
-                                            wordBreak: 'break-all',
-                                            fontSize: 'var(--font-size-xs)'
-                                        }}>
-                                            {project.path}
-                                        </code>
-                                    </div>
-                                </div>
-
-                                <div className="card__footer">
-                                    <button
-                                        className="btn btn--text btn--sm"
-                                        style={{ color: 'var(--color-error-500)' }}
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleDeleteClick(project)
-                                        }}
-                                    >
-                                        <Trash2 size={16} />
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        )
-                    })}
+                    {projects.map((project: Project) => (
+                        <ProjectCard
+                            key={project.path}
+                            project={project}
+                            isSelected={selectedProject?.path === project.path}
+                            onSelect={() => handleSelectProject(project)}
+                            onDelete={() => setProjectToDelete(project)}
+                            onSettings={() => navigate('/settings')}
+                        />
+                    ))}
                 </div>
             )}
 
+            {/* Create Modal */}
             <CreateProjectModal
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
-                onSuccess={handleCreateSuccess}
+                onSubmit={handleCreateProject}
+                isCreating={creating}
             />
 
-            {projectToDelete && (
-                <DeleteProjectModal
-                    isOpen={showDeleteModal}
-                    project={projectToDelete}
-                    onClose={() => {
-                        setShowDeleteModal(false)
-                        setProjectToDelete(null)
-                    }}
-                    onConfirm={handleDeleteConfirm}
-                    isDeleting={isDeleting}
-                />
-            )}
+            {/* Delete Confirmation Modal */}
+            <DeleteConfirmModal
+                isOpen={!!projectToDelete}
+                title="Delete Project"
+                message={
+                    <>
+                        Are you sure you want to delete <strong>{projectToDelete?.name}</strong>?
+                        <br />
+                        <span style={{ color: 'var(--color-error)' }}>
+                            This action cannot be undone.
+                        </span>
+                    </>
+                }
+                onConfirm={handleDeleteProject}
+                onCancel={() => setProjectToDelete(null)}
+                isDeleting={deleting}
+            />
         </div>
-    )
+    );
+};
+
+// Project Card Component
+interface ProjectCardProps {
+    project: Project;
+    isSelected: boolean;
+    onSelect: () => void;
+    onDelete: () => void;
+    onSettings: () => void;
 }
 
-export default Projects
+const ProjectCard = ({
+    project,
+    isSelected,
+    onSelect,
+    onDelete,
+    onSettings
+}: ProjectCardProps) => {
+    return (
+        <div
+            className={`card ${isSelected ? 'card--selected' : ''}`}
+            style={{
+                position: 'relative',
+                border: isSelected ? '2px solid var(--color-primary-500)' : undefined,
+                cursor: 'pointer',
+            }}
+            onClick={onSelect}
+        >
+            {/* Selected Badge */}
+            {isSelected && (
+                <div style={{
+                    position: 'absolute',
+                    top: 'var(--spacing-sm)',
+                    right: 'var(--spacing-sm)',
+                    backgroundColor: 'var(--color-primary-500)',
+                    color: 'white',
+                    padding: '4px 8px',
+                    borderRadius: 'var(--border-radius-sm)',
+                    fontSize: 'var(--font-size-xs)',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                }}>
+                    <CheckCircle size={12} />
+                    Active
+                </div>
+            )}
+
+            {/* Card Header */}
+            <div className="card__header" style={{ paddingTop: isSelected ? 'var(--spacing-xl)' : undefined }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                    <FolderOpen size={20} style={{ color: 'var(--color-primary-500)' }} />
+                    <h3 className="card__title">{project.name}</h3>
+                </div>
+            </div>
+
+            {/* Card Body */}
+            <div className="card__body">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                    {/* Path */}
+                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                        <strong>Path:</strong>
+                        <div
+                            style={{
+                                fontFamily: 'var(--font-family-mono)',
+                                backgroundColor: 'var(--color-surface)',
+                                padding: 'var(--spacing-xs)',
+                                borderRadius: 'var(--border-radius-sm)',
+                                marginTop: '4px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                            }}
+                            title={project.path}
+                        >
+                            {project.path}
+                        </div>
+                    </div>
+
+                    {/* Metadata */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: 'var(--spacing-sm)',
+                        fontSize: 'var(--font-size-sm)',
+                        paddingTop: 'var(--spacing-xs)',
+                        borderTop: '1px solid var(--color-border)'
+                    }}>
+                        <div>
+                            <div style={{ color: 'var(--color-text-secondary)' }}>Version</div>
+                            <div style={{ fontWeight: 500 }}>{project.version}</div>
+                        </div>
+                        <div>
+                            <div style={{ color: 'var(--color-text-secondary)' }}>
+                                <Calendar size={12} style={{ verticalAlign: 'middle' }} /> Created
+                            </div>
+                            <div style={{ fontWeight: 500 }}>
+                                {new Date(project.created).toLocaleDateString()}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Config Info */}
+                    <div style={{
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--color-text-secondary)',
+                        paddingTop: 'var(--spacing-xs)',
+                        borderTop: '1px solid var(--color-border)'
+                    }}>
+                        Device: <strong>{project.config.device}</strong> •
+                        Batch: <strong>{project.config.batch_size}</strong> •
+                        Image: <strong>{project.config.image_size}</strong>
+                    </div>
+                </div>
+            </div>
+
+            {/* Card Footer */}
+            <div className="card__footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <button
+                    className="btn btn--text btn--sm"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onSettings();
+                    }}
+                >
+                    <SettingsIcon size={16} />
+                    Settings
+                </button>
+                <button
+                    className="btn btn--text btn--sm"
+                    style={{ color: 'var(--color-error)' }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete();
+                    }}
+                >
+                    <Trash2 size={16} />
+                    Delete
+                </button>
+            </div>
+        </div>
+    );
+};
+
+export default Projects;
