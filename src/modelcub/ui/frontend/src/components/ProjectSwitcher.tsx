@@ -1,9 +1,3 @@
-/**
- * Project Switcher Component
- * Allows users to switch between available projects
- *
- * Path: frontend/src/components/ProjectSwitcher.tsx
- */
 import React, { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Check, FolderKanban } from 'lucide-react'
 import { useProjectStore, selectSelectedProject, selectProjects } from '@/stores/projectStore'
@@ -18,7 +12,6 @@ const ProjectSwitcher: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -35,7 +28,6 @@ const ProjectSwitcher: React.FC = () => {
         }
     }, [isOpen])
 
-    // Close dropdown on escape
     useEffect(() => {
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
@@ -53,18 +45,15 @@ const ProjectSwitcher: React.FC = () => {
     }, [isOpen])
 
     const handleProjectSelect = (project: Project) => {
-        console.log('ProjectSwitcher: Selecting project', project.name, 'at', project.path)
-        setSelectedProject(project)
+        setSelectedProject(project.path)
         setIsOpen(false)
         toast.success(`Switched to project: ${project.name}`)
     }
 
-    // No projects available
     if (projects.length === 0) {
         return null
     }
 
-    // No project selected yet
     if (!selectedProject) {
         return (
             <div className="project-switcher">
@@ -116,8 +105,7 @@ const ProjectSwitcher: React.FC = () => {
                             return (
                                 <button
                                     key={project.path}
-                                    className={`project-switcher__item ${isSelected ? 'project-switcher__item--selected' : ''
-                                        }`}
+                                    className={`project-switcher__item ${isSelected ? 'project-switcher__item--selected' : ''}`}
                                     onClick={() => handleProjectSelect(project)}
                                 >
                                     <div className="project-switcher__item-content">

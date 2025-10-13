@@ -49,9 +49,6 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose
             <div className="modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal__header">
                     <h2 className="modal__title">Create New Project</h2>
-                    <button className="modal__close" onClick={onClose}>
-                        <X size={20} />
-                    </button>
                 </div>
 
                 <form onSubmit={handleSubmit}>

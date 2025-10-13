@@ -1,67 +1,52 @@
-/**
- * Zustand store for project state management
- *
- * Path: frontend/src/stores/projectStore.ts
- */
 import { create } from "zustand";
 import type { Project } from "@/types";
 
-interface ProjectStore {
-  // State
+interface ProjectState {
   projects: Project[];
-  selectedProject: Project | null; // Renamed from currentProject
-  loading: boolean;
-  error: string | null;
-
-  // Actions
+  selectedProjectPath: string | null;
   setProjects: (projects: Project[]) => void;
-  setSelectedProject: (project: Project | null) => void; // Renamed from setCurrentProject
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-
-  // Computed getters (kept for backward compatibility)
-  getCurrentProject: () => Project | null;
-  hasCurrentProject: () => boolean;
+  setSelectedProject: (path: string | null) => void;
 }
 
-export const useProjectStore = create<ProjectStore>((set, get) => ({
-  // Initial state
-  projects: [],
-  selectedProject: null,
-  loading: false,
-  error: null,
+const STORAGE_KEY = "modelcub_selected_project";
 
-  // Actions
-  setProjects: (projects) => {
-    set({ projects });
+const loadSelectedPath = (): string | null => {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
 
-    // Auto-set selected project to the first one marked as current
-    const currentProj = projects.find((p) => p.is_current);
-    if (currentProj) {
-      set({ selectedProject: currentProj });
+const saveSelectedPath = (path: string | null) => {
+  try {
+    if (path) {
+      localStorage.setItem(STORAGE_KEY, path);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
     }
+  } catch (e) {
+    console.error("Failed to save selected project:", e);
+  }
+};
+
+export const useProjectStore = create<ProjectState>((set) => ({
+  projects: [],
+  selectedProjectPath: loadSelectedPath(),
+  setProjects: (projects) => set({ projects }),
+  setSelectedProject: (path) => {
+    saveSelectedPath(path);
+    set({ selectedProjectPath: path });
   },
-
-  setSelectedProject: (project) => set({ selectedProject: project }),
-
-  setLoading: (loading) => set({ loading }),
-
-  setError: (error) => set({ error }),
-
-  // Computed getters (backward compatibility)
-  getCurrentProject: () => get().selectedProject,
-
-  hasCurrentProject: () => get().selectedProject !== null,
 }));
 
-// Selector functions for optimized re-renders
-export const selectSelectedProject = (state: ProjectStore) =>
-  state.selectedProject;
-export const selectProjects = (state: ProjectStore) => state.projects;
-export const selectLoading = (state: ProjectStore) => state.loading;
-export const selectError = (state: ProjectStore) => state.error;
-export const selectHasProject = (state: ProjectStore) =>
-  state.selectedProject !== null;
+export const selectSelectedProject = (state: ProjectState): Project | null => {
+  if (!state.selectedProjectPath) return null;
+  return (
+    state.projects.find((p) => p.path === state.selectedProjectPath) || null
+  );
+};
 
-// Backward compatibility aliases
-export const selectCurrentProject = selectSelectedProject;
+export const selectProjects = (state: ProjectState): Project[] => {
+  return state.projects;
+};

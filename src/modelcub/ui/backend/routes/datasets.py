@@ -3,31 +3,23 @@ from typing import Optional, List, Union, Dict, Any
 from pathlib import Path
 import logging
 import os
+import tempfile
+import shutil
 
-from fastapi import APIRouter, HTTPException, status, Header
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, status, Header, UploadFile, File, Form
+from pydantic import BaseModel
 
 from modelcub.sdk import Dataset
 from modelcub.sdk.project import Project
+from modelcub.services.image_service import import_images, ImportImagesRequest
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/datasets")
 
-# Get working directory
 WORKING_DIR = Path(os.environ.get("MODELCUB_WORKING_DIR", Path.cwd()))
 
 
-# Request/Response Models
-class ImportDatasetRequest(BaseModel):
-    """Request model for importing a dataset."""
-    source: str = Field(..., description="Path to source directory")
-    name: Optional[str] = Field(None, description="Dataset name (auto-generated if None)")
-    recursive: bool = Field(False, description="Scan subdirectories")
-    copy: bool = Field(True, description="Copy files (True) or create symlinks (False)")
-
-
 class DatasetResponse(BaseModel):
-    """Dataset response model."""
     name: str
     id: str
     status: str
@@ -41,51 +33,47 @@ class DatasetResponse(BaseModel):
 
 
 class DatasetDetailResponse(DatasetResponse):
-    """Detailed dataset response with split information."""
     train_images: int = 0
     valid_images: int = 0
     unlabeled_images: int = 0
 
 
-class ApiResponse(BaseModel):
-    """Standard API response."""
-    success: bool
-    message: Optional[str] = None
-    data: Optional[dict] = None
-
-
-# Helper Functions
 def _get_project_from_path(project_path: Optional[str] = None) -> Project:
-    """Get project from path or current working directory."""
     try:
         target_path = Path(project_path) if project_path else WORKING_DIR
-        logger.info(f"Loading project from {'provided path' if project_path else 'WORKING_DIR'}: {target_path}")
-
         if not (target_path / ".modelcub").exists():
-            logger.warning(f"No .modelcub folder found at: {target_path}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No project found at {target_path}. Please create or select a project first."
-            )
-
-        project = Project.load(str(target_path))
-        logger.info(f"Successfully loaded project: {project.name} from {target_path}")
-        return project
-
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No project at {target_path}")
+        return Project.load(str(target_path))
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to load project: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to load project: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-def _dataset_to_response(dataset: Union[Dataset, Dict[str, Any]]) -> DatasetResponse:
-    """Convert Dataset object or dict to response model."""
-    # Handle dict from list_datasets()
+def _dataset_to_response(dataset: Union[Dataset, Dict[str, Any]], project_path: str) -> DatasetResponse:
+    """Convert Dataset to response with size."""
     if isinstance(dataset, dict):
+        size_bytes = 0
+        size_formatted = "0 B"
+
+        dataset_rel_path = dataset.get("path", "")
+        if dataset_rel_path:
+            full_path = Path(project_path) / dataset_rel_path
+            if full_path.exists():
+                try:
+                    size_bytes = sum(f.stat().st_size for f in full_path.rglob('*') if f.is_file())
+                    if size_bytes < 1024:
+                        size_formatted = f"{size_bytes} B"
+                    elif size_bytes < 1024 * 1024:
+                        size_formatted = f"{size_bytes / 1024:.1f} KB"
+                    elif size_bytes < 1024 * 1024 * 1024:
+                        size_formatted = f"{size_bytes / (1024 * 1024):.1f} MB"
+                    else:
+                        size_formatted = f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+                except Exception as e:
+                    logger.error(f"Size calc error: {e}")
+
         return DatasetResponse(
             name=dataset.get("name", ""),
             id=dataset.get("id", ""),
@@ -95,11 +83,10 @@ def _dataset_to_response(dataset: Union[Dataset, Dict[str, Any]]) -> DatasetResp
             path=dataset.get("path", ""),
             created=dataset.get("created"),
             source=dataset.get("source"),
-            size_bytes=dataset.get("size_bytes", 0),
-            size_formatted=dataset.get("size_formatted", "0 B")
+            size_bytes=size_bytes,
+            size_formatted=size_formatted
         )
 
-    # Handle Dataset object
     info = dataset.info()
     return DatasetResponse(
         name=dataset.name,
@@ -115,8 +102,7 @@ def _dataset_to_response(dataset: Union[Dataset, Dict[str, Any]]) -> DatasetResp
     )
 
 
-def _dataset_to_detail_response(dataset: Dataset) -> DatasetDetailResponse:
-    """Convert Dataset to detailed response model."""
+def _dataset_to_detail_response(dataset: Dataset, project_path: str) -> DatasetDetailResponse:
     info = dataset.info()
     return DatasetDetailResponse(
         name=dataset.name,
@@ -135,161 +121,118 @@ def _dataset_to_detail_response(dataset: Dataset) -> DatasetDetailResponse:
     )
 
 
-# Routes
 @router.get("/")
 async def list_datasets(x_project_path: Optional[str] = Header(None)):
-    """List all datasets in specified project."""
     try:
         project = _get_project_from_path(x_project_path)
-        logger.info(f"Listing datasets for project: {project.name}")
-
         datasets = project.datasets.list_datasets()
-        logger.info(f"Found {len(datasets)} datasets")
+
+        dataset_responses = []
+        for ds in datasets:
+            try:
+                response = _dataset_to_response(ds, project.path)
+                dataset_responses.append(response)
+            except Exception as e:
+                logger.error(f"Failed to convert dataset: {e}")
+                continue
 
         return {
             "success": True,
-            "datasets": [_dataset_to_response(ds) for ds in datasets],
-            "count": len(datasets),
-            "message": f"Found {len(datasets)} dataset(s) in project '{project.name}'"
+            "datasets": dataset_responses,
+            "count": len(dataset_responses),
+            "message": f"Found {len(dataset_responses)} dataset(s) in project '{project.name}'"
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to list datasets: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list datasets: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/{name}")
 async def get_dataset(name: str, x_project_path: Optional[str] = Header(None)):
-    """Get detailed information about a specific dataset."""
     try:
         project = _get_project_from_path(x_project_path)
-        logger.info(f"Getting dataset '{name}' from project: {project.name}")
-
         if not Dataset.exists(name):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Dataset '{name}' not found in project '{project.name}'"
-            )
-
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dataset '{name}' not found")
         dataset = Dataset.load(name)
-
-        return {
-            "success": True,
-            "dataset": _dataset_to_detail_response(dataset)
-        }
-
+        return {"success": True, "dataset": _dataset_to_detail_response(dataset, project.path)}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get dataset '{name}': {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get dataset: {str(e)}"
-        )
+        logger.error(f"Failed to get dataset: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post("/import")
 async def import_dataset(
-    request: ImportDatasetRequest,
+    files: List[UploadFile] = File(...),
+    name: Optional[str] = Form(None),
+    recursive: bool = Form(True),
     x_project_path: Optional[str] = Header(None)
 ):
-    """Import images from a directory into the current project."""
+    import os
+
     try:
         project = _get_project_from_path(x_project_path)
-        logger.info(f"Importing dataset into project: {project.name}")
+        if len(files) == 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files")
 
-        source_path = Path(request.source)
-        if not source_path.is_absolute():
-            source_path = WORKING_DIR / source_path
+        temp_dir = Path(tempfile.mkdtemp(prefix="modelcub_import_"))
+        original_cwd = os.getcwd()
 
-        if not source_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Source directory not found: {source_path}"
-            )
+        try:
+            for upload_file in files:
+                file_path = temp_dir / upload_file.filename
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_bytes(await upload_file.read())
 
-        if not source_path.is_dir():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Source is not a directory: {source_path}"
-            )
+            os.chdir(project.path)
 
-        logger.info(f"Importing from: {source_path}")
+            req = ImportImagesRequest(source=temp_dir, name=name, copy=True, validate=True, recursive=recursive, force=False)
+            code, message = import_images(req)
 
-        dataset = project.datasets.from_images(
-            source=str(source_path),
-            name=request.name,
-            recursive=request.recursive,
-            copy=request.copy
-        )
+            if code != 0:
+                raise RuntimeError(message)
 
-        logger.info(f"Successfully imported dataset: {dataset.name} ({dataset.images} images)")
+            import re
+            match = re.search(r'Name:\s+(\S+)', message)
+            dataset_name = match.group(1) if match else name
+            dataset = Dataset.load(dataset_name)
 
-        return {
-            "success": True,
-            "message": f"Successfully imported {dataset.images} images into dataset '{dataset.name}'",
-            "dataset": _dataset_to_response(dataset)
-        }
+            return {
+                "success": True,
+                "message": f"Imported {dataset.images} images",
+                "data": {"dataset": _dataset_to_response(dataset, project.path)}
+            }
+        finally:
+            os.chdir(original_cwd)
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
 
     except HTTPException:
         raise
     except RuntimeError as e:
-        logger.warning(f"Dataset import validation failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to import dataset: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to import dataset: {str(e)}"
-        )
+        logger.error(f"Import failed: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.delete("/{name}")
-async def delete_dataset(
-    name: str,
-    confirm: bool = False,
-    x_project_path: Optional[str] = Header(None)
-):
-    """Delete a dataset from the current project."""
+async def delete_dataset(name: str, confirm: bool = False, x_project_path: Optional[str] = Header(None)):
     try:
         project = _get_project_from_path(x_project_path)
-        logger.info(f"Deleting dataset '{name}' from project: {project.name}")
-
         if not confirm:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Must confirm deletion by setting confirm=true"
-            )
-
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Must confirm")
         if not Dataset.exists(name):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Dataset '{name}' not found in project '{project.name}'"
-            )
-
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dataset '{name}' not found")
         dataset = Dataset.load(name)
         dataset.delete(confirm=True)
-
-        logger.info(f"Successfully deleted dataset: {name}")
-
-        return {
-            "success": True,
-            "message": f"Successfully deleted dataset '{name}'"
-        }
-
+        return {"success": True, "message": f"Deleted '{name}'"}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete dataset '{name}': {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete dataset: {str(e)}"
-        )
+        logger.error(f"Delete failed: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

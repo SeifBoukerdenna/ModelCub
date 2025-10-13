@@ -180,14 +180,77 @@ class ModelCubAPI {
     return this.request(`/datasets/${encodeURIComponent(name)}`);
   }
 
-  async importDataset(request: ImportDatasetRequest): Promise<{
-    success: boolean;
-    message: string;
-    dataset: Dataset;
-  }> {
-    return this.request("/datasets/import", {
-      method: "POST",
-      body: JSON.stringify(request),
+  async importDatasetFiles(
+    files: FileList,
+    name?: string,
+    recursive: boolean = true,
+    onProgress?: (progress: number) => void
+  ): Promise<ApiResponse<{ dataset: Dataset }>> {
+    const formData = new FormData();
+
+    // Add all files
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file) {
+        formData.append("files", file, file.webkitRelativePath || file.name);
+      }
+    }
+
+    // Add metadata
+    if (name) {
+      formData.append("name", name);
+    }
+    formData.append("recursive", String(recursive));
+
+    // Build headers (without Content-Type - browser sets it for FormData)
+    const headers: Record<string, string> = {};
+    if (this.currentProjectPath) {
+      headers["X-Project-Path"] = this.currentProjectPath;
+    }
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      // Track upload progress
+      if (onProgress) {
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            const progress = Math.round((e.loaded / e.total) * 100);
+            onProgress(progress);
+          }
+        });
+      }
+
+      xhr.addEventListener("load", () => {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(response);
+          } else {
+            reject(
+              new ModelCubAPIError(
+                response.detail || response.error || `HTTP ${xhr.status}`,
+                xhr.status
+              )
+            );
+          }
+        } catch (e) {
+          reject(new ModelCubAPIError("Failed to parse response"));
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        reject(new ModelCubAPIError("Network error"));
+      });
+
+      xhr.open("POST", `${this.baseURL}/datasets/import`);
+
+      // Set headers
+      Object.entries(headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+
+      xhr.send(formData);
     });
   }
 

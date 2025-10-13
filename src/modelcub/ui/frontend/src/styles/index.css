@@ -236,3 +236,17 @@ code {
 .u-mb-4 {
     margin-bottom: var(--spacing-md);
 }
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}

@@ -3,22 +3,24 @@
    ============================================ */
 
 .alert {
+    display: flex;
+    gap: var(--spacing-sm);
     padding: var(--spacing-md);
     border-radius: var(--border-radius-md);
     border-left: 4px solid;
-    font-size: var(--font-size-sm);
 }
 
-.alert--danger {
-    background-color: #fef2f2;
-    border-left-color: var(--color-error);
-    color: #991b1b;
+.alert--warning {
+    background-color: var(--color-warning-100);
+    border-color: var(--color-warning-500);
+    color: var(--color-warning-900);
 }
 
-[data-theme='dark'] .alert--danger {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: #fca5a5;
+[data-theme='dark'] .alert--warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--color-warning-200);
 }
+
 
 .alert--warning {
     background-color: #fffbeb;
