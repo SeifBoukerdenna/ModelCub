@@ -154,7 +154,7 @@ async def import_dataset(
     """Import dataset from source."""
     try:
         logger.info(f"Importing dataset from: {request.source}")
-
+        logger.info(f"The classes are ${request.classes=}")
         from modelcub.services.image_service import import_images, ImportImagesRequest
 
         import_request = ImportImagesRequest(
@@ -162,7 +162,8 @@ async def import_dataset(
             source=request.source,
             dataset_name=request.name,
             recursive=request.recursive,
-            copy=request.copy_files
+            copy=request.copy_files,
+            classes=request.classes
         )
 
         result = import_images(import_request)
@@ -279,6 +280,7 @@ async def upload_dataset(
 async def import_dataset_files(
     files: List[UploadFile] = File(...),
     name: Optional[str] = Form(None),
+    classes: Optional[List[str]] = Form(None),
     recursive: bool = Form(True),
     project: ProjectRequired = None
 ) -> APIResponse[DatasetSchema]:
@@ -303,7 +305,6 @@ async def import_dataset_files(
 
         logger.info(f"Saved {len(files)} files to {temp_dir}")
 
-        # Import using service layer (which uses SDK)
         from modelcub.services.image_service import import_images, ImportImagesRequest
 
         import_request = ImportImagesRequest(
@@ -312,7 +313,8 @@ async def import_dataset_files(
             dataset_name=name,
             recursive=False,  # Files are already flat
             copy=True,
-            validate=True
+            validate=True,
+            classes=classes
         )
 
         result = import_images(import_request)
@@ -337,6 +339,8 @@ async def import_dataset_files(
         dataset_schema = _registry_dict_to_schema(ds_dict, project.path)
 
         logger.info(f"Import successful: {dataset_name} with {dataset_schema.images} images")
+
+        logger.info(f"{classes=}")
 
         return APIResponse(
             success=True,

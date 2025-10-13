@@ -31,6 +31,7 @@ export interface ImportDatasetRequest {
   name?: string;
   recursive?: boolean;
   copy_files?: boolean;
+  classes?: string[];
 }
 
 export interface CreateProjectRequest {

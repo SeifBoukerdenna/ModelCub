@@ -119,6 +119,7 @@ class ImportDatasetRequest(BaseModel):
     name: Optional[str] = None
     recursive: bool = False
     copy_files: bool = False
+    classes: Optional[List[str]] = [],
 
 
 class ImageInfo(BaseModel):

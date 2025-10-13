@@ -12,6 +12,7 @@ interface ImportDatasetModalProps {
 const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalProps) => {
     const [importSource, setImportSource] = useState('');
     const [datasetName, setDatasetName] = useState('');
+    const [classes, setClasses] = useState('');
     const [recursive, setRecursive] = useState(true);
     const [copyFiles, setCopyFiles] = useState(true);
     const [importType, setImportType] = useState<'path' | 'files'>('path');
@@ -24,6 +25,8 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
         e.preventDefault();
         setError(null);
 
+        const classes_to_send = classes.split(',').map(s => s.trim()).filter(s => s.length > 0)
+        console.log(`The classe to send are ${classes_to_send}`)
         if (importType === 'path') {
             if (!importSource.trim()) {
                 toast.error('Please enter a source path');
@@ -37,6 +40,7 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                     name: datasetName || undefined,
                     recursive,
                     copy_files: copyFiles,
+                    classes: classes_to_send
                 });
                 handleSuccess();
             } catch (err) {
@@ -323,6 +327,21 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                                 <span>{error}</span>
                             </div>
                         )}
+
+                        <div className="form-group">
+                            <label htmlFor="name" className="form-label">
+                                Classes (Optional)
+                            </label>
+                            <input
+                                id="name"
+                                type="text"
+                                className="form-input"
+                                placeholder="separate each class by a comma"
+                                value={classes}
+                                onChange={(e) => setClasses(e.target.value)}
+                                disabled={uploading}
+                            />
+                        </div>
                     </div>
 
                     {/* Footer */}
