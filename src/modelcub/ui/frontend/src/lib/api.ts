@@ -246,6 +246,7 @@ class ModelCubAPI {
   async importDatasetFiles(
     files: FileList,
     name?: string,
+    classes?: string[],
     recursive: boolean = true
   ): Promise<Dataset> {
     const formData = new FormData();
@@ -258,6 +259,10 @@ class ModelCubAPI {
     }
 
     if (name) formData.append("name", name);
+    if (classes && classes.length > 0) {
+      // Send as comma-separated string
+      formData.append("classes", classes.join(","));
+    }
     formData.append("recursive", String(recursive));
 
     const headers: Record<string, string> = {};
@@ -282,16 +287,91 @@ class ModelCubAPI {
     return data.data as Dataset;
   }
 
-  async deleteDataset(
-    name: string,
-    confirm = false
-  ): Promise<{ success: boolean; message: string }> {
+  async addClassToDataset(
+    datasetId: string,
+    className: string
+  ): Promise<string[]> {
+    const formData = new FormData();
+    formData.append("class_name", className);
+
+    const headers: Record<string, string> = {};
+    if (this.currentProjectPath) {
+      headers["X-Project-Path"] = this.currentProjectPath;
+    }
+
+    const response = await fetch(
+      `${this.baseURL}/datasets/${encodeURIComponent(datasetId)}/classes`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      }
+    );
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new ModelCubAPIError(
+        data.error?.message || `HTTP ${response.status}`,
+        response.status
+      );
+    }
+
+    return data.data as string[];
+  }
+
+  async removeClassFromDataset(
+    datasetId: string,
+    className: string
+  ): Promise<string[]> {
     return this.request(
-      `/datasets/${encodeURIComponent(name)}?confirm=${confirm}`,
+      `/datasets/${encodeURIComponent(datasetId)}/classes/${encodeURIComponent(
+        className
+      )}`,
       {
         method: "DELETE",
       }
     );
+  }
+
+  async renameClassInDataset(
+    datasetId: string,
+    oldName: string,
+    newName: string
+  ): Promise<string[]> {
+    const formData = new FormData();
+    formData.append("new_name", newName);
+
+    const headers: Record<string, string> = {};
+    if (this.currentProjectPath) {
+      headers["X-Project-Path"] = this.currentProjectPath;
+    }
+
+    const response = await fetch(
+      `${this.baseURL}/datasets/${encodeURIComponent(
+        datasetId
+      )}/classes/${encodeURIComponent(oldName)}`,
+      {
+        method: "PUT",
+        headers,
+        body: formData,
+      }
+    );
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new ModelCubAPIError(
+        data.error?.message || `HTTP ${response.status}`,
+        response.status
+      );
+    }
+
+    return data.data as string[];
+  }
+
+  async deleteDataset(datasetName: string): Promise<void> {
+    return this.request(`/datasets/${encodeURIComponent(datasetName)}`, {
+      method: "DELETE",
+    });
   }
 
   // ==================== MODEL METHODS ====================

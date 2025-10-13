@@ -11,6 +11,7 @@
 @import '../components/loading.css';
 @import '../components/modal.css';
 @import '../components/form.css';
+@import '../components/badge.css';
 @import '../components/theme-toggle.css';
 
 /*============================================CSS Variables (Design Tokens)============================================*/

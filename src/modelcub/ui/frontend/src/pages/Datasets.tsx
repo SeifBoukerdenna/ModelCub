@@ -1,29 +1,25 @@
-import { useEffect, useState } from 'react';
-import {
-    Database,
-    Upload,
-    RefreshCw,
-    AlertCircle,
-    CheckCircle,
-    Image as ImageIcon
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Database, Upload, RefreshCw, CheckCircle, Settings, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-// NEW: Import from centralized API
 import { api, useListDatasets, type Dataset } from '@/lib/api';
-import { useProjectStore, selectSelectedProject } from '@/stores/projectStore';
 import { toast } from '@/lib/toast';
-
-// Components
+import ImportDatasetModal from '@/components/ImportDatasetModal';
+import ClassManagerModal from '@/components/ClassManagerModal';
+import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import Loading from '@/components/Loading';
 import ErrorMessage from '@/components/ErrorMessage';
-import ImportDatasetModal from '@/components/ImportDatasetModal';
+import { useApiSync } from '@/hooks/useApiSync';
 
 const Datasets = () => {
+    useApiSync();
     const navigate = useNavigate();
-    const selectedProject = useProjectStore(selectSelectedProject);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [classManagerDataset, setClassManagerDataset] = useState<Dataset | null>(null);
+    const [datasetToDelete, setDatasetToDelete] = useState<Dataset | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
-    // NEW: Use API hooks
     const {
         data: datasets,
         loading,
@@ -31,64 +27,49 @@ const Datasets = () => {
         execute: loadDatasets
     } = useListDatasets();
 
-    const [showImportModal, setShowImportModal] = useState(false);
-
-    // Set project context and load datasets when project changes
     useEffect(() => {
-        if (selectedProject) {
-            api.setProjectPath(selectedProject.path);
-            loadDatasets();
-        }
-    }, [selectedProject?.path]);
-
-    // Handle import success
-    const handleImportSuccess = () => {
-        setShowImportModal(false);
         loadDatasets();
-        toast.success('Dataset imported successfully');
+    }, []);
+
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        await loadDatasets();
+        setRefreshing(false);
+        toast.success('Datasets refreshed');
     };
 
-    // No project selected
-    if (!selectedProject) {
-        return (
-            <div>
-                <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                    <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700 }}>Datasets</h1>
-                </div>
-                <div className="empty-state">
-                    <AlertCircle size={48} className="empty-state__icon" />
-                    <h3 className="empty-state__title">No Project Selected</h3>
-                    <p className="empty-state__description">
-                        Select a project from the sidebar to manage datasets.
-                    </p>
-                </div>
-            </div>
-        );
-    }
+    const handleImportSuccess = () => {
+        setShowImportModal(false);
+        toast.success('Dataset imported successfully');
+        loadDatasets();
+    };
 
-    // Loading state
+    const handleClassUpdate = () => {
+        loadDatasets();
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!datasetToDelete) return;
+
+        setIsDeleting(true);
+        try {
+            await api.deleteDataset(datasetToDelete.name);
+            toast.success(`Dataset "${datasetToDelete.name}" deleted`);
+            setDatasetToDelete(null);
+            loadDatasets();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to delete dataset');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     if (loading && !datasets) {
-        return <Loading message={`Loading datasets for ${selectedProject.name}...`} />;
+        return <Loading message="Loading datasets..." />;
     }
 
-    // Error state
-    if (error && !datasets) {
-        return (
-            <div>
-                <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                    <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700 }}>Datasets</h1>
-                </div>
-                <ErrorMessage message={error} />
-                <button
-                    onClick={() => loadDatasets()}
-                    className="btn btn--secondary"
-                    style={{ marginTop: 'var(--spacing-md)' }}
-                >
-                    <RefreshCw size={18} />
-                    Retry
-                </button>
-            </div>
-        );
+    if (error) {
+        return <ErrorMessage message={error} />;
     }
 
     return (
@@ -99,24 +80,33 @@ const Datasets = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: 'var(--spacing-xs)'
+                    marginBottom: 'var(--spacing-md)'
                 }}>
                     <div>
-                        <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, marginBottom: 'var(--spacing-xs)' }}>
+                        <h1 style={{
+                            fontSize: 'var(--font-size-2xl)',
+                            fontWeight: 700,
+                            color: 'var(--color-text-primary)',
+                            margin: 0
+                        }}>
                             Datasets
                         </h1>
-                        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-                            Project: <strong>{selectedProject.name}</strong>
+                        <p style={{
+                            fontSize: 'var(--font-size-sm)',
+                            color: 'var(--color-text-secondary)',
+                            margin: 'var(--spacing-xs) 0 0 0'
+                        }}>
+                            Manage your training datasets
                         </p>
                     </div>
 
                     <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
                         <button
                             className="btn btn--secondary"
-                            onClick={() => loadDatasets()}
-                            disabled={loading}
+                            onClick={handleRefresh}
+                            disabled={refreshing}
                         >
-                            <RefreshCw size={18} className={loading ? 'spinner' : ''} />
+                            <RefreshCw size={18} className={refreshing ? 'spinner' : ''} />
                             Refresh
                         </button>
                         <button
@@ -158,6 +148,14 @@ const Datasets = () => {
                             key={dataset.id}
                             dataset={dataset}
                             onClick={() => navigate(`/datasets/${dataset.id}`)}
+                            onManageClasses={(e) => {
+                                e.stopPropagation();
+                                setClassManagerDataset(dataset);
+                            }}
+                            onDelete={(e) => {
+                                e.stopPropagation();
+                                setDatasetToDelete(dataset);
+                            }}
                         />
                     ))}
                 </div>
@@ -169,6 +167,36 @@ const Datasets = () => {
                 onClose={() => setShowImportModal(false)}
                 onSuccess={handleImportSuccess}
             />
+
+            {/* Class Manager Modal */}
+            {classManagerDataset && (
+                <ClassManagerModal
+                    isOpen={!!classManagerDataset}
+                    onClose={() => setClassManagerDataset(null)}
+                    datasetId={classManagerDataset.name}
+                    initialClasses={classManagerDataset.classes}
+                    onUpdate={handleClassUpdate}
+                />
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {datasetToDelete && (
+                <DeleteConfirmModal
+                    isOpen={!!datasetToDelete}
+                    title="Delete Dataset"
+                    message={
+                        <>
+                            <p>Are you sure you want to delete <strong>{datasetToDelete.name}</strong>?</p>
+                            <p style={{ marginTop: 'var(--spacing-sm)' }}>
+                                This will permanently delete {datasetToDelete.images} images and cannot be undone.
+                            </p>
+                        </>
+                    }
+                    onConfirm={handleDeleteConfirm}
+                    onCancel={() => setDatasetToDelete(null)}
+                    isDeleting={isDeleting}
+                />
+            )}
         </div>
     );
 };
@@ -177,9 +205,11 @@ const Datasets = () => {
 interface DatasetCardProps {
     dataset: Dataset;
     onClick: () => void;
+    onManageClasses: (e: React.MouseEvent) => void;
+    onDelete: (e: React.MouseEvent) => void;
 }
 
-const DatasetCard = ({ dataset, onClick }: DatasetCardProps) => {
+const DatasetCard = ({ dataset, onClick, onManageClasses, onDelete }: DatasetCardProps) => {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'ready':
@@ -212,16 +242,31 @@ const DatasetCard = ({ dataset, onClick }: DatasetCardProps) => {
             }}
         >
             {/* Card Header */}
-            <div className="card__header">
+            <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                marginBottom: 'var(--spacing-md)'
+            }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                     <Database size={20} style={{ color: 'var(--color-primary-500)' }} />
-                    <h3 className="card__title">{dataset.name}</h3>
+                    <h3 style={{
+                        fontSize: 'var(--font-size-lg)',
+                        fontWeight: 600,
+                        color: 'var(--color-text-primary)',
+                        margin: 0
+                    }}>
+                        {dataset.name}
+                    </h3>
                 </div>
                 <span
                     className="badge"
                     style={{
                         backgroundColor: statusColor.bg,
-                        color: statusColor.text
+                        color: statusColor.text,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--spacing-xs)'
                     }}
                 >
                     <CheckCircle size={14} />
@@ -230,78 +275,88 @@ const DatasetCard = ({ dataset, onClick }: DatasetCardProps) => {
             </div>
 
             {/* Card Body */}
-            <div className="card__body">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+            <div>
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-xs)',
+                    marginBottom: 'var(--spacing-md)'
+                }}>
                     <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        fontSize: 'var(--font-size-sm)'
+                        fontSize: 'var(--font-size-sm)',
+                        color: 'var(--color-text-secondary)'
                     }}>
-                        <span style={{ color: 'var(--color-text-secondary)' }}>
-                            <ImageIcon size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                            Images:
-                        </span>
-                        <span style={{ fontWeight: 500 }}>{dataset.images}</span>
+                        <span>Images:</span>
+                        <strong style={{ color: 'var(--color-text-primary)' }}>
+                            {dataset.images}
+                        </strong>
                     </div>
-
-                    {dataset.classes && dataset.classes.length > 0 && (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            fontSize: 'var(--font-size-sm)'
-                        }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Classes:</span>
-                            <span style={{ fontWeight: 500 }}>{dataset.classes.length}</span>
-                        </div>
-                    )}
-
                     <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        fontSize: 'var(--font-size-sm)'
+                        fontSize: 'var(--font-size-sm)',
+                        color: 'var(--color-text-secondary)'
                     }}>
-                        <span style={{ color: 'var(--color-text-secondary)' }}>Size:</span>
-                        <span style={{ fontWeight: 500 }}>{dataset.size_formatted}</span>
+                        <span>Size:</span>
+                        <strong style={{ color: 'var(--color-text-primary)' }}>
+                            {dataset.size_formatted}
+                        </strong>
                     </div>
                 </div>
 
-                {/* Classes preview */}
-                {dataset.classes && dataset.classes.length > 0 && (
+                {/* Classes */}
+                {(
                     <div style={{ marginTop: 'var(--spacing-md)' }}>
                         <div style={{
-                            fontSize: 'var(--font-size-xs)',
-                            color: 'var(--color-text-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
                             marginBottom: 'var(--spacing-xs)'
                         }}>
-                            Classes:
-                        </div>
-                        <div style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: 'var(--spacing-xs)'
-                        }}>
-                            {dataset.classes.slice(0, 5).map((cls) => (
-                                <span
-                                    key={cls}
-                                    className="badge"
+                            <div style={{
+                                fontSize: 'var(--font-size-xs)',
+                                fontWeight: 500,
+                                color: 'var(--color-text-secondary)'
+                            }}>
+                                {dataset.classes && dataset.classes.length > 0 &&
+                                    <>
+                                        Classes:
+                                    </>
+                                }
+                            </div>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
+                                <button
+                                    className="btn btn--xs btn--secondary"
+                                    onClick={onManageClasses}
+                                    title="Manage classes"
                                     style={{
-                                        fontSize: 'var(--font-size-xs)',
-                                        backgroundColor: 'var(--color-primary-50)',
-                                        color: 'var(--color-primary-700)'
+                                        padding: '4px 8px',
+                                        fontSize: 'var(--font-size-xs)'
                                     }}
                                 >
+                                    <Settings size={12} />
+                                    Edit
+                                </button>
+                                <button
+                                    className="btn btn--xs btn--danger"
+                                    onClick={onDelete}
+                                    title="Delete dataset"
+                                    style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)' }}
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="classes-list">
+                            {dataset.classes && dataset.classes.length > 0 && dataset.classes.slice(0, 5).map((cls, idx) => (
+                                <span key={`${cls}-${idx}`} className="class-badge">
                                     {cls}
                                 </span>
                             ))}
                             {dataset.classes.length > 5 && (
-                                <span
-                                    className="badge"
-                                    style={{
-                                        fontSize: 'var(--font-size-xs)',
-                                        backgroundColor: 'var(--color-gray-100)',
-                                        color: 'var(--color-text-secondary)'
-                                    }}
-                                >
+                                <span className="badge badge--gray">
                                     +{dataset.classes.length - 5} more
                                 </span>
                             )}

@@ -1,14 +1,15 @@
-"""Project management API routes - Fixed."""
+"""
+Project management API routes - SDK-only implementation.
+
+All operations go through the SDK as the single source of truth.
+"""
 from typing import List
 from pathlib import Path
 import logging
-from dataclasses import asdict
 
 from fastapi import APIRouter
 
-from modelcub.services.project_service import init_project, delete_project, InitProjectRequest, DeleteProjectRequest
-from modelcub.core.config import load_config, save_config
-from modelcub.sdk.project import Project
+from modelcub.sdk import Project
 
 from ..dependencies import WorkingDir
 from ...shared.api.config import Endpoints
@@ -29,25 +30,24 @@ router = APIRouter(prefix=Endpoints.PROJECTS, tags=["Projects"])
 
 def _convert_project_to_schema(project: Project, is_current: bool = False) -> ProjectSchema:
     """Convert SDK Project to API schema."""
-    config = load_config(Path(project.path))
     return ProjectSchema(
         name=project.name,
         path=str(project.path),
-        created=config.project.created,
-        version=config.project.version,
+        created=project.created,
+        version=project.version,
         config=ProjectConfig(
-            device=config.defaults.device,
-            batch_size=config.defaults.batch_size,
-            image_size=config.defaults.image_size,
-            workers=config.defaults.workers,
-            format=config.defaults.format
+            device=project.config.defaults.device,
+            batch_size=project.config.defaults.batch_size,
+            image_size=project.config.defaults.image_size,
+            workers=project.config.defaults.workers,
+            format=project.config.defaults.format
         ),
         is_current=is_current
     )
 
 
 def _find_projects(search_path: Path) -> List[ProjectSchema]:
-    """Find all ModelCub projects in directory and subdirectories."""
+    """Find all ModelCub projects in directory and subdirectories using SDK."""
     projects = []
 
     try:
@@ -55,6 +55,7 @@ def _find_projects(search_path: Path) -> List[ProjectSchema]:
             if item.is_dir():
                 project_path = item.parent
                 try:
+                    # Use SDK to load project
                     project = Project.load(str(project_path))
                     projects.append(_convert_project_to_schema(project, False))
                 except Exception as e:
@@ -67,148 +68,245 @@ def _find_projects(search_path: Path) -> List[ProjectSchema]:
 
 @router.get("")
 async def list_projects(working_dir: WorkingDir) -> APIResponse[List[ProjectSchema]]:
-    """List all projects in working directory."""
+    """
+    List all projects in working directory.
+
+    Uses SDK: Project.load() for each discovered project.
+    """
     logger.info(f"Listing projects in: {working_dir}")
     projects = _find_projects(working_dir)
-    return APIResponse(success=True, data=projects, message=f"Found {len(projects)} project(s)")
+    return APIResponse(
+        success=True,
+        data=projects,
+        message=f"Found {len(projects)} project(s)"
+    )
 
 
 @router.post("")
-async def create_project(request: CreateProjectRequest, working_dir: WorkingDir) -> APIResponse[ProjectSchema]:
-    """Create a new project."""
+async def create_project(
+    request: CreateProjectRequest,
+    working_dir: WorkingDir
+) -> APIResponse[ProjectSchema]:
+    """
+    Create a new project.
+
+    Uses SDK: Project.init()
+    """
     try:
-        project_path = Path(request.path) if request.path else working_dir / request.name
-        if not project_path.is_absolute():
-            project_path = working_dir / project_path
+        logger.info(f"Creating project: {request.name}")
 
-        logger.info(f"Creating project '{request.name}' at: {project_path}")
+        # Determine project path
+        if request.path:
+            project_path = Path(request.path)
+            if not project_path.is_absolute():
+                project_path = working_dir / project_path
+        else:
+            project_path = working_dir / request.name
 
-        init_request = InitProjectRequest(path=str(project_path), name=request.name, force=request.force)
-        code, message = init_project(init_request)
+        # Use SDK to create project
+        project = Project.init(
+            name=request.name,
+            path=str(project_path),
+            force=request.force
+        )
 
-        if code != 0:
-            raise ProjectError(message=message or "Failed to create project", code=ErrorCode.PROJECT_INVALID)
+        schema = _convert_project_to_schema(project)
 
-        project = Project.load(str(project_path))
-        project_schema = _convert_project_to_schema(project, True)
-        return APIResponse(success=True, data=project_schema, message=f"Project '{request.name}' created successfully")
+        return APIResponse(
+            success=True,
+            data=schema,
+            message=f"Project '{request.name}' created successfully"
+        )
 
-    except ProjectError:
-        raise
+    except ValueError as e:
+        raise BadRequestError(
+            message=str(e),
+            code=ErrorCode.PROJECT_INVALID
+        )
+    except RuntimeError as e:
+        raise ProjectError(
+            message=str(e),
+            code=ErrorCode.PROJECT_CREATE_FAILED
+        )
     except Exception as e:
         logger.error(f"Failed to create project: {e}", exc_info=True)
-        raise ProjectError(message=f"Failed to create project: {str(e)}", code=ErrorCode.PROJECT_INVALID)
+        raise ProjectError(
+            message=f"Failed to create project: {str(e)}",
+            code=ErrorCode.PROJECT_CREATE_FAILED
+        )
 
 
 @router.get("/by-path")
-async def get_project_by_path(path: str, working_dir: WorkingDir) -> APIResponse[ProjectSchema]:
-    """Get project by path."""
+async def get_project_by_path(path: str) -> APIResponse[ProjectSchema]:
+    """
+    Get project by path.
+
+    Uses SDK: Project.load()
+    """
     try:
-        full_path = Path(path) if Path(path).is_absolute() else working_dir / path
-        logger.info(f"Getting project at: {full_path}")
+        logger.info(f"Getting project at: {path}")
 
-        if not (full_path / ".modelcub").exists():
-            raise NotFoundError(message=f"Project not found at: {full_path}", code=ErrorCode.PROJECT_NOT_FOUND)
+        # Use SDK to load project
+        project = Project.load(path)
+        schema = _convert_project_to_schema(project)
 
-        project = Project.load(str(full_path))
-        project_schema = _convert_project_to_schema(project, True)
-        return APIResponse(success=True, data=project_schema, message="Project loaded successfully")
+        return APIResponse(
+            success=True,
+            data=schema,
+            message=f"Project '{project.name}' loaded successfully"
+        )
 
-    except NotFoundError:
-        raise
+    except ValueError as e:
+        raise NotFoundError(
+            message=str(e),
+            code=ErrorCode.PROJECT_NOT_FOUND
+        )
     except Exception as e:
         logger.error(f"Failed to get project: {e}", exc_info=True)
-        raise ProjectError(message=f"Failed to load project: {str(e)}", code=ErrorCode.PROJECT_LOAD_FAILED)
+        raise ProjectError(
+            message=f"Failed to load project: {str(e)}",
+            code=ErrorCode.PROJECT_INVALID
+        )
 
 
 @router.get("/config")
-async def get_project_config(path: str, working_dir: WorkingDir) -> APIResponse[ProjectConfigFull]:
-    """Get project configuration."""
+async def get_project_config(path: str) -> APIResponse[ProjectConfigFull]:
+    """
+    Get project configuration.
+
+    Uses SDK: Project.load() and project.config
+    """
     try:
-        full_path = Path(path) if Path(path).is_absolute() else working_dir / path
-        logger.info(f"Loading config from: {full_path}")
+        logger.info(f"Getting config for project at: {path}")
 
-        if not (full_path / ".modelcub").exists():
-            raise NotFoundError(message=f"Project not found at: {full_path}", code=ErrorCode.PROJECT_NOT_FOUND)
+        # Use SDK to load project
+        project = Project.load(path)
+        config = project.config
 
-        config = load_config(full_path)
-        if not config:
-            raise NotFoundError(message=f"Configuration not found at: {full_path}", code=ErrorCode.PROJECT_NOT_FOUND)
+        config_schema = ProjectConfigFull(
+            project=config.project,
+            defaults=config.defaults,
+            paths=config.paths
+        )
 
-        config_schema = ProjectConfigFull(project=asdict(config.project), defaults=asdict(config.defaults), paths=asdict(config.paths))
-        return APIResponse(success=True, data=config_schema, message="Configuration loaded successfully")
+        return APIResponse(
+            success=True,
+            data=config_schema,
+            message="Configuration loaded successfully"
+        )
 
-    except NotFoundError:
-        raise
+    except ValueError as e:
+        raise NotFoundError(
+            message=str(e),
+            code=ErrorCode.PROJECT_NOT_FOUND
+        )
     except Exception as e:
-        logger.error(f"Failed to load config: {e}", exc_info=True)
-        raise ProjectError(message=f"Failed to load config: {str(e)}", code=ErrorCode.PROJECT_LOAD_FAILED)
+        logger.error(f"Failed to get config: {e}", exc_info=True)
+        raise ProjectError(
+            message=f"Failed to load configuration: {str(e)}",
+            code=ErrorCode.PROJECT_INVALID
+        )
 
 
 @router.post("/config")
-async def set_project_config(path: str, request: SetConfigRequest, working_dir: WorkingDir) -> APIResponse[ProjectConfigFull]:
-    """Set a configuration value."""
+async def set_project_config(
+    path: str,
+    request: SetConfigRequest
+) -> APIResponse[ProjectConfigFull]:
+    """
+    Update project configuration.
+
+    Uses SDK: Project.load(), project.config, project.save_config()
+    """
     try:
-        full_path = Path(path) if Path(path).is_absolute() else working_dir / path
-        logger.info(f"Setting config for: {full_path}: {request.key} = {request.value}")
+        logger.info(f"Updating config for project at: {path}")
 
-        if not (full_path / ".modelcub").exists():
-            raise NotFoundError(message=f"Project not found at: {full_path}", code=ErrorCode.PROJECT_NOT_FOUND)
+        # Use SDK to load project
+        project = Project.load(path)
 
-        if request.key.startswith("project."):
-            raise BadRequestError(message="Cannot modify project metadata", code=ErrorCode.VALIDATION_ERROR)
+        # Update configuration
+        if request.device is not None:
+            project.config.defaults.device = request.device
+        if request.batch_size is not None:
+            project.config.defaults.batch_size = request.batch_size
+        if request.image_size is not None:
+            project.config.defaults.image_size = request.image_size
+        if request.workers is not None:
+            project.config.defaults.workers = request.workers
 
-        config = load_config(full_path)
-        parts = request.key.split(".")
-        if len(parts) != 2:
-            raise BadRequestError(message=f"Invalid config key format: {request.key}", code=ErrorCode.VALIDATION_ERROR)
+        # Save using SDK
+        project.save_config()
 
-        section, key = parts
-        if section == "defaults":
-            if not hasattr(config.defaults, key):
-                raise BadRequestError(message=f"Unknown config key: {request.key}", code=ErrorCode.VALIDATION_ERROR)
-            setattr(config.defaults, key, request.value)
-        elif section == "paths":
-            if not hasattr(config.paths, key):
-                raise BadRequestError(message=f"Unknown config key: {request.key}", code=ErrorCode.VALIDATION_ERROR)
-            setattr(config.paths, key, request.value)
-        else:
-            raise BadRequestError(message=f"Unknown config section: {section}", code=ErrorCode.VALIDATION_ERROR)
+        # Return updated config
+        config_schema = ProjectConfigFull(
+            project=project.config.project,
+            defaults=project.config.defaults,
+            paths=project.config.paths
+        )
 
-        save_config(full_path, config)
-        config_schema = ProjectConfigFull(project=asdict(config.project), defaults=asdict(config.defaults), paths=asdict(config.paths))
-        return APIResponse(success=True, data=config_schema, message=f"Configuration updated: {request.key} = {request.value}")
+        return APIResponse(
+            success=True,
+            data=config_schema,
+            message="Configuration updated successfully"
+        )
 
-    except (NotFoundError, BadRequestError):
-        raise
+    except ValueError as e:
+        raise NotFoundError(
+            message=str(e),
+            code=ErrorCode.PROJECT_NOT_FOUND
+        )
     except Exception as e:
         logger.error(f"Failed to update config: {e}", exc_info=True)
-        raise ProjectError(message=f"Failed to update config: {str(e)}", code=ErrorCode.PROJECT_INVALID)
+        raise ProjectError(
+            message=f"Failed to update configuration: {str(e)}",
+            code=ErrorCode.PROJECT_INVALID
+        )
 
 
 @router.delete("/delete")
-async def delete_project_endpoint(path: str, request: DeleteProjectBody, working_dir: WorkingDir) -> APIResponse[None]:
-    """Delete a project."""
+async def delete_project(
+    path: str,
+    body: DeleteProjectBody
+) -> APIResponse[None]:
+    """
+    Delete a project.
+
+    Uses SDK: Project.load() and project.delete()
+    """
     try:
-        full_path = Path(path) if Path(path).is_absolute() else working_dir / path
-        logger.info(f"Deleting project at: {full_path}")
+        logger.info(f"Deleting project at: {path}")
 
-        if not request.confirm:
-            raise BadRequestError(message="Deletion not confirmed", code=ErrorCode.VALIDATION_ERROR)
+        if not body.confirm:
+            raise BadRequestError(
+                message="Must confirm deletion",
+                code=ErrorCode.PROJECT_INVALID
+            )
 
-        if not (full_path / ".modelcub").exists():
-            raise NotFoundError(message=f"Project not found at: {full_path}", code=ErrorCode.PROJECT_NOT_FOUND)
+        # Use SDK to load and delete project
+        project = Project.load(path)
+        project_name = project.name
 
-        delete_request = DeleteProjectRequest(target=str(full_path), yes=True)
-        code, message = delete_project(delete_request)
+        project.delete(confirm=True)
 
-        if code != 0:
-            raise ProjectError(message=message or "Failed to delete project", code=ErrorCode.PROJECT_INVALID)
+        return APIResponse(
+            success=True,
+            data=None,
+            message=f"Project '{project_name}' deleted successfully"
+        )
 
-        return APIResponse(success=True, data=None, message=f"Project deleted: {full_path}")
-
-    except (NotFoundError, BadRequestError, ProjectError):
-        raise
+    except ValueError as e:
+        raise NotFoundError(
+            message=str(e),
+            code=ErrorCode.PROJECT_NOT_FOUND
+        )
+    except RuntimeError as e:
+        raise ProjectError(
+            message=str(e),
+            code=ErrorCode.PROJECT_DELETE_FAILED
+        )
     except Exception as e:
         logger.error(f"Failed to delete project: {e}", exc_info=True)
-        raise ProjectError(message=f"Failed to delete project: {str(e)}", code=ErrorCode.PROJECT_INVALID)
+        raise ProjectError(
+            message=f"Failed to delete project: {str(e)}",
+            code=ErrorCode.PROJECT_DELETE_FAILED
+        )

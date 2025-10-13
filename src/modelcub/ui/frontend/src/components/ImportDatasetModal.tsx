@@ -40,7 +40,8 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                     name: datasetName || undefined,
                     recursive,
                     copy_files: copyFiles,
-                    classes: classes_to_send
+                    classes: classes_to_send.length > 0 ? classes_to_send : undefined,
+
                 });
                 handleSuccess();
             } catch (err) {
@@ -59,6 +60,7 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                 await api.importDatasetFiles(
                     selectedFiles,
                     datasetName || undefined,
+                    classes_to_send.length > 0 ? classes_to_send : undefined,
                     recursive
                 );
                 handleSuccess();

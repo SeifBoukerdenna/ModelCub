@@ -1,72 +1,56 @@
 """
-ModelCub Project SDK.
+ModelCub SDK - Project Management.
 
-High-level interface for project operations.
+Provides high-level Python API for project operations.
 """
 from __future__ import annotations
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Any
+import shutil
 
 from ..services.project_service import (
-    init_project, delete_project,
-    InitProjectRequest, DeleteProjectRequest
+    init_project,
+    delete_project,
+    InitProjectRequest,
+    DeleteProjectRequest
 )
-from ..services.image_service import import_images, ImportImagesRequest
-from ..core.config import load_config, save_config
-from ..core.registries import DatasetRegistry
+from ..core.config import Config, load_config, save_config
+from ..core.registries import DatasetRegistry, RunRegistry
+from ..core.paths import project_root
 from .dataset import Dataset
 
 
 class Project:
     """
-    ModelCub Project - SDK interface.
+    High-level interface for ModelCub projects.
 
-    Usage:
-        # Create new project
-        project = Project.init("my-project")
-
-        # Load existing project
-        project = Project.load("path/to/project")
-
-        # Import dataset
-        dataset = project.import_dataset(
-            source="./photos",
-            name="animals",
-            classes=["cat", "dog", "bird"]
-        )
-
-        # List datasets
-        datasets = project.list_datasets()
-
-        # Access config
-        project.config.defaults.batch_size = 32
-        project.save_config()
+    Example:
+        >>> project = Project.init("my-project")
+        >>> dataset = project.import_dataset(source="./images", classes=["cat", "dog"])
+        >>> datasets = project.list_datasets()
     """
 
-    def __init__(self, path: Path):
-        """
-        Initialize Project.
-
-        Use Project.init() or Project.load() instead of calling directly.
-        """
+    def __init__(self, path: str | Path):
+        """Initialize Project by loading from path."""
         self.path = Path(path).resolve()
 
-        if not (self.path / ".modelcub").exists():
-            raise ValueError(f"Not a ModelCub project: {path}")
+        if not self._is_valid_project(self.path):
+            raise ValueError(f"Not a valid ModelCub project: {self.path}")
 
-        self._config = None
-        self._load_config()
-
-    def _load_config(self) -> None:
-        """Load project configuration."""
         self._config = load_config(self.path)
+
+    @staticmethod
+    def _is_valid_project(path: Path) -> bool:
+        """Check if directory is a valid ModelCub project."""
+        return (path / ".modelcub").exists() and (path / ".modelcub" / "config.yaml").exists()
 
     # ========== Static Methods ==========
 
-    @staticmethod
+    @classmethod
     def init(
+        cls,
         name: str,
-        path: str | Path = ".",
+        path: Optional[str | Path] = None,
         force: bool = False
     ) -> Project:
         """
@@ -81,12 +65,14 @@ class Project:
             Project instance
 
         Example:
-            >>> project = Project.init("my-project")
-            >>> print(project.name)
-            my-project
+            >>> project = Project.init("my-cv-project")
+            >>> project = Project.init("detection", path="/workspace/proj")
         """
+        target_path = Path(path) if path else Path.cwd()
+        target_path = target_path.resolve()
+
         req = InitProjectRequest(
-            path=str(path),
+            path=str(target_path),
             name=name,
             force=force
         )
@@ -94,70 +80,222 @@ class Project:
         code, msg = init_project(req)
 
         if code != 0:
-            raise ValueError(msg)
+            raise RuntimeError(f"Failed to initialize project: {msg}")
 
-        project_path = Path(path).resolve()
-        return Project(project_path)
+        return cls(target_path)
 
-    @staticmethod
-    def load(path: str | Path = ".") -> Project:
+    @classmethod
+    def load(cls, path: Optional[str | Path] = None) -> Project:
         """
-        Load an existing ModelCub project.
+        Load existing ModelCub project.
 
         Args:
-            path: Project directory (default: current directory)
+            path: Project directory (default: search upward from current directory)
 
         Returns:
             Project instance
 
         Example:
-            >>> project = Project.load(".")
+            >>> project = Project.load()
+            >>> project = Project.load("/path/to/project")
         """
-        return Project(Path(path))
+        if path is None:
+            path = project_root()
+        else:
+            path = Path(path).resolve()
+
+        return cls(path)
 
     @staticmethod
     def exists(path: str | Path = ".") -> bool:
         """
-        Check if a ModelCub project exists.
+        Check if a ModelCub project exists at path.
 
         Args:
             path: Project directory
 
         Returns:
-            True if project exists
+            True if valid project exists
 
         Example:
-            >>> if Project.exists("."):
-            ...     project = Project.load()
+            >>> if Project.exists("./my-project"):
+            ...     project = Project.load("./my-project")
         """
-        return (Path(path) / ".modelcub").exists()
+        path = Path(path).resolve()
+        return (path / ".modelcub").exists() and (path / ".modelcub" / "config.yaml").exists()
 
     # ========== Properties ==========
 
     @property
     def name(self) -> str:
         """Project name."""
-        return self._config.project.name if self._config else ""
+        return self._config.project.name
 
     @property
     def created(self) -> str:
         """Project creation timestamp."""
-        return self._config.project.created if self._config else ""
+        return self._config.project.created
 
     @property
     def version(self) -> str:
         """Project version."""
-        return self._config.project.version if self._config else ""
+        return self._config.project.version
 
     @property
-    def config(self):
-        """Project configuration object."""
+    def config(self) -> Config:
+        """Project configuration."""
         return self._config
 
     @property
     def datasets(self) -> DatasetRegistry:
         """Dataset registry."""
         return DatasetRegistry(self.path)
+
+    @property
+    def runs(self) -> RunRegistry:
+        """Training runs registry."""
+        return RunRegistry(self.path)
+
+    # ========== Path Properties ==========
+
+    @property
+    def modelcub_dir(self) -> Path:
+        """Path to .modelcub directory."""
+        return self.path / ".modelcub"
+
+    @property
+    def data_dir(self) -> Path:
+        """Path to data directory."""
+        return self.path / self._config.paths.data
+
+    @property
+    def datasets_dir(self) -> Path:
+        """Path to datasets directory."""
+        return self.data_dir / "datasets"
+
+    @property
+    def runs_dir(self) -> Path:
+        """Path to runs directory."""
+        return self.path / self._config.paths.runs
+
+    @property
+    def reports_dir(self) -> Path:
+        """Path to reports directory."""
+        return self.path / self._config.paths.reports
+
+    @property
+    def cache_dir(self) -> Path:
+        """Path to cache directory."""
+        return self.modelcub_dir / "cache"
+
+    @property
+    def backups_dir(self) -> Path:
+        """Path to backups directory."""
+        return self.modelcub_dir / "backups"
+
+    @property
+    def history_dir(self) -> Path:
+        """Path to history directory."""
+        return self.modelcub_dir / "history"
+
+    # ========== Config Methods ==========
+
+    def save_config(self) -> None:
+        """Save current configuration to disk."""
+        save_config(self.path, self._config)
+
+    def reload_config(self) -> None:
+        """Reload configuration from disk."""
+        self._config = load_config(self.path)
+
+    def get_config(self, path: str, default: Any = None) -> Any:
+        """
+        Get config value by dot-separated path.
+
+        Args:
+            path: Dot-separated config path (e.g., "defaults.batch_size")
+            default: Default value if not found
+
+        Returns:
+            Config value or default
+
+        Example:
+            >>> project.get_config("defaults.device")
+            'cuda'
+            >>> project.get_config("foo.bar", "fallback")
+            'fallback'
+        """
+        parts = path.split(".")
+        value = self._config
+
+        for part in parts:
+            if hasattr(value, part):
+                value = getattr(value, part)
+            else:
+                return default
+
+        return value
+
+    def set_config(self, path: str, value: Any) -> None:
+        """
+        Set config value by dot-separated path.
+
+        Args:
+            path: Dot-separated config path
+            value: Value to set
+
+        Raises:
+            ValueError: If path is invalid
+
+        Example:
+            >>> project.set_config("defaults.batch_size", 64)
+            >>> project.save_config()
+        """
+        parts = path.split(".")
+        if len(parts) < 2:
+            raise ValueError(f"Invalid config path: {path}")
+
+        obj = self._config
+        for part in parts[:-1]:
+            if hasattr(obj, part):
+                obj = getattr(obj, part)
+            else:
+                raise ValueError(f"Invalid config path: {path}")
+
+        final_attr = parts[-1]
+        if not hasattr(obj, final_attr):
+            raise ValueError(f"Invalid config path: {path}")
+
+        setattr(obj, final_attr, value)
+
+    # ========== Project Operations ==========
+
+    def delete(self, confirm: bool = False) -> None:
+        """
+        Delete this project.
+
+        Args:
+            confirm: Must be True to actually delete
+
+        Raises:
+            RuntimeError: If confirm is False
+
+        Example:
+            >>> project = Project.load()
+            >>> project.delete(confirm=True)
+        """
+        if not confirm:
+            raise RuntimeError("Must set confirm=True to delete project")
+
+        req = DeleteProjectRequest(
+            target=str(self.path),
+            yes=True
+        )
+
+        code, msg = delete_project(req)
+
+        if code != 0:
+            raise RuntimeError(f"Failed to delete project: {msg}")
 
     # ========== Dataset Operations ==========
 
@@ -193,6 +331,8 @@ class Project:
             ...     classes=["cat", "dog", "bird"]
             ... )
         """
+        from ..services.image_service import import_images, ImportImagesRequest
+
         # Parse classes from string if needed
         if isinstance(classes, str):
             classes = [c.strip() for c in classes.split(",") if c.strip()]
@@ -213,7 +353,7 @@ class Project:
         if not result.success:
             raise ValueError(result.message)
 
-        return Dataset(result.dataset_name)
+        return Dataset(result.dataset_name, project_path=self.path)
 
     def list_datasets(self) -> List[Dataset]:
         """
@@ -232,7 +372,7 @@ class Project:
         datasets = []
         for ds_dict in dataset_list:
             try:
-                dataset = Dataset(ds_dict["name"])
+                dataset = Dataset(ds_dict["name"], project_path=self.path)
                 datasets.append(dataset)
             except Exception:
                 continue
@@ -253,55 +393,30 @@ class Project:
             ValueError: If dataset not found
 
         Example:
-            >>> dataset = project.get_dataset("animals")
+            >>> dataset = project.get_dataset("animals-v1")
         """
-        if not self.datasets.exists(name):
+        registry = DatasetRegistry(self.path)
+        ds_dict = registry.get_dataset(name)
+
+        if not ds_dict:
             raise ValueError(f"Dataset not found: {name}")
-        return Dataset(name)
 
-    # ========== Configuration ==========
+        return Dataset(name, project_path=self.path)
 
-    def save_config(self) -> None:
-        """
-        Save configuration to disk.
+    # ========== Context Manager ==========
 
-        Example:
-            >>> project.config.defaults.batch_size = 32
-            >>> project.save_config()
-        """
-        if self._config:
-            save_config(self.path, self._config)
+    def __enter__(self) -> Project:
+        """Enter context manager."""
+        return self
 
-    # ========== Project Management ==========
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit context manager - auto-save config."""
+        self.save_config()
 
-    def delete(self, confirm: bool = False) -> None:
-        """
-        Delete this project.
-
-        Args:
-            confirm: Must be True to actually delete
-
-        Raises:
-            ValueError: If confirm is not True
-
-        Example:
-            >>> project.delete(confirm=True)
-        """
-        if not confirm:
-            raise ValueError("Must pass confirm=True to delete project")
-
-        req = DeleteProjectRequest(
-            target=str(self.path),
-            yes=True
-        )
-
-        code, msg = delete_project(req)
-
-        if code != 0:
-            raise ValueError(msg)
+    # ========== String Representations ==========
 
     def __repr__(self) -> str:
-        return f"ModelCub Project: {self.name} ({self.path})"
+        return f"Project(name='{self.name}', path='{self.path}')"
 
     def __str__(self) -> str:
-        return self.__repr__()
+        return f"ModelCub Project: {self.name}"

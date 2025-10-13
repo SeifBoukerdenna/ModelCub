@@ -1,4 +1,8 @@
-"""Model training API routes - Refactored."""
+"""
+Model training API routes - SDK-ready implementation.
+
+Prepared to use SDK when training features are implemented.
+"""
 from typing import List
 import logging
 
@@ -14,10 +18,17 @@ router = APIRouter(prefix=Endpoints.MODELS, tags=["Models"])
 
 @router.get("")
 async def list_models(project: ProjectOptional) -> APIResponse[List[Model]]:
-    """List available models."""
+    """
+    List available models.
+
+    Will use SDK: project.runs.list_runs() when implemented.
+    """
     logger.info("Listing models")
 
-    # Placeholder - will be implemented when training is added
+    # TODO: When training is implemented, use:
+    # runs = project.runs.list_runs()
+    # models = [_run_to_model_schema(run) for run in runs]
+
     return APIResponse(
         success=True,
         data=[],
@@ -30,10 +41,17 @@ async def get_model(
     model_id: str,
     project: ProjectOptional
 ) -> APIResponse[Model]:
-    """Get model details."""
+    """
+    Get model details.
+
+    Will use SDK: project.runs.get_run(model_id) when implemented.
+    """
     logger.info(f"Getting model: {model_id}")
 
-    # Placeholder
+    # TODO: When training is implemented, use:
+    # run = project.runs.get_run(model_id)
+    # model = _run_to_model_schema(run)
+
     return APIResponse(
         success=True,
         data=None,
