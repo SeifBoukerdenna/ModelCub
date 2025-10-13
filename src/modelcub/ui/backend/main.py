@@ -81,6 +81,17 @@ async def general_exception_handler(request, exc):
     )
 
 
+# @app.get("/api/datasets/")
+# async def get_datasets():
+#     """TEST"""
+#     return {
+#         "success": True,
+#         "datasets": [],
+#         "count": -10,
+#         "message": "LMFAOOO -- API"
+#     }
+
+
 # Include API routers
 app.include_router(projects.router, tags=["Projects"])
 app.include_router(datasets.router, tags=["Datasets"])

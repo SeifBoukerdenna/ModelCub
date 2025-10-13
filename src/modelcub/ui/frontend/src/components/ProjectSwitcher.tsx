@@ -1,7 +1,13 @@
-// src/modelcub/ui/frontend/src/components/ProjectSwitcher.tsx
+/**
+ * Project Switcher Component
+ * Allows users to switch between available projects
+ *
+ * Path: frontend/src/components/ProjectSwitcher.tsx
+ */
 import React, { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Check, FolderKanban } from 'lucide-react'
 import { useProjectStore, selectSelectedProject, selectProjects } from '@/stores/projectStore'
+import { toast } from '@/lib/toast'
 import type { Project } from '@/types'
 
 const ProjectSwitcher: React.FC = () => {
@@ -47,8 +53,10 @@ const ProjectSwitcher: React.FC = () => {
     }, [isOpen])
 
     const handleProjectSelect = (project: Project) => {
+        console.log('ProjectSwitcher: Selecting project', project.name, 'at', project.path)
         setSelectedProject(project)
         setIsOpen(false)
+        toast.success(`Switched to project: ${project.name}`)
     }
 
     // No projects available

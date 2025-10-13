@@ -1,69 +1,121 @@
 /**
- * Simple toast notification system
+ * Toast notification utility
+ * Simple toast notifications for user feedback
+ *
+ * Path: frontend/src/lib/toast.ts
  */
 
-export type ToastType = "success" | "error" | "info" | "warning";
+type ToastType = "success" | "error" | "info" | "warning";
 
-export interface Toast {
-  id: string;
-  type: ToastType;
-  message: string;
+interface ToastOptions {
   duration?: number;
+  position?: "top-right" | "top-center" | "bottom-right" | "bottom-center";
 }
 
-type ToastListener = (toasts: Toast[]) => void;
+class Toast {
+  private container: HTMLDivElement | null = null;
 
-class ToastManager {
-  private toasts: Toast[] = [];
-  private listeners: Set<ToastListener> = new Set();
-  private nextId = 0;
-
-  subscribe(listener: ToastListener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+  private getContainer(): HTMLDivElement {
+    if (!this.container) {
+      this.container = document.createElement("div");
+      this.container.id = "toast-container";
+      this.container.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+      `;
+      document.body.appendChild(this.container);
+    }
+    return this.container;
   }
 
-  private notify() {
-    this.listeners.forEach((listener) => listener([...this.toasts]));
+  private show(message: string, type: ToastType, options: ToastOptions = {}) {
+    const { duration = 3000 } = options;
+    const container = this.getContainer();
+
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+      background: ${this.getBackgroundColor(type)};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      font-size: 14px;
+      font-weight: 500;
+      max-width: 400px;
+      word-wrap: break-word;
+      pointer-events: auto;
+      animation: slideIn 0.3s ease-out;
+      transition: opacity 0.3s ease-out;
+    `;
+    toast.textContent = message;
+
+    // Add animation keyframes if not already added
+    if (!document.getElementById("toast-styles")) {
+      const style = document.createElement("style");
+      style.id = "toast-styles";
+      style.textContent = `
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    container.appendChild(toast);
+
+    // Auto remove
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => {
+        if (toast.parentNode) {
+          container.removeChild(toast);
+        }
+      }, 300);
+    }, duration);
   }
 
-  show(type: ToastType, message: string, duration = 5000) {
-    const id = `toast-${this.nextId++}`;
-    const toast: Toast = { id, type, message, duration };
-
-    this.toasts.push(toast);
-    this.notify();
-
-    if (duration > 0) {
-      setTimeout(() => this.dismiss(id), duration);
+  private getBackgroundColor(type: ToastType): string {
+    switch (type) {
+      case "success":
+        return "#10b981";
+      case "error":
+        return "#ef4444";
+      case "warning":
+        return "#f59e0b";
+      case "info":
+      default:
+        return "#3b82f6";
     }
   }
 
-  success(message: string, duration?: number) {
-    this.show("success", message, duration);
+  success(message: string, options?: ToastOptions) {
+    this.show(message, "success", options);
   }
 
-  error(message: string, duration?: number) {
-    this.show("error", message, duration);
+  error(message: string, options?: ToastOptions) {
+    this.show(message, "error", options);
   }
 
-  info(message: string, duration?: number) {
-    this.show("info", message, duration);
+  info(message: string, options?: ToastOptions) {
+    this.show(message, "info", options);
   }
 
-  warning(message: string, duration?: number) {
-    this.show("warning", message, duration);
-  }
-
-  dismiss(id: string) {
-    this.toasts = this.toasts.filter((t) => t.id !== id);
-    this.notify();
-  }
-
-  clear() {
-    this.toasts = [];
-    this.notify();
+  warning(message: string, options?: ToastOptions) {
+    this.show(message, "warning", options);
   }
 }
 
-export const toast = new ToastManager();
+export const toast = new Toast();

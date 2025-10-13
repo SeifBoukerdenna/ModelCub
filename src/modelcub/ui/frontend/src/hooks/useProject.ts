@@ -1,93 +1,60 @@
-// src/modelcub/ui/frontend/src/hooks/useProject.ts
 /**
- * React hook for project data with Zustand global state
+ * Custom hook for accessing project data
+ *
+ * Path: frontend/src/hooks/useProject.ts
  */
-import { useEffect } from "react";
-import { useProjectStore } from "@/stores/projectStore";
-import { api } from "@/lib/api";
+import {
+  useProjectStore,
+  selectSelectedProject,
+  selectProjects,
+  selectLoading,
+  selectError,
+  selectHasProject,
+} from "@/stores/projectStore";
 import type { Project } from "@/types";
 
-interface UseProjectReturn {
+export interface UseProjectReturn {
+  // Current/selected project
   project: Project | null;
+  selectedProject: Project | null; // Alias for clarity
+  hasProject: boolean;
+
+  // All projects
   projects: Project[];
+
+  // Loading states
   loading: boolean;
   error: string | null;
-  reload: () => Promise<void>;
-  setSelectedProject: (project: Project) => void;
-  selectProject: (project: Project) => void;
-  clearSelection: () => void;
+
+  // Actions
+  setSelectedProject: (project: Project | null) => void;
+  setProjects: (projects: Project[]) => void;
 }
 
+/**
+ * Hook to access current project and project list
+ * Uses Zustand selectors for optimized re-renders
+ */
 export function useProject(): UseProjectReturn {
-  const {
-    selectedProject,
+  const selectedProject = useProjectStore(selectSelectedProject);
+  const projects = useProjectStore(selectProjects);
+  const loading = useProjectStore(selectLoading);
+  const error = useProjectStore(selectError);
+  const hasProject = useProjectStore(selectHasProject);
+
+  const setSelectedProject = useProjectStore(
+    (state) => state.setSelectedProject
+  );
+  const setProjects = useProjectStore((state) => state.setProjects);
+
+  return {
+    project: selectedProject,
+    selectedProject, // Alias for clarity
+    hasProject,
     projects,
     loading,
     error,
     setSelectedProject,
     setProjects,
-    setLoading,
-    setError,
-    clearError,
-  } = useProjectStore();
-
-  const loadProjects = async () => {
-    try {
-      setLoading(true);
-      clearError();
-
-      // Load all available projects
-      const response = await api.listProjects();
-
-      // IMPORTANT: Update the store with fresh projects
-      setProjects(response.projects);
-
-      // If no project is selected yet, auto-select the first one
-      if (!selectedProject && response.projects.length > 0) {
-        // Try to find the "current" project (is_current flag)
-        const currentProject = response.projects.find((p) => p.is_current);
-        setSelectedProject(currentProject ?? response.projects[0] ?? null);
-      }
-
-      // If a project is selected but no longer exists, clear selection
-      if (
-        selectedProject &&
-        !response.projects.some((p) => p.path === selectedProject.path)
-      ) {
-        setSelectedProject(null);
-      }
-
-      setLoading(false);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load projects";
-      setError(message);
-      setLoading(false);
-    }
-  };
-
-  // Load projects on mount
-  useEffect(() => {
-    loadProjects();
-  }, []);
-
-  // Alias for better semantics
-  const selectProject = (project: Project) => {
-    setSelectedProject(project);
-  };
-
-  const clearSelection = () => {
-    setSelectedProject(null);
-  };
-
-  return {
-    project: selectedProject,
-    projects,
-    loading,
-    error,
-    reload: loadProjects,
-    setSelectedProject: selectProject, // Keep old name for compatibility
-    selectProject,
-    clearSelection,
   };
 }

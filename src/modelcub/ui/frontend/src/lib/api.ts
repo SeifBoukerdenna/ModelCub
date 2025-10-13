@@ -1,5 +1,6 @@
 /**
  * API client for ModelCub backend
+ * Path: frontend/src/lib/api.ts
  */
 import type { Project, ApiResponse, ApiError } from "@/types";
 
@@ -14,20 +15,68 @@ class ModelCubAPIError extends Error {
   }
 }
 
+export interface Dataset {
+  name: string;
+  id: string;
+  status: string;
+  images: number;
+  classes: string[];
+  path: string;
+  created?: string;
+  source?: string;
+  size_bytes: number;
+  size_formatted: string;
+}
+
+export interface DatasetDetail extends Dataset {
+  train_images: number;
+  valid_images: number;
+  unlabeled_images: number;
+}
+
+export interface ImportDatasetRequest {
+  source: string;
+  name?: string;
+  recursive?: boolean;
+  copy?: boolean;
+}
+
 class ModelCubAPI {
   private readonly baseURL = "/api";
+  private currentProjectPath: string | null = null;
+
+  setCurrentProject(projectPath: string | null) {
+    this.currentProjectPath = projectPath;
+    console.log("API: Set current project path to:", projectPath);
+  }
 
   private async request<T>(
     endpoint: string,
     options?: RequestInit
   ): Promise<T> {
     try {
+      // Build headers
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      // Add project path if set
+      if (this.currentProjectPath) {
+        headers["X-Project-Path"] = this.currentProjectPath;
+        console.log(
+          "API: Including X-Project-Path header:",
+          this.currentProjectPath
+        );
+      }
+
+      // Merge with any provided headers
+      if (options?.headers) {
+        Object.assign(headers, options.headers);
+      }
+
       const response = await fetch(`${this.baseURL}${endpoint}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-        },
         ...options,
+        headers,
       });
 
       const contentType = response.headers.get("content-type");
@@ -104,9 +153,6 @@ class ModelCubAPI {
     });
   }
 
-  /**
-   * Set project configuration value
-   */
   async setProjectConfig(
     projectPath: string,
     key: string,
@@ -118,8 +164,46 @@ class ModelCubAPI {
     });
   }
 
-  async listDatasets(): Promise<{ datasets: unknown[] }> {
+  async listDatasets(): Promise<{
+    success: boolean;
+    datasets: Dataset[];
+    count: number;
+    message?: string;
+  }> {
     return this.request("/datasets/");
+  }
+
+  async getDataset(name: string): Promise<{
+    success: boolean;
+    dataset: DatasetDetail;
+  }> {
+    return this.request(`/datasets/${encodeURIComponent(name)}`);
+  }
+
+  async importDataset(request: ImportDatasetRequest): Promise<{
+    success: boolean;
+    message: string;
+    dataset: Dataset;
+  }> {
+    return this.request("/datasets/import", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  async deleteDataset(
+    name: string,
+    confirm = false
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    return this.request(
+      `/datasets/${encodeURIComponent(name)}?confirm=${confirm}`,
+      {
+        method: "DELETE",
+      }
+    );
   }
 
   async listModels(): Promise<{ models: unknown[] }> {

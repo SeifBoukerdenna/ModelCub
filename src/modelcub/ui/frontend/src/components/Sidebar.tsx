@@ -12,6 +12,7 @@ import {
     LucideIcon,
 } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
+import { selectSelectedProject, useProjectStore } from '@/stores/projectStore'
 
 interface NavItem {
     name: string
@@ -29,6 +30,8 @@ const navigation: NavItem[] = [
 
 const Sidebar: React.FC = () => {
     const location = useLocation()
+    const selectedProject = useProjectStore(selectSelectedProject)
+
 
     return (
         <aside className="sidebar">
@@ -48,6 +51,10 @@ const Sidebar: React.FC = () => {
                         return (
                             <li key={item.name} className="sidebar__nav-item">
                                 <Link
+                                    style={{
+                                        opacity: !selectedProject ? 0.5 : 1,
+                                        pointerEvents: !selectedProject ? 'none' : 'auto'
+                                    }}
                                     to={item.href}
                                     className={`sidebar__nav-link ${isActive ? 'sidebar__nav-link--active' : ''
                                         }`}
