@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useProjectStore, selectSelectedProject } from '@/stores/projectStore'
 import { FolderOpen } from 'lucide-react'
 
@@ -10,20 +10,24 @@ interface ProjectGuardProps {
 const ProjectGuard: React.FC<ProjectGuardProps> = ({ children }) => {
     const selectedProject = useProjectStore(selectSelectedProject)
     const navigate = useNavigate()
+    const location = useLocation()
 
     useEffect(() => {
-        if (!selectedProject) {
-            navigate('/projects')
+        // Only redirect if no project is selected and we're not already on /projects
+        if (!selectedProject && location.pathname !== '/projects') {
+            console.log('No project selected, redirecting to /projects')
+            navigate('/projects', { replace: true })
         }
-    }, [selectedProject, navigate])
+    }, [selectedProject, navigate, location.pathname])
 
+    // Show loading state while redirecting
     if (!selectedProject) {
         return (
             <div className="empty-state">
                 <FolderOpen size={48} className="empty-state__icon" />
                 <h3 className="empty-state__title">No Project Selected</h3>
                 <p className="empty-state__description">
-                    Please select a project to continue
+                    Redirecting to projects page...
                 </p>
             </div>
         )
