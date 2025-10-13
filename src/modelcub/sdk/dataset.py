@@ -100,101 +100,41 @@ class Dataset:
         Import images from a directory.
 
         Args:
-            source: Directory containing images
-            name: Dataset name (auto-generated if not provided)
-            recursive: Scan subdirectories
+            source: Path to directory containing images
+            name: Optional dataset name (auto-generated if not provided)
+            recursive: Scan subdirectories recursively
             copy: Copy files (True) or create symlinks (False)
             validate: Validate images during import
 
         Returns:
             Dataset instance
 
-        Example:
-            >>> dataset = Dataset.from_images("./photos")
-            >>> print(dataset.name)
-            photos-20251012-143022
+        Raises:
+            ValueError: If import fails
 
-            >>> dataset = Dataset.from_images(
-            ...     "./photos",
-            ...     name="my-photos",
-            ...     recursive=True
-            ... )
+        Example:
+            >>> dataset = Dataset.from_images("./photos", name="my-photos")
+            >>> print(dataset.images)
+            42
         """
+        root = project_root()
+
         req = ImportImagesRequest(
-            source=source,
-            name=name,
+            project_path=root,
+            source=Path(source),
+            dataset_name=name,
             copy=copy,
             validate=validate,
             recursive=recursive,
             force=False
         )
 
-        code, msg = import_images(req)
+        result = import_images(req)
 
-        if code != 0:
-            raise RuntimeError(f"Failed to import images: {msg}")
+        if not result.success:
+            raise ValueError(f"Failed to import dataset: {result.message}")
 
-        # Extract dataset name from success message
-        # Format: "Name: <name>"
-        for line in msg.split("\n"):
-            if line.strip().startswith("Name:"):
-                imported_name = line.split(":", 1)[1].strip()
-                return Dataset(imported_name)
-
-        # Fallback: use provided name or try to infer
-        if name:
-            return Dataset(name)
-
-        raise RuntimeError("Failed to determine imported dataset name")
-
-    @staticmethod
-    def from_yolo(
-        source: str | Path,
-        name: Optional[str] = None
-    ) -> Dataset:
-        """
-        Import dataset from YOLO format.
-
-        Args:
-            source: Directory containing YOLO dataset
-            name: Dataset name
-
-        Returns:
-            Dataset instance
-
-        Example:
-            >>> dataset = Dataset.from_yolo("./yolo_data", name="my-dataset")
-
-        Note:
-            This feature is coming soon. Use Dataset.from_images() for now.
-        """
-        raise NotImplementedError(
-            "YOLO import coming soon. "
-            "Use Dataset.from_images() to import unlabeled images."
-        )
-
-    @staticmethod
-    def from_roboflow(
-        export_zip: str | Path,
-        name: Optional[str] = None
-    ) -> Dataset:
-        """
-        Import dataset from Roboflow export ZIP.
-
-        Args:
-            export_zip: Path to Roboflow export ZIP file
-            name: Dataset name
-
-        Returns:
-            Dataset instance
-
-        Example:
-            >>> dataset = Dataset.from_roboflow("export.zip", name="my-dataset")
-
-        Note:
-            This feature is coming soon.
-        """
-        raise NotImplementedError("Roboflow import coming soon")
+        return Dataset(result.dataset_name)
 
     @staticmethod
     def load(name: str) -> Dataset:
@@ -207,10 +147,11 @@ class Dataset:
         Returns:
             Dataset instance
 
+        Raises:
+            ValueError: If dataset not found
+
         Example:
             >>> dataset = Dataset.load("my-photos")
-            >>> print(dataset.images)
-            309
         """
         return Dataset(name)
 
@@ -225,21 +166,21 @@ class Dataset:
         Example:
             >>> datasets = Dataset.list()
             >>> for ds in datasets:
-            ...     print(f"{ds.name}: {ds.images} images")
+            ...     print(ds.name, ds.images)
         """
-        data_dir = datasets_dir()
-        if not data_dir.exists():
-            return []
+        from ..core.registries import DatasetRegistry
+
+        root = project_root()
+        registry = DatasetRegistry(root)
+        dataset_list = registry.list_datasets()
 
         datasets = []
-        for path in sorted(data_dir.iterdir()):
-            if path.is_dir():
-                manifest_path = path / "manifest.json"
-                if manifest_path.exists():
-                    try:
-                        datasets.append(Dataset(path.name))
-                    except:
-                        pass
+        for ds_dict in dataset_list:
+            try:
+                dataset = Dataset(ds_dict["name"])
+                datasets.append(dataset)
+            except Exception:
+                continue
 
         return datasets
 
@@ -252,30 +193,33 @@ class Dataset:
             name: Dataset name
 
         Returns:
-            True if dataset exists
+            True if dataset exists, False otherwise
 
         Example:
             >>> if Dataset.exists("my-photos"):
             ...     dataset = Dataset.load("my-photos")
         """
-        path = datasets_dir() / name
-        return path.exists() and (path / "manifest.json").exists()
+        from ..core.registries import DatasetRegistry
+
+        root = project_root()
+        registry = DatasetRegistry(root)
+        return registry.exists(name)
 
     # ========== Properties ==========
 
     @property
     def path(self) -> Path:
-        """Dataset directory path."""
+        """Path to dataset directory."""
         return self._path
 
     @property
     def id(self) -> str:
-        """Dataset ID."""
+        """Dataset unique ID."""
         return self._manifest.get("id", "")
 
     @property
     def status(self) -> str:
-        """Dataset status (labeled, unlabeled, partially-labeled)."""
+        """Dataset status (e.g., 'unlabeled', 'ready')."""
         return self._manifest.get("status", "unknown")
 
     @property
@@ -286,20 +230,18 @@ class Dataset:
     @property
     def images(self) -> int:
         """Total number of images."""
-        img_info = self._manifest.get("images", {})
-        if isinstance(img_info, dict):
-            return img_info.get("total", 0)
-        return 0
+        images_dict = self._manifest.get("images", {})
+        return images_dict.get("total", 0)
 
     @property
-    def created(self) -> Optional[str]:
-        """Creation timestamp."""
-        return self._manifest.get("created")
+    def size_bytes(self) -> int:
+        """Dataset size in bytes."""
+        return self._manifest.get("size_bytes", 0)
 
     @property
-    def source(self) -> Optional[str]:
-        """Original source path."""
-        return self._manifest.get("source")
+    def size(self) -> str:
+        """Human-readable dataset size."""
+        return format_size(self.size_bytes)
 
     # ========== Methods ==========
 
@@ -308,46 +250,25 @@ class Dataset:
         Get detailed dataset information.
 
         Returns:
-            DatasetInfo with all metadata
+            DatasetInfo object with all metadata
 
         Example:
-            >>> dataset = Dataset.load("my-photos")
             >>> info = dataset.info()
-            >>> print(f"Size: {info.size}")
-            >>> print(f"Images: {info.total_images}")
+            >>> print(f"{info.name}: {info.total_images} images, {info.size}")
         """
-        # Count images in different locations
-        train_dir = self._path / "train"
-        valid_dir = self._path / "valid"
-        unlabeled_dir = self._path / "images" / "unlabeled"
-
-        train_count = sum(1 for _ in train_dir.glob("*.*")) if train_dir.exists() else 0
-        valid_count = sum(1 for _ in valid_dir.glob("*.*")) if valid_dir.exists() else 0
-        unlabeled_count = sum(1 for _ in unlabeled_dir.glob("*.*")) if unlabeled_dir.exists() else 0
-
-        total = train_count + valid_count + unlabeled_count
-
-        # Get size
-        size_bytes = self._manifest.get("size_bytes", 0)
-        if not size_bytes and self._path.exists():
-            # Calculate if not in manifest
-            size_bytes = sum(
-                f.stat().st_size
-                for f in self._path.rglob("*")
-                if f.is_file()
-            )
+        images_dict = self._manifest.get("images", {})
 
         return DatasetInfo(
             name=self.name,
             path=self._path,
             status=self.status,
             classes=self.classes,
-            total_images=total,
-            train_images=train_count,
-            valid_images=valid_count,
-            unlabeled_images=unlabeled_count,
-            size_bytes=size_bytes,
-            source=self.source
+            total_images=images_dict.get("total", 0),
+            train_images=images_dict.get("train", 0),
+            valid_images=images_dict.get("val", 0),
+            unlabeled_images=images_dict.get("unlabeled", 0),
+            size_bytes=self.size_bytes,
+            source=self._manifest.get("source")
         )
 
     def delete(self, confirm: bool = False) -> None:
@@ -357,21 +278,28 @@ class Dataset:
         Args:
             confirm: Must be True to actually delete
 
+        Raises:
+            ValueError: If confirm is not True
+
         Example:
-            >>> dataset = Dataset.load("my-photos")
             >>> dataset.delete(confirm=True)
         """
         if not confirm:
-            raise ValueError(
-                "Must pass confirm=True to delete dataset. "
-                "This action cannot be undone."
-            )
+            raise ValueError("Must pass confirm=True to delete dataset")
 
-        from ..core.io import delete_tree
-        delete_tree(self._path)
+        from ..core.registries import DatasetRegistry
+        import shutil
+
+        root = project_root()
+        registry = DatasetRegistry(root)
+
+        # Remove from registry
+        registry.remove_dataset(self.name)
+        registry.save()
+
+        # Delete directory
+        if self._path.exists():
+            shutil.rmtree(self._path)
 
     def __repr__(self) -> str:
         return f"Dataset(name='{self.name}', images={self.images}, status='{self.status}')"
-
-    def __str__(self) -> str:
-        return self.name

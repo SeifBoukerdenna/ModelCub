@@ -35,7 +35,7 @@ def _calculate_directory_size(path: Path) -> tuple[int, str]:
     size_display = total_size
     for unit in ['B', 'KB', 'MB', 'GB']:
         if size_display < 1024:
-            return total_size, f"{size_display:.1f} {unit}"  # Return original int
+            return total_size, f"{size_display:.1f} {unit}"
         size_display /= 1024
     return total_size, f"{size_display:.1f} TB"
 
@@ -44,13 +44,24 @@ def _registry_dict_to_schema(ds_dict: dict, project_path: str) -> DatasetSchema:
     """Convert registry dict to API schema."""
     dataset_name = ds_dict.get("name", ds_dict.get("dataset", "unknown"))
     dataset_path = Path(project_path) / "data" / "datasets" / dataset_name
+
+    # Get image count from multiple possible locations
+    image_count = 0
+    if "num_images" in ds_dict:
+        image_count = ds_dict["num_images"]
+    elif "images" in ds_dict:
+        if isinstance(ds_dict["images"], dict):
+            image_count = ds_dict["images"].get("total", 0)
+        else:
+            image_count = ds_dict["images"]
+
     size_bytes, size_formatted = _calculate_directory_size(dataset_path)
 
     return DatasetSchema(
         name=dataset_name,
         id=ds_dict.get("id", dataset_name),
-        status="ready",
-        images=ds_dict.get("num_images", 0),
+        status=ds_dict.get("status", "ready"),
+        images=image_count,
         classes=ds_dict.get("classes", []),
         path=str(dataset_path),
         created=ds_dict.get("created"),
@@ -66,7 +77,6 @@ async def list_datasets(project: ProjectRequired) -> APIResponse[List[DatasetSch
     try:
         logger.info(f"Listing datasets for project: {project.name}")
 
-        # CORRECT: project.datasets is the DatasetRegistry
         datasets_list = project.datasets.list_datasets()
 
         dataset_schemas = [
@@ -145,7 +155,6 @@ async def import_dataset(
     try:
         logger.info(f"Importing dataset from: {request.source}")
 
-        # Use service layer for import
         from modelcub.services.image_service import import_images, ImportImagesRequest
 
         import_request = ImportImagesRequest(
@@ -164,7 +173,7 @@ async def import_dataset(
                 code=ErrorCode.DATASET_IMPORT_FAILED
             )
 
-        dataset_name = request.name or Path(request.source).name
+        dataset_name = result.dataset_name
         ds_dict = project.datasets.get_dataset(dataset_name)
 
         if not ds_dict:
@@ -233,7 +242,7 @@ async def upload_dataset(
                 code=ErrorCode.DATASET_IMPORT_FAILED
             )
 
-        ds_name = dataset_name or Path(file.filename).stem
+        ds_name = result.dataset_name
         ds_dict = project.datasets.get_dataset(ds_name)
 
         if not ds_dict:
@@ -265,6 +274,7 @@ async def upload_dataset(
             except Exception as e:
                 logger.warning(f"Failed to cleanup temp dir: {e}")
 
+
 @router.post("/import-files")
 async def import_dataset_files(
     files: List[UploadFile] = File(...),
@@ -280,7 +290,7 @@ async def import_dataset_files(
 
         temp_dir = Path(tempfile.mkdtemp())
 
-        # Save files
+        # Save uploaded files
         for file in files:
             if not file.filename:
                 continue
@@ -291,55 +301,60 @@ async def import_dataset_files(
             with open(file_path, "wb") as f:
                 shutil.copyfileobj(file.file, f)
 
-        logger.info(f"Saved files to {temp_dir}")
+        logger.info(f"Saved {len(files)} files to {temp_dir}")
 
-        # Import using SDK
-        from modelcub.sdk.dataset import Dataset
-        import os
+        # Import using service layer (which uses SDK)
+        from modelcub.services.image_service import import_images, ImportImagesRequest
 
-        original_cwd = os.getcwd()
-        try:
-            os.chdir(project.path)
-            dataset = Dataset.from_images(
-                source=temp_dir,
-                name=name,
-                recursive=False,
-                copy=True,
-                validate=True
+        import_request = ImportImagesRequest(
+            project_path=project.path,
+            source=temp_dir,
+            dataset_name=name,
+            recursive=False,  # Files are already flat
+            copy=True,
+            validate=True
+        )
+
+        result = import_images(import_request)
+
+        if not result.success:
+            raise DatasetError(
+                message=result.message or "Failed to import files",
+                code=ErrorCode.FILE_UPLOAD_FAILED
             )
-            dataset_name = dataset.name
-        finally:
-            os.chdir(original_cwd)
 
-        # Count actual images
-        dataset_dir = Path(project.path) / "data" / "datasets" / dataset_name
-        images_dir = dataset_dir / "images" / "unlabeled"
+        dataset_name = result.dataset_name
 
-        if images_dir.exists():
-            image_files = list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.jpeg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.bmp"))
-            image_count = len(image_files)
-
-            # Update registry
-            ds_dict = project.datasets.get_dataset(dataset_name)
-            if ds_dict:
-                ds_dict["num_images"] = image_count
-                if "images" not in ds_dict:
-                    ds_dict["images"] = {}
-                ds_dict["images"]["total"] = image_count
-                ds_dict["images"]["unlabeled"] = image_count
-                project.datasets.add_dataset(ds_dict)
-
-        # Get updated data
+        # Get dataset from registry
         ds_dict = project.datasets.get_dataset(dataset_name)
         if not ds_dict:
-            raise DatasetError("Dataset not in registry", ErrorCode.DATASET_INVALID)
+            raise DatasetError(
+                message="Dataset not found in registry after import",
+                code=ErrorCode.DATASET_INVALID
+            )
 
+        # Convert to schema (uses the image count from registry)
         dataset_schema = _registry_dict_to_schema(ds_dict, project.path)
-        return APIResponse(success=True, data=dataset_schema, message=f"Imported {len(files)} files")
 
+        logger.info(f"Import successful: {dataset_name} with {dataset_schema.images} images")
+
+        return APIResponse(
+            success=True,
+            data=dataset_schema,
+            message=f"Imported {dataset_schema.images} image(s) into dataset '{dataset_name}'"
+        )
+
+    except DatasetError:
+        raise
     except Exception as e:
         logger.error(f"Import failed: {e}", exc_info=True)
-        raise DatasetError(f"Failed: {str(e)}", ErrorCode.FILE_UPLOAD_FAILED)
+        raise DatasetError(
+            message=f"Failed to import files: {str(e)}",
+            code=ErrorCode.FILE_UPLOAD_FAILED
+        )
     finally:
         if temp_dir and temp_dir.exists():
-            shutil.rmtree(temp_dir, ignore_errors=True)
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup temp dir: {e}")

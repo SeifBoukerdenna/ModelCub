@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, X, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, X, AlertCircle, FolderOpen, CheckCircle } from 'lucide-react';
 
 interface CreateProjectModalProps {
     isOpen: boolean;
@@ -8,18 +8,67 @@ interface CreateProjectModalProps {
     isCreating: boolean;
 }
 
+interface ValidationResult {
+    isValid: boolean;
+    error?: string;
+}
+
+const validateProjectName = (name: string): ValidationResult => {
+    if (!name) {
+        return { isValid: false, error: 'Project name is required' };
+    }
+
+    // Can't start with a number
+    if (/^\d/.test(name)) {
+        return { isValid: false, error: 'Project name cannot start with a number' };
+    }
+
+    // Check for spaces
+    if (/\s/.test(name)) {
+        return { isValid: false, error: 'Project name cannot contain spaces' };
+    }
+
+    // Check for quotes and special characters (allow only alphanumeric, hyphen, underscore)
+    if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
+        return { isValid: false, error: 'Only letters, numbers, hyphens, and underscores allowed' };
+    }
+
+    return { isValid: true };
+};
+
 const CreateProjectModal = ({ isOpen, onClose, onSubmit, isCreating }: CreateProjectModalProps) => {
     const [name, setName] = useState('');
     const [path, setPath] = useState('');
     const [useCustomPath, setUseCustomPath] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [validationError, setValidationError] = useState<string | null>(null);
+    const [touched, setTouched] = useState(false);
+
+    // Real-time validation
+    useEffect(() => {
+        if (touched && name) {
+            const result = validateProjectName(name);
+            setValidationError(result.error || null);
+        } else if (!name && touched) {
+            setValidationError('Project name is required');
+        } else {
+            setValidationError(null);
+        }
+    }, [name, touched]);
+
+    const handleNameChange = (value: string) => {
+        setName(value);
+        if (!touched) setTouched(true);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setTouched(true);
 
-        if (!name.trim()) {
-            setError('Project name is required');
+        const validation = validateProjectName(name);
+        if (!validation.isValid) {
+            setValidationError(validation.error || 'Invalid project name');
             return;
         }
 
@@ -34,6 +83,8 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit, isCreating }: CreatePro
             setName('');
             setPath('');
             setUseCustomPath(false);
+            setTouched(false);
+            setValidationError(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to create project');
         }
@@ -45,86 +96,129 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit, isCreating }: CreatePro
             setPath('');
             setUseCustomPath(false);
             setError(null);
+            setValidationError(null);
+            setTouched(false);
             onClose();
         }
     };
 
     if (!isOpen) return null;
 
+    const isValid = !validationError && name.trim().length > 0;
+
     return (
         <div className="modal-overlay" onClick={handleClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal create-project-modal" onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
                 <div className="modal__header">
-                    <h2 className="modal__title">
-                        <Plus size={24} />
-                        Create New Project
-                    </h2>
-                    <button className="modal__close" onClick={handleClose} disabled={isCreating}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                        <div className="modal__icon">
+                            <Plus size={20} />
+                        </div>
+                        <h2 className="modal__title">Create New Project</h2>
+                    </div>
+                    <button
+                        className="modal__close"
+                        onClick={handleClose}
+                        disabled={isCreating}
+                        aria-label="Close modal"
+                    >
                         <X size={20} />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit}>
                     <div className="modal__body">
+                        {/* Project Name */}
                         <div className="form-group">
-                            <label htmlFor="project-name">Project Name *</label>
-                            <input
-                                id="project-name"
-                                type="text"
-                                placeholder="my-cv-project"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                disabled={isCreating}
-                                required
-                                autoFocus
-                            />
-                            <small style={{ color: 'var(--color-text-secondary)' }}>
-                                A unique name for your project
-                            </small>
+                            <label htmlFor="project-name" className="form-label">
+                                Project Name <span style={{ color: 'var(--color-error)' }}>*</span>
+                            </label>
+                            <div className="form-input-wrapper">
+                                <input
+                                    id="project-name"
+                                    type="text"
+                                    className={`form-input ${validationError ? 'form-input--error' : ''} ${isValid && touched ? 'form-input--valid' : ''}`}
+                                    placeholder="my-cv-project"
+                                    value={name}
+                                    onChange={(e) => handleNameChange(e.target.value)}
+                                    disabled={isCreating}
+                                    required
+                                    autoFocus
+                                />
+                                {isValid && touched && (
+                                    <div className="form-input-icon form-input-icon--success">
+                                        <CheckCircle size={18} />
+                                    </div>
+                                )}
+                            </div>
+                            {validationError && touched ? (
+                                <p className="form-error">
+                                    <AlertCircle size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+                                    {validationError}
+                                </p>
+                            ) : (
+                                <p className="form-help">
+                                    Letters, numbers, hyphens, and underscores only. Cannot start with a number.
+                                </p>
+                            )}
                         </div>
 
+                        {/* Custom Path Toggle */}
                         <div className="form-group">
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                            <label className="checkbox-label">
                                 <input
                                     type="checkbox"
                                     checked={useCustomPath}
                                     onChange={(e) => setUseCustomPath(e.target.checked)}
                                     disabled={isCreating}
+                                    className="checkbox-input"
                                 />
-                                Use custom path
+                                <span>Use custom path</span>
                             </label>
                         </div>
 
+                        {/* Custom Path Input */}
                         {useCustomPath && (
                             <div className="form-group">
-                                <label htmlFor="project-path">Project Path *</label>
+                                <label htmlFor="project-path" className="form-label">
+                                    Project Path <span style={{ color: 'var(--color-error)' }}>*</span>
+                                </label>
                                 <input
                                     id="project-path"
                                     type="text"
+                                    className="form-input"
                                     placeholder="/path/to/project"
                                     value={path}
                                     onChange={(e) => setPath(e.target.value)}
                                     disabled={isCreating}
                                     required
                                 />
-                                <small style={{ color: 'var(--color-text-secondary)' }}>
+                                <p className="form-help">
                                     Absolute or relative path where project will be created
-                                </small>
+                                </p>
                             </div>
                         )}
 
+                        {/* Default Location Info */}
                         {!useCustomPath && (
-                            <div className="alert alert--info">
-                                <AlertCircle size={20} />
-                                <div>
-                                    <strong>Default Location</strong>
-                                    <p style={{ marginTop: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)' }}>
-                                        Project will be created in current working directory: <code>./{name || 'project-name'}</code>
-                                    </p>
+                            <div className="info-box">
+                                <div className="info-box__icon">
+                                    <FolderOpen size={20} />
+                                </div>
+                                <div className="info-box__content">
+                                    <div className="info-box__title">Default Location</div>
+                                    <div className="info-box__description">
+                                        Project will be created in current working directory:
+                                    </div>
+                                    <code className="info-box__code">
+                                        ./{name || 'project-name'}
+                                    </code>
                                 </div>
                             </div>
                         )}
 
+                        {/* Error Alert */}
                         {error && (
                             <div className="alert alert--error">
                                 <AlertCircle size={20} />
@@ -133,6 +227,7 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit, isCreating }: CreatePro
                         )}
                     </div>
 
+                    {/* Footer */}
                     <div className="modal__footer">
                         <button
                             type="button"
@@ -145,7 +240,7 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit, isCreating }: CreatePro
                         <button
                             type="submit"
                             className="btn btn--primary"
-                            disabled={isCreating || !name.trim()}
+                            disabled={isCreating || !isValid}
                         >
                             {isCreating ? (
                                 <>
