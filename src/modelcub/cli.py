@@ -35,7 +35,6 @@ def project_run(args) -> int:
         return code
 
     elif args.proj_cmd == "config":
-        # Load project
         try:
             root = project_root()
             config = load_config(root)
@@ -51,7 +50,6 @@ def project_run(args) -> int:
             return 0
 
         elif args.config_cmd == "get":
-            # Navigate config by dot notation
             parts = args.key.split(".")
             value = config
 
@@ -70,7 +68,6 @@ def project_run(args) -> int:
                 return 2
 
         elif args.config_cmd == "set":
-            # Navigate to parent and set value
             parts = args.key.split(".")
             obj = config
 
@@ -82,13 +79,11 @@ def project_run(args) -> int:
                         print(f"❌ Config key not found: {args.key}")
                         return 2
 
-                # Set the value
                 attr_name = parts[-1]
                 if not hasattr(obj, attr_name):
                     print(f"❌ Config key not found: {args.key}")
                     return 2
 
-                # Try to convert value to appropriate type
                 current = getattr(obj, attr_name)
                 if isinstance(current, int):
                     value = int(args.value)
@@ -101,7 +96,6 @@ def project_run(args) -> int:
 
                 setattr(obj, attr_name, value)
 
-                # Save config
                 from modelcub.core.config import save_config
                 save_config(root, config)
 
@@ -179,19 +173,21 @@ def dataset_run(args) -> int:
 
     return 0
 
-
 def handle_dataset_import(args) -> int:
     """Handle dataset import command."""
     from pathlib import Path
     from modelcub.services.image_service import import_images, ImportImagesRequest
     from modelcub.core.images import scan_directory
+    from modelcub.core.paths import project_root
 
     source = Path(args.source).resolve()
 
-    # Show scanning message
-    print(f"🔍 Scanning {source}...")
+    # Parse classes if provided
+    classes = None
+    if args.classes:
+        classes = [c.strip() for c in args.classes.split(",") if c.strip()]
 
-    # Scan directory first to show progress
+    print(f"🔍 Scanning {source}...")
     scan_result = scan_directory(source, recursive=args.recursive)
 
     if scan_result.total_count == 0:
@@ -201,7 +197,6 @@ def handle_dataset_import(args) -> int:
 
     print(f"   Found {scan_result.total_count} image files")
 
-    # Show validation progress if validating
     if not args.no_validate:
         print("\n✓ Validating images...")
         print("   [████████████████████] 100%")
@@ -211,7 +206,6 @@ def handle_dataset_import(args) -> int:
         if scan_result.invalid_count > 0:
             print(f"   ⚠️  {scan_result.invalid_count} skipped (corrupt/unreadable)")
 
-            # Show first few invalid files
             if scan_result.invalid_count <= 5:
                 for path, error in scan_result.invalid:
                     print(f"      • {path.name}: {error}")
@@ -224,21 +218,20 @@ def handle_dataset_import(args) -> int:
         print("\n❌ No valid images to import")
         return 2
 
-    # Show import message
     name_display = args.name or "(auto-generated)"
     print(f"\n📦 Importing as '{name_display}'...")
 
-    # Create import request
     req = ImportImagesRequest(
+        project_path=project_root(),
         source=source,
-        name=args.name,
+        dataset_name=args.name,
+        classes=classes,  # ADD THIS
         copy=not args.symlink,
         validate=not args.no_validate,
         recursive=args.recursive,
         force=args.force
     )
 
-    # Import images
     if not args.symlink:
         print("   Copying files...")
     else:
@@ -247,11 +240,92 @@ def handle_dataset_import(args) -> int:
     print("   [████████████████████] 100%")
     print()
 
-    # Execute import
-    code, msg = import_images(req)
-    print(msg)
+    result = import_images(req)
 
-    return code
+    if result.success:
+        print(result.message)
+        if classes:
+            print(f"   Classes: {', '.join(classes)}")
+        return 0
+    else:
+        print(f"❌ {result.message}")
+        return 1
+
+def classes_run(args) -> int:
+    """Handle dataset classes commands."""
+    from modelcub.sdk.project import Project
+    from modelcub.core.exceptions import (
+        DatasetNotFoundError,
+        ClassExistsError,
+        ClassNotFoundError
+    )
+
+    try:
+        project = Project.load()
+    except Exception as e:
+        print(f"❌ Not in a ModelCub project: {e}")
+        return 2
+
+    try:
+        if args.class_cmd == "list":
+            classes = project.datasets.list_classes(args.dataset)
+
+            if not classes:
+                print(f"⚠️  No classes in dataset: {args.dataset}")
+                return 0
+
+            print(f"Classes in {args.dataset}:")
+            for idx, class_name in enumerate(classes):
+                print(f"  {idx}: {class_name}")
+            print(f"\n✨ Total: {len(classes)} classes")
+            return 0
+
+        elif args.class_cmd == "add":
+            class_id = project.datasets.add_class(
+                args.dataset,
+                args.class_name,
+                args.id
+            )
+            print(f"✅ Added class: {args.class_name} (ID: {class_id})")
+            return 0
+
+        elif args.class_cmd == "remove":
+            if not args.yes:
+                classes = project.datasets.list_classes(args.dataset)
+                if args.class_name not in classes:
+                    print(f"❌ Class not found: {args.class_name}")
+                    return 2
+
+                confirm = input(f"Remove '{args.class_name}' from {args.dataset}? [y/N]: ")
+                if confirm.lower() not in ('y', 'yes'):
+                    print("❌ Cancelled")
+                    return 1
+
+            project.datasets.remove_class(args.dataset, args.class_name)
+            print(f"✅ Removed class: {args.class_name}")
+            print("⚠️  Existing labels unchanged")
+            return 0
+
+        elif args.class_cmd == "rename":
+            project.datasets.rename_class(
+                args.dataset,
+                args.old_name,
+                args.new_name
+            )
+            print(f"✅ Renamed: {args.old_name} → {args.new_name}")
+            return 0
+
+    except DatasetNotFoundError as e:
+        print(f"❌ {e}")
+        return 2
+    except (ClassExistsError, ClassNotFoundError) as e:
+        print(f"❌ {e}")
+        return 2
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return 1
+
+    return 0
 
 
 def ui_run(args) -> int:
@@ -330,6 +404,7 @@ def setup_parsers() -> argparse.ArgumentParser:
     p_ds_import = ds_sub.add_parser("import", help="Import images from a folder")
     p_ds_import.add_argument("--source", required=True, help="Source directory containing images")
     p_ds_import.add_argument("--name", default=None, help="Dataset name (auto-generated if not provided)")
+    p_ds_import.add_argument("--classes", default=None, help="Classes (comma-separated)")  # ADD THIS
     p_ds_import.add_argument("--symlink", action="store_true", help="Create symlinks instead of copying files")
     p_ds_import.add_argument("--no-validate", action="store_true", help="Skip image validation")
     p_ds_import.add_argument("--recursive", action="store_true", help="Recursively scan subdirectories")
@@ -370,6 +445,37 @@ def setup_parsers() -> argparse.ArgumentParser:
     p_ds_delete.add_argument("--yes", action="store_true", help="Skip confirmation")
     p_ds_delete.add_argument("--purge-cache", action="store_true", help="Also delete cache")
     p_ds_delete.set_defaults(func=dataset_run)
+
+    # dataset classes
+    p_ds_classes = ds_sub.add_parser("classes", help="Manage dataset classes")
+    classes_sub = p_ds_classes.add_subparsers(dest="class_cmd", required=True)
+
+    # dataset classes list
+    p_class_list = classes_sub.add_parser("list", help="List classes in a dataset")
+    p_class_list.add_argument("dataset", help="Dataset name")
+    p_class_list.set_defaults(func=classes_run)
+
+    # dataset classes add
+    p_class_add = classes_sub.add_parser("add", help="Add a class to a dataset")
+    p_class_add.add_argument("dataset", help="Dataset name")
+    p_class_add.add_argument("class_name", help="Class name to add")
+    p_class_add.add_argument("--id", type=int, default=None,
+                            help="Class ID (auto-assigned if not provided)")
+    p_class_add.set_defaults(func=classes_run)
+
+    # dataset classes remove
+    p_class_remove = classes_sub.add_parser("remove", help="Remove a class from a dataset")
+    p_class_remove.add_argument("dataset", help="Dataset name")
+    p_class_remove.add_argument("class_name", help="Class name to remove")
+    p_class_remove.add_argument("--yes", action="store_true", help="Skip confirmation")
+    p_class_remove.set_defaults(func=classes_run)
+
+    # dataset classes rename
+    p_class_rename = classes_sub.add_parser("rename", help="Rename a class")
+    p_class_rename.add_argument("dataset", help="Dataset name")
+    p_class_rename.add_argument("old_name", help="Current class name")
+    p_class_rename.add_argument("new_name", help="New class name")
+    p_class_rename.set_defaults(func=classes_run)
 
     return parser
 

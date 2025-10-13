@@ -4,23 +4,23 @@ Image import service for ModelCub.
 from __future__ import annotations
 import json
 import shutil
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional, List
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+import yaml
 
-from ..core.images import scan_directory, format_size, ImageInfo
-from ..core.config import load_config
+from ..core.images import scan_directory, format_size
 from ..core.registries import DatasetRegistry
-from ..events import bus, DatasetImported
 
 
 @dataclass
 class ImportImagesRequest:
     """Request to import images into a dataset."""
-    project_path: str | Path
-    source: Path | str
-    dataset_name: str | None = None
+    project_path: Path
+    source: Path
+    dataset_name: Optional[str] = None
+    classes: Optional[List[str]] = None
     copy: bool = True
     validate: bool = True
     recursive: bool = False
@@ -31,278 +31,200 @@ class ImportImagesRequest:
 class ImportImagesResult:
     """Result of image import operation."""
     success: bool
-    dataset_name: str
-    dataset_path: Path
-    image_count: int
     message: str
-    dataset_id: str
-
-
-def _sanitize_name(name: str) -> str:
-    """Sanitize dataset name."""
-    name = name.lower()
-    name = "".join(c if c.isalnum() or c in "-_" else "-" for c in name)
-    while "--" in name:
-        name = name.replace("--", "-")
-    return name.strip("-")
-
-
-def _generate_dataset_name(source: Path, registry: DatasetRegistry) -> str:
-    """Generate unique dataset name from source folder."""
-    base_name = _sanitize_name(source.name)
-    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    candidate = f"{base_name}-{timestamp}"
-
-    counter = 2
-    while registry.exists(candidate):
-        candidate = f"{base_name}-{timestamp}-{counter}"
-        counter += 1
-
-    return candidate
+    dataset_name: str
+    dataset_path: Optional[Path] = None
+    images_imported: int = 0
 
 
 def _generate_dataset_id() -> str:
-    """Generate unique 8-character dataset ID."""
+    """Generate unique dataset ID."""
     import hashlib
     import time
-
-    data = f"{time.time()}{id(object())}".encode()
-    hash_hex = hashlib.sha256(data).hexdigest()
-    return hash_hex[:8]
+    return hashlib.sha256(str(time.time()).encode()).hexdigest()[:8]
 
 
-def _create_manifest(name: str, dataset_id: str, source: Path,
-                     valid_images: list[ImageInfo], total_size: int) -> dict:
-    """Create dataset manifest."""
-    return {
-        "dataset": name,
-        "id": dataset_id,
-        "created": datetime.utcnow().isoformat() + "Z",
-        "source": str(source.resolve()),
-        "status": "unlabeled",
-        "images": {
-            "total": len(valid_images),
-            "unlabeled": len(valid_images)
-        },
-        "size_bytes": total_size,
-        "classes": []
-    }
-
-
-def _copy_images(images: list[ImageInfo], dest_dir: Path) -> None:
-    """Copy images to destination directory."""
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    for img_info in images:
-        dest_path = dest_dir / img_info.path.name
-
-        # Handle name conflicts
-        if dest_path.exists():
-            stem = dest_path.stem
-            suffix = dest_path.suffix
-            counter = 2
-            while dest_path.exists():
-                dest_path = dest_dir / f"{stem}_{counter}{suffix}"
-                counter += 1
-
-        shutil.copy2(img_info.path, dest_path)
-
-
-def _symlink_images(images: list[ImageInfo], dest_dir: Path) -> None:
-    """Create symlinks to images."""
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    for img_info in images:
-        dest_path = dest_dir / img_info.path.name
-
-        # Handle name conflicts
-        if dest_path.exists():
-            stem = dest_path.stem
-            suffix = dest_path.suffix
-            counter = 2
-            while dest_path.exists():
-                dest_path = dest_dir / f"{stem}_{counter}{suffix}"
-                counter += 1
-
-        try:
-            rel_source = img_info.path.resolve().relative_to(dest_dir.parent.parent)
-            dest_path.symlink_to(f"../../{rel_source}")
-        except (ValueError, OSError):
-            dest_path.symlink_to(img_info.path.resolve())
+def _generate_dataset_name(source: Path) -> str:
+    """Generate dataset name from source path."""
+    base = source.name or "dataset"
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return f"{base}-{timestamp}"
 
 
 def import_images(req: ImportImagesRequest) -> ImportImagesResult:
     """
-    Import images from a folder into a ModelCub dataset.
+    Import images from a directory into a dataset.
 
     Args:
         req: Import request parameters
 
     Returns:
-        ImportImagesResult with success status and details
+        Import result with success status and details
     """
-    # Resolve paths
-    project_root = Path(req.project_path).resolve()
-    source = Path(req.source).resolve()
-
     # Validate source
-    if not source.exists():
+    if not req.source.exists():
         return ImportImagesResult(
             success=False,
-            dataset_name="",
-            dataset_path=Path(),
-            image_count=0,
-            message=f"Source directory not found: {source}",
-            dataset_id=""
+            message=f"Source directory not found: {req.source}",
+            dataset_name=""
         )
 
-    if not source.is_dir():
+    if not req.source.is_dir():
         return ImportImagesResult(
             success=False,
-            dataset_name="",
-            dataset_path=Path(),
-            image_count=0,
-            message=f"Source is not a directory: {source}",
-            dataset_id=""
+            message=f"Source must be a directory: {req.source}",
+            dataset_name=""
         )
-
-    # Load project config and registry
-    try:
-        config = load_config(project_root)
-        if not config:
-            return ImportImagesResult(
-                success=False,
-                dataset_name="",
-                dataset_path=Path(),
-                image_count=0,
-                message="Not in a ModelCub project. Run 'modelcub init' first.",
-                dataset_id=""
-            )
-
-        registry = DatasetRegistry(project_root)
-    except Exception as e:
-        return ImportImagesResult(
-            success=False,
-            dataset_name="",
-            dataset_path=Path(),
-            image_count=0,
-            message=f"Failed to load project: {e}",
-            dataset_id=""
-        )
-
-    # Generate or validate name
-    if req.dataset_name:
-        name = _sanitize_name(req.dataset_name)
-        if registry.exists(name) and not req.force:
-            return ImportImagesResult(
-                success=False,
-                dataset_name=name,
-                dataset_path=Path(),
-                image_count=0,
-                message=f"Dataset '{name}' already exists. Use force=True to overwrite.",
-                dataset_id=""
-            )
-    else:
-        name = _generate_dataset_name(source, registry)
 
     # Scan for images
-    scan_result = scan_directory(source, recursive=req.recursive)
+    scan_result = scan_directory(req.source, recursive=req.recursive)
 
     if scan_result.valid_count == 0:
         return ImportImagesResult(
             success=False,
-            dataset_name=name,
-            dataset_path=Path(),
-            image_count=0,
-            message=f"No valid images found in {source}",
-            dataset_id=""
+            message="No valid images found in source directory",
+            dataset_name=""
         )
 
-    # Generate dataset ID
+    # Generate dataset name if not provided
+    dataset_name = req.dataset_name or _generate_dataset_name(req.source)
     dataset_id = _generate_dataset_id()
 
-    # Prepare dataset directory
-    datasets_dir = project_root / config.paths.data / "datasets"
-    dataset_path = datasets_dir / name
-    images_dir = dataset_path / "images" / "unlabeled"
+    # Setup paths
+    datasets_dir = req.project_path / "data" / "datasets"
+    dataset_dir = datasets_dir / dataset_name
+    images_dir = dataset_dir / "images"
+    unlabeled_dir = images_dir / "unlabeled"
 
-    # Create directory structure
-    dataset_path.mkdir(parents=True, exist_ok=True)
-
-    # Copy or symlink images
-    try:
-        if req.copy:
-            _copy_images(scan_result.valid, images_dir)
-        else:
-            _symlink_images(scan_result.valid, images_dir)
-    except Exception as e:
+    # Check if dataset exists
+    if dataset_dir.exists() and not req.force:
         return ImportImagesResult(
             success=False,
-            dataset_name=name,
-            dataset_path=dataset_path,
-            image_count=0,
-            message=f"Failed to import images: {e}",
-            dataset_id=dataset_id
+            message=f"Dataset already exists: {dataset_name}. Use --force to overwrite.",
+            dataset_name=dataset_name
         )
 
-    # Create manifest
-    manifest = _create_manifest(
-        name=name,
-        dataset_id=dataset_id,
-        source=source,
-        valid_images=scan_result.valid,
-        total_size=scan_result.total_size_bytes
-    )
+    # Create directory structure
+    unlabeled_dir.mkdir(parents=True, exist_ok=True)
 
-    manifest_path = dataset_path / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    # Import images
+    imported_count = 0
+    total_size = 0
 
-    # Create import info (provenance)
-    import_info = {
-        "source": str(source.resolve()),
-        "imported_at": datetime.utcnow().isoformat() + "Z",
-        "method": "copy" if req.copy else "symlink",
-        "recursive": req.recursive,
-        "original_count": scan_result.total_count,
-        "imported_count": scan_result.valid_count,
-        "skipped_count": scan_result.invalid_count
+    for img_info in scan_result.valid:
+        # Handle both Path objects and tuples/ImageInfo objects
+        if isinstance(img_info, tuple):
+            img_path = img_info[0]  # (path, ...)
+        elif hasattr(img_info, 'path'):
+            img_path = img_info.path
+        else:
+            img_path = img_info
+
+        dest_path = unlabeled_dir / img_path.name
+
+        # Handle duplicate filenames
+        counter = 1
+        while dest_path.exists():
+            stem = img_path.stem
+            suffix = img_path.suffix
+            dest_path = unlabeled_dir / f"{stem}_{counter}{suffix}"
+            counter += 1
+
+        try:
+            if req.copy:
+                shutil.copy2(img_path, dest_path)
+            else:
+                dest_path.symlink_to(img_path.absolute())
+
+            imported_count += 1
+            total_size += img_path.stat().st_size
+        except Exception as e:
+            continue
+
+    # Parse classes
+    classes = req.classes or []
+
+    # Create manifest.json
+    manifest = {
+        "dataset": dataset_name,
+        "id": dataset_id,
+        "created": datetime.now().isoformat() + "Z",
+        "source": str(req.source),
+        "status": "unlabeled",
+        "images": {
+            "total": imported_count,
+            "unlabeled": imported_count
+        },
+        "size_bytes": total_size,
+        "classes": classes
     }
 
-    import_info_path = dataset_path / ".import-info.json"
-    import_info_path.write_text(json.dumps(import_info, indent=2), encoding="utf-8")
+    manifest_path = dataset_dir / "manifest.json"
+    with open(manifest_path, 'w') as f:
+        json.dump(manifest, f, indent=2)
 
-    # Add to registry with correct image count
-    registry_entry = {
+    # Create dataset.yaml (YOLO format)
+    dataset_yaml = dataset_dir / "dataset.yaml"
+    yaml_config = {
+        "path": str(dataset_dir),
+        "names": classes,
+        "nc": len(classes)
+    }
+
+    with open(dataset_yaml, 'w') as f:
+        yaml.safe_dump(yaml_config, f, default_flow_style=False, sort_keys=False)
+
+    # Create import-info.json
+    import_info = {
+        "imported_at": datetime.now().isoformat() + "Z",
+        "source": str(req.source),
+        "recursive": req.recursive,
+        "validated": req.validate,
+        "method": "copy" if req.copy else "symlink",
+        "images_found": scan_result.total_count,
+        "images_valid": scan_result.valid_count,
+        "images_invalid": scan_result.invalid_count,
+        "images_imported": imported_count
+    }
+
+    import_info_path = dataset_dir / "import-info.json"
+    with open(import_info_path, 'w') as f:
+        json.dump(import_info, f, indent=2)
+
+    # Register dataset
+    registry = DatasetRegistry(req.project_path)
+    registry.add_dataset({
         "id": dataset_id,
-        "name": name,
+        "name": dataset_name,
         "created": manifest["created"],
         "status": "unlabeled",
-        "num_images": scan_result.valid_count,  # CRITICAL: Store image count
+        "num_images": imported_count,
         "images": {
-            "total": scan_result.valid_count,
-            "unlabeled": scan_result.valid_count
+            "total": imported_count,
+            "unlabeled": imported_count
         },
-        "classes": [],
-        "path": str(dataset_path.relative_to(project_root)),
-        "source": str(source)
-    }
+        "classes": classes,
+        "path": f"data/datasets/{dataset_name}",
+        "source": str(req.source),
+        "num_classes": len(classes)
+    })
 
-    registry.add_dataset(registry_entry)
-    registry.save()  # Explicit save
+    registry.save()
 
-    # Emit event
-    bus.publish(DatasetImported(
-        name=name,
-        path=str(dataset_path),
-        image_count=scan_result.valid_count,
-        source=str(source)
-    ))
+    # Format message
+    size_str = format_size(total_size)
+    message = f"✅ Imported {imported_count} images into dataset '{dataset_name}'\n"
+    message += f"   Path: {dataset_dir}\n"
+    message += f"   Size: {size_str}\n"
+    message += f"   Status: unlabeled"
+
+    if classes:
+        message += f"\n   Classes: {', '.join(classes)}"
 
     return ImportImagesResult(
         success=True,
-        dataset_name=name,
-        dataset_path=dataset_path,
-        image_count=scan_result.valid_count,
-        message=f"Successfully imported {scan_result.valid_count} images",
-        dataset_id=dataset_id
+        message=message,
+        dataset_name=dataset_name,
+        dataset_path=dataset_dir,
+        images_imported=imported_count
     )

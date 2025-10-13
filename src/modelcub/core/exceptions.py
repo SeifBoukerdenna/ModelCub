@@ -1,65 +1,43 @@
-"""Custom exception hierarchy for ModelCub."""
+"""
+ModelCub exceptions.
+"""
 
 
 class ModelCubException(Exception):
-    """Base exception for all ModelCub errors."""
-
-    def __init__(self, message: str, details: dict = None):
-        self.message = message
-        self.details = details or {}
-        super().__init__(self.message)
-
-
-class ProjectException(ModelCubException):
-    """Project-related errors."""
+    """Base exception for ModelCub."""
     pass
 
 
-class ProjectNotFoundError(ProjectException):
-    """Project does not exist."""
+class ProjectNotFoundError(ModelCubException):
+    """Raised when a project cannot be found."""
     pass
 
 
-class ProjectAlreadyExistsError(ProjectException):
-    """Project already exists."""
+class DatasetNotFoundError(ModelCubException):
+    """Raised when a dataset cannot be found."""
     pass
 
 
-class DatasetException(ModelCubException):
-    """Dataset-related errors."""
+class DatasetExistsError(ModelCubException):
+    """Raised when trying to create a dataset that already exists."""
     pass
 
 
-class DatasetNotFoundError(DatasetException):
-    """Dataset does not exist."""
+class ClassExistsError(ModelCubException):
+    """Raised when trying to add a class that already exists."""
     pass
 
 
-class ModelException(ModelCubException):
-    """Model-related errors."""
+class ClassNotFoundError(ModelCubException):
+    """Raised when a class cannot be found."""
     pass
 
 
-class TrainingException(ModelException):
-    """Training-related errors."""
+class InvalidConfigError(ModelCubException):
+    """Raised when configuration is invalid."""
     pass
 
 
-class ValidationException(ModelCubException):
-    """Validation errors."""
-    pass
-
-
-class ConfigurationError(ModelCubException):
-    """Configuration errors."""
-    pass
-
-
-class ImportException(ModelCubException):
-    """Import-related errors."""
-    pass
-
-
-class AnnotationException(ModelCubException):
-    """Annotation-related errors."""
+class InvalidDatasetError(ModelCubException):
+    """Raised when dataset structure or format is invalid."""
     pass

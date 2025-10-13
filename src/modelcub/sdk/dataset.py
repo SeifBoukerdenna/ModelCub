@@ -61,6 +61,11 @@ class Dataset:
         info = dataset.info()
         print(info.total_images)
         print(info.size)
+
+        # Manage classes
+        dataset.add_class('cat')
+        dataset.add_class('dog')
+        classes = dataset.list_classes()
     """
 
     def __init__(self, name: str):
@@ -300,6 +305,114 @@ class Dataset:
         # Delete directory
         if self._path.exists():
             shutil.rmtree(self._path)
+
+    # ========== Class Management ==========
+
+    def list_classes(self) -> List[str]:
+        """
+        List all classes in this dataset.
+
+        Returns:
+            List of class names
+
+        Example:
+            >>> classes = dataset.list_classes()
+            >>> print(classes)
+            ['cat', 'dog', 'bird']
+        """
+        from ..core.registries import DatasetRegistry
+
+        root = project_root()
+        registry = DatasetRegistry(root)
+        return registry.list_classes(self.name)
+
+    def add_class(self, class_name: str, class_id: Optional[int] = None) -> int:
+        """
+        Add a new class to this dataset.
+
+        Args:
+            class_name: Name of the class to add
+            class_id: Optional specific ID for the class (auto-assigned if None)
+
+        Returns:
+            Assigned class ID
+
+        Raises:
+            ValueError: If class already exists or class_id is invalid
+
+        Example:
+            >>> dataset.add_class('cat')
+            0
+            >>> dataset.add_class('dog')
+            1
+            >>> dataset.add_class('fish', class_id=5)
+            5
+        """
+        from ..core.registries import DatasetRegistry
+        from ..core.exceptions import ClassExistsError
+
+        root = project_root()
+        registry = DatasetRegistry(root)
+
+        try:
+            assigned_id = registry.add_class(self.name, class_name, class_id)
+            self._load_manifest()  # Reload manifest to get updated classes
+            return assigned_id
+        except ClassExistsError as e:
+            raise ValueError(str(e))
+
+    def remove_class(self, class_name: str) -> None:
+        """
+        Remove a class from this dataset.
+
+        Note: This does not delete existing labels with this class.
+
+        Args:
+            class_name: Name of the class to remove
+
+        Raises:
+            ValueError: If class not found
+
+        Example:
+            >>> dataset.remove_class('cat')
+        """
+        from ..core.registries import DatasetRegistry
+        from ..core.exceptions import ClassNotFoundError
+
+        root = project_root()
+        registry = DatasetRegistry(root)
+
+        try:
+            registry.remove_class(self.name, class_name)
+            self._load_manifest()  # Reload manifest
+        except ClassNotFoundError as e:
+            raise ValueError(str(e))
+
+    def rename_class(self, old_name: str, new_name: str) -> None:
+        """
+        Rename a class in this dataset.
+
+        Args:
+            old_name: Current class name
+            new_name: New class name
+
+        Raises:
+            ValueError: If old class not found or new name already exists
+
+        Example:
+            >>> dataset.rename_class('cat', 'feline')
+        """
+        from ..core.registries import DatasetRegistry
+        from ..core.exceptions import ClassNotFoundError, ClassExistsError
+
+        root = project_root()
+        registry = DatasetRegistry(root)
+
+        try:
+            registry.rename_class(self.name, old_name, new_name)
+            self._load_manifest()  # Reload manifest
+        except (ClassNotFoundError, ClassExistsError) as e:
+            raise ValueError(str(e))
 
     def __repr__(self) -> str:
         return f"Dataset(name='{self.name}', images={self.images}, status='{self.status}')"

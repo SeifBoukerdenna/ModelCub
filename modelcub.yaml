@@ -1,5 +1,0 @@
-project: your-project
-images: data/raw
-labels: data/labels
-models_dir: models
-classes: [object]
