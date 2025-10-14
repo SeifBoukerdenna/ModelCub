@@ -13,6 +13,7 @@
 @import '../components/form.css';
 @import '../components/badge.css';
 @import '../components/theme-toggle.css';
+@import '../styles/settings.css';
 
 /*============================================CSS Variables (Design Tokens)============================================*/
 :root {

@@ -111,21 +111,26 @@ async def set_project_config(
     path: str,
     request: SetConfigRequest
 ) -> APIResponse[ProjectConfigFull]:
-    """Update project configuration."""
+    """
+    Update project configuration.
+
+    Frontend sends a single key/value (dot-path), e.g.:
+      { "key": "defaults.batch_size", "value": 32 }
+
+    We support this shape while keeping the old explicit-field logic available
+    through ProjectOperations.update_config (not removed).
+    """
     try:
-        logger.info(f"Updating config for project at: {path}")
-        config_schema = ProjectOperations.update_config(
-            path,
-            request.device,
-            request.batch_size,
-            request.image_size,
-            request.workers
-        )
+        logger.info(f"Updating config for project at: {path} | {request.key}={request.value!r}")
+        updated = ProjectOperations.update_config_by_key(path, request.key, request.value)
         return APIResponse(
             success=True,
-            data=config_schema,
+            data=updated,
             message="Configuration updated successfully"
         )
+    except BadRequestError:
+        # Raised when key is unsupported or value type is invalid
+        raise
     except ValueError as e:
         raise NotFoundError(message=str(e), code=ErrorCode.PROJECT_NOT_FOUND)
     except Exception as e:
