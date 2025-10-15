@@ -105,23 +105,6 @@ class Dataset(BaseModel):
     size_bytes: int = 0
     size_formatted: str = "0 B"
 
-
-class DatasetDetail(Dataset):
-    """Detailed dataset information."""
-    train_images: int = 0
-    valid_images: int = 0
-    unlabeled_images: int = 0
-
-
-class ImportDatasetRequest(BaseModel):
-    """Request to import dataset."""
-    source: str
-    name: Optional[str] = None
-    recursive: bool = False
-    copy_files: bool = False
-    classes: Optional[List[str]] = [],
-
-
 class ImageInfo(BaseModel):
     """Image information."""
     filename: str
@@ -131,6 +114,29 @@ class ImageInfo(BaseModel):
     size_bytes: int
     has_labels: bool
     split: str  # train, val, test
+
+
+
+
+class DatasetDetail(Dataset):
+    """Detailed dataset information."""
+    train_images: int = 0
+    valid_images: int = 0
+    unlabeled_images: int = 0
+    image_list: Optional[List[ImageInfo]] = None
+    total_images: Optional[int] = None  # Add this
+
+class DatasetImages(Dataset):
+    """List of images in dataset"""
+    images: List[str] = []
+
+class ImportDatasetRequest(BaseModel):
+    """Request to import dataset."""
+    source: str
+    name: Optional[str] = None
+    recursive: bool = False
+    copy_files: bool = False
+    classes: Optional[List[str]] = [],
 
 
 # ==================== MODEL SCHEMAS ====================

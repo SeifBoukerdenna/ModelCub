@@ -22,26 +22,6 @@ export interface ProjectConfig {
   format: string;
 }
 
-// Dataset Types
-export interface Dataset {
-  name: string;
-  id: string;
-  status: string;
-  images: number;
-  classes: string[];
-  path: string;
-  created?: string;
-  source?: string;
-  size_bytes: number;
-  size_formatted: string;
-}
-
-export interface DatasetDetail extends Dataset {
-  train_images: number;
-  valid_images: number;
-  unlabeled_images: number;
-}
-
 // API Response Types
 export interface ApiResponse<T = unknown> {
   success: boolean;

@@ -14,10 +14,10 @@ pip install modelcub
 from modelcub import Project, Dataset, Model
 
 # Create project
-project = Project.init("my-project")
+project = Project.init("my-project", path="./path/to/init/project)
 
-# Import dataset
-dataset = Dataset.from_path("./data", name="v1")
+dataset = project.import_dataset(source="./photos", name="animals", classes=["bear1", "bear2", "bear3"], force=True, delete_existent=True)
+
 
 # Validate and fix
 dataset.validate()

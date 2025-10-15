@@ -68,6 +68,49 @@ class DatasetRegistry:
                 return True
         return False
 
+    def get_images(
+    self,
+    dataset_name: str,
+    split: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+) -> tuple[List[Dict], int]:
+        """Get list of all images in the dataset."""
+        dataset_path = self.datasets_dir / dataset_name
+
+        # Determine directories to scan
+        if split:
+            image_dirs = [dataset_path / "images" / split]
+        else:
+            image_dirs = [
+                dataset_path / "images" / s
+                for s in ["train", "val", "test", "unlabeled"]
+            ]
+
+        # Collect image files
+        images = []
+        for img_dir in image_dirs:
+            if not img_dir.exists():
+                continue
+
+            split_name = img_dir.name
+            for img_file in img_dir.glob("*.*"):
+                if img_file.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
+                    label_dir = dataset_path / "labels" / split_name
+                    label_file = label_dir / f"{img_file.stem}.txt"
+
+                    images.append({
+                        'name': img_file.name,
+                        'path': str(img_file.relative_to(dataset_path)),
+                        'split': split_name,
+                        'size': img_file.stat().st_size,
+                        'has_label': label_file.exists()
+                    })
+
+        total = len(images)
+        images = images[offset:offset + limit]
+        return images, total
+
     def get_dataset(self, dataset_name: str) -> Dict[str, Any]:
         """Get dataset info by name."""
         registry = self._load_registry()
@@ -104,6 +147,24 @@ class DatasetRegistry:
         if dataset_id:
             del registry["datasets"][dataset_id]
             self._save_registry(registry)
+
+    # ========================================================================
+    # CLASS MANAGEMENT METHODS
+    # ========================================================================
+
+    def list_images(
+        self,
+        dataset_name: str,
+        split: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> tuple[List[Dict], int]:
+        """List images in a dataset with pagination."""
+        if not self.exists(dataset_name):
+            raise DatasetNotFoundError(f"Dataset not found: {dataset_name}")
+
+        return self.get_images(dataset_name, split, limit, offset)
+
 
     # ========================================================================
     # CLASS MANAGEMENT METHODS

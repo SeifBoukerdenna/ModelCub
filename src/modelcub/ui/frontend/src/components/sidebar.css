@@ -13,6 +13,11 @@
     left: 0;
     top: 0;
     z-index: 100;
+    transition: width 0.3s ease;
+}
+
+.sidebar--collapsed {
+    width: 60px;
 }
 
 .sidebar__header {
@@ -22,6 +27,11 @@
     align-items: center;
     gap: var(--spacing-sm);
     min-height: 72px;
+}
+
+.sidebar--collapsed .sidebar__header {
+    justify-content: center;
+    padding: var(--spacing-lg) var(--spacing-sm);
 }
 
 .sidebar__logo {
@@ -43,6 +53,42 @@
     font-weight: 700;
     color: var(--color-text-primary);
     margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity 0.2s ease;
+}
+
+/* Collapse Toggle Button */
+.sidebar__toggle {
+    position: absolute;
+    right: -12px;
+    top: 76px;
+    width: 24px;
+    height: 24px;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--color-text-secondary);
+    z-index: 101;
+}
+
+.sidebar__toggle:hover {
+    background: var(--color-gray-100);
+    color: var(--color-text-primary);
+    transform: scale(1.1);
+}
+
+[data-theme='dark'] .sidebar__toggle {
+    background: var(--color-surface);
+}
+
+[data-theme='dark'] .sidebar__toggle:hover {
+    background: var(--color-gray-200);
 }
 
 .sidebar__nav {
@@ -72,6 +118,12 @@
     font-size: var(--font-size-sm);
     font-weight: 500;
     border-left: 3px solid transparent;
+    white-space: nowrap;
+}
+
+.sidebar--collapsed .sidebar__nav-link {
+    justify-content: center;
+    padding: var(--spacing-sm);
 }
 
 .sidebar__nav-link:hover {
@@ -90,12 +142,24 @@
     opacity: 0.8;
 }
 
+.sidebar__nav-link span {
+    transition: opacity 0.2s ease;
+}
+
 .sidebar__footer {
     padding: var(--spacing-md) var(--spacing-lg);
     border-top: 1px solid var(--color-border);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
+}
+
+.sidebar--collapsed .sidebar__footer {
+    padding: var(--spacing-md) var(--spacing-sm);
+}
+
+.sidebar__theme {
+    transition: opacity 0.2s ease;
 }
 
 .sidebar__links {
@@ -124,6 +188,7 @@
     color: var(--color-text-tertiary);
     text-align: center;
     margin-top: var(--spacing-xs);
+    transition: opacity 0.2s ease;
 }
 
 /* ============================================
@@ -159,7 +224,6 @@
 /* ============================================
    PROJECT SWITCHER (in header)
    ============================================ */
-
 
 .project-switcher {
     position: relative;
@@ -388,7 +452,6 @@
     }
 }
 
-
 /* ============================================
    SELECTED PROJECT INDICATOR
    ============================================ */
@@ -422,6 +485,7 @@
     margin-left: 240px;
     min-height: 100vh;
     background: var(--color-background);
+    transition: margin-left 0.3s ease;
 }
 
 .content {
@@ -440,10 +504,18 @@
         width: 60px;
     }
 
+    .sidebar--collapsed {
+        width: 60px;
+    }
+
     .sidebar__title,
     .sidebar__nav-link span,
-    .sidebar__footer,
+    .sidebar__footer .sidebar__theme,
     .sidebar__version {
+        display: none;
+    }
+
+    .sidebar__toggle {
         display: none;
     }
 

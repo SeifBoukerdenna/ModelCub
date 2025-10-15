@@ -14,6 +14,7 @@
 @import '../components/badge.css';
 @import '../components/theme-toggle.css';
 @import '../styles/settings.css';
+@import '../styles/datasetViewer.css';
 
 /*============================================CSS Variables (Design Tokens)============================================*/
 :root {
@@ -251,4 +252,8 @@ code {
 
 .spin {
     animation: spin 1s linear infinite;
+}
+
+.main--sidebar-collapsed {
+    margin-left: 60px;
 }

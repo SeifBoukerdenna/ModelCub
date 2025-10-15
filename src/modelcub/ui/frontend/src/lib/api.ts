@@ -4,27 +4,9 @@
  */
 import { useState, useCallback } from "react";
 import type { Project } from "@/types";
+import { Dataset, DatasetDetail } from "./api/types";
 
 // ==================== TYPES ====================
-
-export interface Dataset {
-  name: string;
-  id: string;
-  status: string;
-  images: number;
-  classes: string[];
-  path: string;
-  created?: string;
-  source?: string;
-  size_bytes: number;
-  size_formatted: string;
-}
-
-export interface DatasetDetail extends Dataset {
-  train_images: number;
-  valid_images: number;
-  unlabeled_images: number;
-}
 
 export interface ImportDatasetRequest {
   source: string;
@@ -200,8 +182,20 @@ class ModelCubAPI {
     return this.request("/datasets");
   }
 
-  async getDataset(datasetId: string): Promise<DatasetDetail> {
-    return this.request(`/datasets/${datasetId}`);
+  async getDataset(
+    datasetName: string,
+    includeImages: boolean = false,
+    split?: string,
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<DatasetDetail> {
+    const params = new URLSearchParams({
+      include_images: String(includeImages),
+      limit: String(limit),
+      offset: String(offset),
+      ...(split && { split }),
+    });
+    return this.request(`/datasets/${datasetName}?${params}`);
   }
 
   async importDataset(data: ImportDatasetRequest): Promise<Dataset> {
@@ -469,8 +463,9 @@ export function useListDatasets() {
 }
 
 export function useGetDataset() {
-  return useAPI<DatasetDetail, [string]>((datasetId) =>
-    api.getDataset(datasetId)
+  return useAPI<DatasetDetail, [string, boolean?, string?, number?, number?]>(
+    (datasetName, includeImages, split, limit, offset) =>
+      api.getDataset(datasetName, includeImages, split, limit, offset)
   );
 }
 

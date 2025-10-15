@@ -9,12 +9,13 @@ import tarfile
 
 from fastapi import UploadFile
 
-from modelcub.sdk import Project
+from modelcub.sdk import Project, Dataset
 
 from .datasets_utils import dataset_to_schema
 from ...shared.api.schemas import (
     Dataset as DatasetSchema,
     DatasetDetail as DatasetDetailSchema,
+    DatasetImages as DatasetImagesSchema,
     ImageInfo,
 )
 
@@ -31,18 +32,35 @@ class DatasetOperations:
         return [dataset_to_schema(ds, project.path) for ds in datasets]
 
     @staticmethod
-    def get_dataset_detail(project: Project, dataset_id: str) -> DatasetDetailSchema:
+    def get_dataset_detail(
+        project: Project,
+        dataset_name: str,
+        include_images: bool = False,
+        split: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> DatasetDetailSchema:
         """Get detailed dataset information."""
-        dataset = project.get_dataset(dataset_id)
+        dataset = project.get_dataset(dataset_name)
         split_counts = dataset.get_split_counts()
         base_schema = dataset_to_schema(dataset, project.path)
 
-        return DatasetDetailSchema(
+        detail = DatasetDetailSchema(
             **base_schema.model_dump(),
             train_images=split_counts.get("train", 0),
             valid_images=split_counts.get("val", 0),
             unlabeled_images=split_counts.get("unlabeled", 0)
         )
+
+        if include_images:
+            images, total = DatasetOperations.list_images(
+                project, dataset_name, split, limit, offset
+            )
+            detail.image_list = images
+            detail.total_images = total
+
+        return detail
+
 
     @staticmethod
     def import_from_path(
@@ -173,19 +191,21 @@ class DatasetOperations:
                 except Exception as e:
                     logger.warning(f"Failed to clean up temp directory: {e}")
 
+
     @staticmethod
     def list_images(
         project: Project,
-        dataset_id: str,
+        dataset_name: str,
         split: Optional[str],
         limit: int,
         offset: int
     ) -> tuple[List[ImageInfo], int]:
         """List images in dataset with pagination."""
-        dataset = project.get_dataset(dataset_id)
+        from PIL import Image  # Add this import at top of file
+
+        dataset = project.get_dataset(dataset_name)
         dataset_path = dataset.path
 
-        # Determine directories to scan
         if split:
             image_dirs = [dataset_path / "images" / split]
         else:
@@ -194,7 +214,6 @@ class DatasetOperations:
                 for s in ["train", "val", "test", "unlabeled"]
             ]
 
-        # Collect image files
         images = []
         for img_dir in image_dirs:
             if not img_dir.exists():
@@ -206,12 +225,21 @@ class DatasetOperations:
                     label_dir = dataset_path / "labels" / split_name
                     label_file = label_dir / f"{img_file.stem}.txt"
 
+                    # Get image dimensions
+                    try:
+                        with Image.open(img_file) as img:
+                            width, height = img.size
+                    except Exception:
+                        width, height = 0, 0
+
                     images.append(ImageInfo(
-                        name=img_file.name,
+                        filename=img_file.name,
                         path=str(img_file.relative_to(dataset_path)),
                         split=split_name,
-                        size=img_file.stat().st_size,
-                        has_label=label_file.exists()
+                        width=width,
+                        height=height,
+                        size_bytes=img_file.stat().st_size,
+                        has_labels=label_file.exists()
                     ))
 
         total = len(images)

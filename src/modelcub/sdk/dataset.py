@@ -166,6 +166,35 @@ class Dataset:
                 splits[split] = 0
         return splits
 
+
+
+    # ========== Dataset images ============
+
+    def list_images(
+        self,
+        split: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """
+        List images in this dataset.
+
+        Args:
+            split: Optional split filter ('train', 'val', 'test', 'unlabeled')
+            limit: Max number of images to return
+            offset: Offset for pagination
+
+        Returns:
+            Tuple of (image list, total count)
+
+        Example:
+            >>> images, total = dataset.list_images(split='train', limit=10)
+            >>> print(f"Found {total} images, showing {len(images)}")
+        """
+        registry = DatasetRegistry(self._project_path)
+        return registry.list_images(self.name, split, limit, offset)
+
+
     # ========== Class Management ==========
 
     def list_classes(self) -> List[str]:
@@ -459,7 +488,6 @@ class Dataset:
             raise ValueError(f"Failed to delete box: {result}")
 
         return json.loads(result)
-
 
     def annotation_stats(self) -> Dict[str, Any]:
         from ..services.annotation_service import get_annotation_stats

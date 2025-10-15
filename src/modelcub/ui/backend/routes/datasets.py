@@ -3,6 +3,7 @@ from typing import List, Optional
 import logging
 
 from fastapi import APIRouter, UploadFile, File, Form
+from fastapi.responses import FileResponse
 
 from .datasets_operations import DatasetOperations
 from ..dependencies import ProjectRequired
@@ -40,19 +41,30 @@ async def list_datasets(project: ProjectRequired) -> APIResponse[List[DatasetSch
         )
 
 
-@router.get("/{dataset_id}")
+@router.get("/{dataset_name}")
 async def get_dataset(
-    dataset_id: str,
-    project: ProjectRequired
+    dataset_name: str,
+    project: ProjectRequired,
+    include_images: bool = False,
+    split: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
 ) -> APIResponse[DatasetDetailSchema]:
-    """Get dataset details."""
+    """Get dataset details with optional images."""
     try:
-        logger.info(f"Getting dataset: {dataset_id}")
-        dataset_schema = DatasetOperations.get_dataset_detail(project, dataset_id)
+        logger.info(f"Getting dataset: {dataset_name}, include_images={include_images}")
+        dataset_schema = DatasetOperations.get_dataset_detail(
+            project,
+            dataset_name,
+            include_images=include_images,
+            split=split,
+            limit=limit,
+            offset=offset
+        )
         return APIResponse(
             success=True,
             data=dataset_schema,
-            message=f"Dataset '{dataset_id}' loaded successfully"
+            message=f"Dataset '{dataset_name}' loaded successfully"
         )
     except ValueError as e:
         raise NotFoundError(message=str(e), code=ErrorCode.DATASET_NOT_FOUND)
@@ -148,10 +160,27 @@ async def upload_dataset(
             code=ErrorCode.DATASET_IMPORT_FAILED
         )
 
+@router.get("/{dataset_name}/image/{image_path:path}")
+async def get_image(
+    dataset_name: str,
+    image_path: str,
+    project_path: str
+) -> FileResponse:
+    """Serve an image file."""
+    from modelcub.sdk import Project
 
-@router.get("/{dataset_id}/images")
+    project = Project(project_path)
+    dataset = project.get_dataset(dataset_name)
+    file_path = dataset.path / image_path
+
+    if not file_path.exists() or not file_path.is_file():
+        raise NotFoundError(message="Image not found", code=ErrorCode.FILE_NOT_FOUND)
+
+    return FileResponse(file_path)
+
+@router.get("/{dataset_name}/images")
 async def list_dataset_images(
-    dataset_id: str,
+    dataset_name: str,
     project: ProjectRequired,
     split: Optional[str] = None,
     limit: int = 100,
@@ -159,8 +188,8 @@ async def list_dataset_images(
 ) -> APIResponse[List[ImageInfo]]:
     """List images in dataset."""
     try:
-        logger.info(f"Listing images for dataset: {dataset_id}, split: {split}")
-        images, total = DatasetOperations.list_images(project, dataset_id, split, limit, offset)
+        logger.info(f"Listing images for dataset: {dataset_name}, split: {split}")
+        images, total = DatasetOperations.list_images(project, dataset_name, split, limit, offset)
         return APIResponse(
             success=True,
             data=images,

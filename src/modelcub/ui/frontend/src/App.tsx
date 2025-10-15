@@ -1,4 +1,6 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useProjectStore } from '@/stores/projectStore'
+import { api } from '@/lib/api' // Import the api instance
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import Toast from './components/Toast'
@@ -8,53 +10,81 @@ import Projects from './pages/Projects'
 import Datasets from './pages/Datasets'
 import Models from './pages/Models'
 import Settings from './pages/Settings'
+import DatasetViewer from './components/datasets/DatasetViewer'
+import { HotkeysProvider } from './hotkeys/HotkeysProvider'
 
 const App: React.FC = () => {
+    useEffect(() => {
+        const loadProjects = async () => {
+            useProjectStore.getState().setLoading(true)
+            try {
+                const projects = await api.listProjects()
+                useProjectStore.getState().setProjects(projects)
+            } catch (error) {
+                useProjectStore.getState().setError('Failed to load projects')
+            } finally {
+                useProjectStore.getState().setLoading(false)
+            }
+        }
+
+        loadProjects()
+    }, [])
+
     return (
         <BrowserRouter>
-            <Toast />
-            <Routes>
-                <Route path="/" element={<Layout />}>
-                    <Route index element={<Navigate to="/dashboard" replace />} />
+            <HotkeysProvider>
+                <Toast />
+                <Routes>
+                    <Route path="/" element={<Layout />}>
+                        <Route index element={<Navigate to="/dashboard" replace />} />
 
-                    {/* Protected routes - require project selection */}
-                    <Route
-                        path="dashboard"
-                        element={
-                            <ProjectGuard>
-                                <Dashboard />
-                            </ProjectGuard>
-                        }
-                    />
-                    <Route
-                        path="datasets"
-                        element={
-                            <ProjectGuard>
-                                <Datasets />
-                            </ProjectGuard>
-                        }
-                    />
-                    <Route
-                        path="models"
-                        element={
-                            <ProjectGuard>
-                                <Models />
-                            </ProjectGuard>
-                        }
-                    />
-                    <Route
-                        path="settings"
-                        element={
-                            <ProjectGuard>
-                                <Settings />
-                            </ProjectGuard>
-                        }
-                    />
+                        {/* Protected routes - require project selection */}
+                        <Route
+                            path="dashboard"
+                            element={
+                                <ProjectGuard>
+                                    <Dashboard />
+                                </ProjectGuard>
+                            }
+                        />
+                        <Route
+                            path="datasets"
+                            element={
+                                <ProjectGuard>
+                                    <Datasets />
+                                </ProjectGuard>
+                            }
+                        />
+                        <Route
+                            path="datasets/:name"
+                            element={
+                                <ProjectGuard>
+                                    <DatasetViewer />
+                                </ProjectGuard>
+                            }
+                        />
+                        <Route
+                            path="models"
+                            element={
+                                <ProjectGuard>
+                                    <Models />
+                                </ProjectGuard>
+                            }
+                        />
+                        <Route
+                            path="settings"
+                            element={
+                                <ProjectGuard>
+                                    <Settings />
+                                </ProjectGuard>
+                            }
+                        />
 
-                    {/* Public routes - no guard needed */}
-                    <Route path="projects" element={<Projects />} />
-                </Route>
-            </Routes>
+                        {/* Public routes - no guard needed */}
+                        <Route path="projects" element={<Projects />} />
+                    </Route>
+                </Routes>
+            </HotkeysProvider>
         </BrowserRouter>
     )
 }

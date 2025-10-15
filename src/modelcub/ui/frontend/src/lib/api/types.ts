@@ -82,7 +82,7 @@ export interface Dataset {
   name: string;
   id: string;
   status: string;
-  images: number;
+
   classes: string[];
   path: string;
   created?: string;
@@ -95,6 +95,8 @@ export interface DatasetDetail extends Dataset {
   train_images: number;
   valid_images: number;
   unlabeled_images: number;
+  image_list?: ImageInfo[]; // Add this
+  total_images?: number; // Add this
 }
 
 export interface ImportDatasetRequest {
