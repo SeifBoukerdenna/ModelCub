@@ -6,6 +6,8 @@ export default defineConfig({
 
   cleanUrls: true,
 
+  ignoreDeadLinks: true,
+
   head: [
     ["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }],
     ["meta", { name: "theme-color", content: "#3eaf7c" }],
@@ -57,12 +59,12 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: "github", link: "https://github.com/yourusername/modelcub" },
+      { icon: "github", link: "https://github.com/seifBoukerdenna/modelcub" },
     ],
 
     footer: {
       message: "Released under the MIT License.",
-      copyright: "Copyright © 2024-present ModelCub",
+      copyright: "Copyright © 2025-present ModelCub",
     },
 
     search: {
