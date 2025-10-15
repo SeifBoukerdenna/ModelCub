@@ -28,6 +28,19 @@ class DatasetInfo:
     source: Optional[str] = None
 
 
+@dataclass
+class Box:
+    """Bounding box in YOLO format (normalized 0-1)."""
+    class_id: int
+    x: float
+    y: float
+    w: float
+    h: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"class_id": self.class_id, "x": self.x, "y": self.y, "w": self.w, "h": self.h}
+
+
 class Dataset:
     """
     High-level interface for dataset operations.
@@ -360,6 +373,105 @@ class Dataset:
 
         if not self._data:
             raise ValueError(f"Dataset no longer exists: {self.name}")
+
+    # ========== Annoation Operations ===========
+
+    def get_annotation(self, image_id: str) -> Dict[str, Any]:
+        from ..services.annotation_service import get_annotation, GetAnnotationRequest
+        import json
+
+        req = GetAnnotationRequest(
+            dataset_name=self.name,
+            image_id=image_id,
+            project_path=self._project_path  # This was missing
+        )
+
+        code, result = get_annotation(req)
+
+        if code != 0:
+            raise ValueError(f"Failed to get annotation: {result}")
+
+        return json.loads(result)
+
+    def get_annotations(self) -> List[Dict[str, Any]]:
+        from ..services.annotation_service import get_annotation, GetAnnotationRequest
+        import json
+
+        req = GetAnnotationRequest(
+            dataset_name=self.name,
+            image_id=None,
+            project_path=self._project_path  # Add this
+        )
+
+        code, result = get_annotation(req)
+
+        if code != 0:
+            raise ValueError(f"Failed to get annotations: {result}")
+
+        data = json.loads(result)
+        return data.get("images", [])
+
+    def save_annotation(self, image_id: str, boxes: List[Box]) -> Dict[str, Any]:
+        from ..services.annotation_service import (
+            save_annotation, SaveAnnotationRequest, BoundingBox
+        )
+        import json
+
+        bbox_list = [
+            BoundingBox(
+                class_id=b.class_id,
+                x=b.x,
+                y=b.y,
+                w=b.w,
+                h=b.h
+            )
+            for b in boxes
+        ]
+
+        req = SaveAnnotationRequest(
+            dataset_name=self.name,
+            image_id=image_id,
+            boxes=bbox_list,
+            project_path=self._project_path  # Add this line
+        )
+
+        code, result = save_annotation(req)
+
+        if code != 0:
+            raise ValueError(f"Failed to save annotation: {result}")
+
+        return json.loads(result)
+
+    def delete_box(self, image_id: str, box_index: int) -> Dict[str, Any]:
+        from ..services.annotation_service import delete_annotation, DeleteAnnotationRequest
+        import json
+
+        req = DeleteAnnotationRequest(
+            dataset_name=self.name,
+            image_id=image_id,
+            box_index=box_index,
+            project_path=self._project_path
+        )
+
+        code, result = delete_annotation(req)
+
+        if code != 0:
+            raise ValueError(f"Failed to delete box: {result}")
+
+        return json.loads(result)
+
+
+    def annotation_stats(self) -> Dict[str, Any]:
+        from ..services.annotation_service import get_annotation_stats
+        import json
+
+        code, result = get_annotation_stats(self.name, self._project_path)
+
+        if code != 0:
+            raise ValueError(f"Failed to get stats: {result}")
+
+        return json.loads(result)
+
 
     # ========== String Representations ==========
 

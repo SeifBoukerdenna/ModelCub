@@ -333,6 +333,33 @@ def ui_run(args) -> int:
     from modelcub.commands.ui import run
     return run(args)
 
+def annotate_run(args) -> int:
+    """Handle annotation commands."""
+    from modelcub.sdk import Project
+
+    try:
+        project = Project.load()
+        dataset = project.get_dataset(args.dataset)
+    except Exception as e:
+        print(f"❌ {e}")
+        return 2
+
+    if args.ann_cmd == "stats":
+        stats = dataset.annotation_stats()
+        print(f"📊 {args.dataset}")
+        print(f"   Total: {stats['total_images']}")
+        print(f"   Labeled: {stats['labeled']}")
+        print(f"   Progress: {stats['progress']:.1%}")
+        print(f"   Total boxes: {stats['total_boxes']}")
+        return 0
+
+    elif args.ann_cmd == "list":
+        anns = dataset.get_annotations()
+        labeled = [a for a in anns if a['num_boxes'] > 0]
+        print(f"Labeled images in {args.dataset}:")
+        for ann in labeled:
+            print(f"  {ann['image_id']}: {ann['num_boxes']} boxes")
+        return 0
 
 def setup_parsers() -> argparse.ArgumentParser:
     """Setup argument parsers for all commands."""
@@ -476,6 +503,17 @@ def setup_parsers() -> argparse.ArgumentParser:
     p_class_rename.add_argument("old_name", help="Current class name")
     p_class_rename.add_argument("new_name", help="New class name")
     p_class_rename.set_defaults(func=classes_run)
+
+    p_ann = sub.add_parser("annotate", help="Annotation commands")
+    ann_sub = p_ann.add_subparsers(dest="ann_cmd", required=True)
+
+    p_ann_stats = ann_sub.add_parser("stats", help="Show annotation stats")
+    p_ann_stats.add_argument("dataset", help="Dataset name")
+    p_ann_stats.set_defaults(func=annotate_run)
+
+    p_ann_list = ann_sub.add_parser("list", help="List annotations")
+    p_ann_list.add_argument("dataset", help="Dataset name")
+    p_ann_list.set_defaults(func=annotate_run)
 
     return parser
 

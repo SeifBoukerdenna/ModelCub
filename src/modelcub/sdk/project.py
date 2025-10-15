@@ -68,7 +68,7 @@ class Project:
             >>> project = Project.init("my-cv-project")
             >>> project = Project.init("detection", path="/workspace/proj")
         """
-        target_path = Path(path) if path else Path.cwd()
+        target_path = Path(path) if path else Path.cwd() / name
         target_path = target_path.resolve()
 
         req = InitProjectRequest(
@@ -300,15 +300,16 @@ class Project:
     # ========== Dataset Operations ==========
 
     def import_dataset(
-        self,
-        source: str | Path,
-        name: Optional[str] = None,
-        classes: Optional[List[str]] = None,
-        recursive: bool = False,
-        copy: bool = True,
-        validate: bool = True,
-        force: bool = False
-    ) -> Dataset:
+    self,
+    source: str | Path,
+    name: Optional[str] = None,
+    classes: Optional[List[str]] = None,
+    recursive: bool = False,
+    copy: bool = True,
+    validate: bool = True,
+    force: bool = False,
+    delete_existent: bool = False
+) -> Dataset:
         """
         Import images as a dataset into this project.
 
@@ -320,6 +321,7 @@ class Project:
             copy: Copy files (True) or create symlinks (False)
             validate: Validate images during import
             force: Overwrite existing dataset
+            delete_existent: Delete existing dataset before import
 
         Returns:
             Dataset instance
@@ -328,10 +330,25 @@ class Project:
             >>> dataset = project.import_dataset(
             ...     source="./photos",
             ...     name="animals",
-            ...     classes=["cat", "dog", "bird"]
+            ...     classes=["cat", "dog", "bird"],
+            ...     delete_existent=True
             ... )
         """
         from ..services.image_service import import_images, ImportImagesRequest
+
+        # Delete existing dataset if requested
+        if delete_existent and name:
+            dataset_path = self.datasets_dir / name
+            if dataset_path.exists():
+                import shutil
+                shutil.rmtree(dataset_path)
+
+                # Remove from registry
+                registry = DatasetRegistry(self.path)
+                try:
+                    registry.remove_dataset(name)
+                except:
+                    pass  # Ignore if not in registry
 
         # Parse classes from string if needed
         if isinstance(classes, str):

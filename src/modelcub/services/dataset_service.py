@@ -138,7 +138,7 @@ def edit_dataset(req: EditDatasetRequest) -> tuple[int, str]:
     mani["classes"] = classes
     (ds_dir / "manifest.json").write_text(json.dumps(mani, indent=2), encoding="utf-8")
     replace_yaml_classes(classes)
-    bus.publish(DatasetEdited(name=req.name, classes=classes))
+    bus.publish(DatasetEdited(name=req.name, old_name=None))
     return 0, f"Updated classes for dataset '{req.name}': {classes}"
 
 def add_dataset(req: AddDatasetRequest) -> tuple[int, str]:
@@ -166,7 +166,7 @@ def add_dataset(req: AddDatasetRequest) -> tuple[int, str]:
                            classes=classes, seed=int(req.seed))
         ensure_yaml_defaults(classes)
         _write_manifest(out_dir, req.name, classes, {"generator": "shapes"})
-        bus.publish(DatasetAdded(name=req.name, path=str(out_dir), classes=classes))
+        bus.publish(DatasetAdded(name=req.name, path=str(out_dir)))
         payload = {"name": req.name, "out": str(out_dir), "classes": classes}
         return 0, json.dumps(payload, indent=2)
 

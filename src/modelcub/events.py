@@ -41,6 +41,17 @@ class DatasetDeleted:
     name: str
     path: str
 
+@dataclass
+class AnnotationSaved:
+    dataset_name: str
+    image_id: str
+    num_boxes: int
+
+@dataclass
+class AnnotationDeleted:
+    dataset_name: str
+    image_id: str
+
 
 class EventBus:
     """Simple event bus for internal events."""

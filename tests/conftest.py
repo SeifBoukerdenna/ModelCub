@@ -89,6 +89,6 @@ def subscribe_events():
     seen = []
     def record(e): seen.append(e)
     for et in (events.ProjectInitialized, events.ProjectDeleted,
-               events.DatasetAdded, events.DatasetEdited, events.DatasetDeleted):
+               events.DatasetAdded, events.DatasetEdited, events.DatasetDeleted, events.AnnotationSaved, events.AnnotationDeleted):
         events.bus.subscribe(et, record)
     return seen

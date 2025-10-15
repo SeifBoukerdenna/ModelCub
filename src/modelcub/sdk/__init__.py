@@ -9,6 +9,6 @@ Or from SDK package:
 """
 
 from .project import Project
-from .dataset import Dataset, DatasetInfo
+from .dataset import Dataset, DatasetInfo, Box
 
-__all__ = ["Project", "Dataset", "DatasetInfo"]
+__all__ = ["Project", "Dataset", "DatasetInfo", "Box"]
