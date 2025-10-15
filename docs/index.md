@@ -63,14 +63,14 @@ from modelcub import Project, Dataset, Model
 
 # Initialize
 project = Project.init("my-project")
-dataset = Dataset.from_path("./data", name="v1")
+dataset = project.import_dataset("./data", name="v1")
 
 # Fix issues
 dataset.fix(auto=True)
 
 # Train
 model = Model("yolov11n", task="detect")
-run = model.train(dataset=dataset, auto=True)
+run = project.train(model=model, dataset=dataset, auto=True)
 
 # Results
 print(f"mAP50: {run.evaluate().map50:.3f}")

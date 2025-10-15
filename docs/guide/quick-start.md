@@ -1,243 +1,234 @@
-# Quick Start
+# Quick Start Guide
 
-Get started with ModelCub in 5 minutes. We'll create a project, add a dataset, fix issues, and train a model.
+Get started with ModelCub in 5 minutes.
 
-## Prerequisites
-
-Make sure ModelCub is installed:
+## 1. Install
 
 ```bash
-pip install "modelcub[ultra]"
+pip install modelcub
 ```
 
-See the [Installation Guide](/guide/installation) for details.
-
-## Step 1: Create Project
-
-Initialize a new ModelCub project:
+## 2. Initialize Project
 
 ```bash
-modelcub init my-cv-project
+modelcub project init my-cv-project
 cd my-cv-project
 ```
 
-This creates the project structure:
-
+Creates this structure:
 ```
 my-cv-project/
-├── .modelcub/      # Configuration and metadata
-├── data/datasets/  # Your datasets
-├── runs/           # Training outputs
-├── reports/        # Generated reports
-└── modelcub.yaml   # Project marker
+├── .modelcub/        # Config, registries, history
+├── data/datasets/    # Your datasets
+├── runs/             # Training outputs
+├── reports/          # Generated reports
+└── modelcub.yaml     # Project marker
 ```
 
-## Step 2: Add a Dataset
+## 3. Add a Dataset
 
-Add a built-in demo dataset:
+### From YOLO Format
 
 ```bash
-modelcub dataset add --source cub --name bears
+modelcub dataset add --source ./yolo-data --name production-v1
 ```
 
-This downloads and imports a small bears classification dataset.
-
-::: tip Using Your Own Data
-To import your own YOLO dataset:
-```bash
-modelcub dataset add --path ./my-yolo-data --name custom
-```
-:::
-
-## Step 3: Validate Dataset
-
-Check for issues:
+### From Roboflow Export
 
 ```bash
-modelcub dataset validate bears
+modelcub dataset add --source ./roboflow-export.zip --name roboflow-v1
 ```
 
-Output shows:
-- Dataset health score
-- Number of images per split
-- Detected issues (corrupt images, invalid labels, etc.)
-
-## Step 4: Fix Issues
-
-Automatically repair common problems:
+### Unlabeled Images (for annotation)
 
 ```bash
-modelcub dataset fix bears --auto
+modelcub dataset add --source ./images/ --name unlabeled-v1
 ```
 
-ModelCub will:
-- Remove corrupt images
-- Fix out-of-bounds boxes
-- Remove duplicates
-- Generate a detailed HTML report
-
-## Step 5: Train a Model
-
-Train with auto-optimization:
+## 4. Inspect Dataset
 
 ```bash
-modelcub train --dataset bears --auto
+# List datasets
+modelcub dataset list
+
+# Detailed info
+modelcub dataset info production-v1
 ```
 
-Auto mode:
-- Detects your GPU and picks optimal settings
-- Sets batch size based on dataset size
-- Enables early stopping
-- Uses all available GPUs
+Output:
+```
+📦 Dataset: production-v1
 
-Or customize:
+Classes: pill, bottle, box (3 classes)
+Images: 847 total
+  • train: 677 (80%)
+  • val: 119 (14%)
+  • test: 51 (6%)
+
+Created: 2025-01-15 14:30:22
+Path: data/datasets/production-v1
+```
+
+## 5. Manage Classes
 
 ```bash
-modelcub train \
-  --dataset bears \
-  --model yolov11n \
-  --epochs 50 \
-  --batch-size 16
+# List classes
+modelcub dataset classes list production-v1
+
+# Add class
+modelcub dataset classes add production-v1 capsule
+
+# Rename class
+modelcub dataset classes rename production-v1 pill tablet
+
+# Remove class
+modelcub dataset classes remove production-v1 box --yes
 ```
 
-## Step 6: Evaluate Results
-
-Check your model's performance:
+## 6. Launch Web UI
 
 ```bash
-modelcub evaluate <run-name>
+modelcub ui
 ```
 
-Shows:
-- mAP50 and mAP50-95
-- Precision, Recall, F1 per class
-- Confusion matrix
-- Inference speed
+Opens at `http://localhost:8000`
 
-## Step 7: Export Model
+View datasets, browse images, manage classes through the web interface.
 
-Export for deployment:
+## Python SDK Usage
 
-```bash
-modelcub export <run-name> --format onnx
-```
-
-Supported formats:
-- ONNX (cross-platform)
-- TensorRT (NVIDIA)
-- TorchScript (PyTorch)
-- CoreML (Apple)
-
-## Using the Python SDK
-
-Prefer notebooks? Here's the same workflow in Python:
+Same workflow in Python:
 
 ```python
-from modelcub import Project, Dataset, Model
+from modelcub import Project, Dataset
 
-# Step 1: Create project
+# 1. Initialize project
 project = Project.init("my-cv-project")
 
-# Step 2: Add dataset
-dataset = Dataset.from_path("./data", name="bears")
+# 2. Add dataset
+dataset = project.import_dataset(source="./photos", name="animals", classes=["bear1", "bear2", "bear3"])
 
-# Step 3: Validate
-report = dataset.validate()
-print(f"Health Score: {report.health_score}/100")
+# 3. Inspect
+print(f"Dataset: {dataset.name}")
+print(f"Classes: {dataset.classes}")
+print(f"Images: {dataset.num_images}")
+print(f"Splits: train={len(dataset.splits['train'].images)}")
 
-# Step 4: Fix issues
-fix_report = dataset.fix(auto=True)
-print(f"Fixed {fix_report.total_fixed} issues")
+# 4. Get statistics
+stats = dataset.stats()
+print(f"Class distribution: {stats['class_distribution']}")
+print(f"Images per split: {stats['images_per_split']}")
 
-# Step 5: Train
-model = Model("yolov11n", task="detect")
-run = model.train(dataset=dataset, auto=True)
-
-# Step 6: Evaluate
-results = run.evaluate(split="val")
-print(f"mAP50: {results.map50:.3f}")
-
-# Step 7: Export
-run.export(format="onnx", output="model.onnx")
+# 5. Manage classes
+dataset.add_class("capsule")
+dataset.rename_class("pill", "tablet")
+dataset.remove_class("box")
 ```
 
-## Next Steps
+## Common Workflows
 
-### Explore Key Features
-
-- **[Version Control](/guide/version-control)** - Git-like workflows for datasets
-- **[Dataset Diff](/guide/dataset-diff)** - Visual comparisons between versions
-- **[Auto-Fix](/guide/auto-fix)** - Deep dive into automatic repairs
-
-### CLI Reference
-
-- **[modelcub dataset](/cli/dataset)** - Dataset management commands
-- **[modelcub train](/cli/train)** - Training options and flags
-- **[modelcub export](/cli/export)** - Export formats and settings
-
-### Python SDK
-
-- **[Project API](/api/project)** - Project management
-- **[Dataset API](/api/dataset)** - Dataset operations
-- **[Model API](/api/model)** - Training and evaluation
-
-## Common Tasks
-
-### Import Your Own YOLO Dataset
+### Import and Inspect
 
 ```bash
-modelcub dataset add --path ./yolo-data --name production-v1
+# Import
+modelcub dataset add --source ./data --name bears-v1
+
+# Check what you got
+modelcub dataset info bears-v1
+
+# Launch UI to browse
+modelcub ui
 ```
 
-### Import Roboflow Export
+### Multiple Datasets
 
 ```bash
-modelcub dataset add --path ./roboflow-export.zip --name roboflow-data
+# Add multiple datasets
+modelcub dataset add --source ./pills --name pills-v1
+modelcub dataset add --source ./bottles --name bottles-v1
+
+# List all
+modelcub dataset list
+
+# Compare
+modelcub dataset info pills-v1
+modelcub dataset info bottles-v1
 ```
 
-### Version Your Dataset
+### Edit Metadata
 
 ```bash
-# Commit current state
-modelcub commit -m "Initial import"
+# Rename dataset
+modelcub dataset edit pills-v1 --new-name pills-production
 
-# Make changes, then commit
-modelcub commit -m "Added 500 images"
-
-# Compare versions
-modelcub diff v1 v2 --visual
+# Update classes
+modelcub dataset edit pills-v1 --classes "pill,tablet,capsule"
 ```
 
-### Train on Multiple GPUs
+### Delete Dataset
 
 ```bash
-# ModelCub automatically uses all available GPUs
-modelcub train --dataset bears --auto
+# Safe delete (requires confirmation)
+modelcub dataset delete old-dataset
 
-# Or specify devices
-modelcub train --dataset bears --device cuda:0,1,2,3
+# Force delete
+modelcub dataset delete old-dataset --yes
+```
+
+## Configuration
+
+View/edit project config:
+
+```bash
+# Show all config
+modelcub config show
+
+# Get specific value
+modelcub config get defaults.batch_size
+
+# Set value
+modelcub config set defaults.batch_size 32
+```
+
+Config stored in `.modelcub/config.yaml`:
+```yaml
+project:
+  name: my-cv-project
+
+defaults:
+  device: cuda
+  batch_size: 16
+  image_size: 640
+  format: yolo
+
+paths:
+  data: data
+  runs: runs
+  reports: reports
 ```
 
 ## Tips
 
-::: tip Start Small
-Use a subset of your dataset first to verify the workflow. ModelCub makes it easy to add more data later and retrain.
-:::
+**Start Small**: Import a subset first to verify workflow, then add full dataset.
 
-::: tip Use Auto Mode
-The `--auto` flag is great for getting started. You can always customize later once you understand your dataset.
-:::
+**Use UI**: Easier to browse images and manage classes visually.
 
-::: tip Version Everything
-Get in the habit of committing datasets after major changes. Future you will thank past you.
-:::
+**Check Config**: Run `modelcub config show` to see device, batch size, etc.
 
-## Need Help?
+**Version Everything**: (Coming soon) Commit datasets after major changes.
 
-- **[GitHub Discussions](https://github.com/SeifBoukerdenna/ModelCub/discussions)** - Ask questions
-- **[GitHub Issues](https://github.com/SeifBoukerdenna/ModelCub/issues)** - Report bugs
-- **[Documentation](/guide/introduction)** - Full guides and references
+## Next Steps
 
----
+- **[CLI Reference](cli-reference.md)** - All commands
+- **[Python SDK](python-sdk.md)** - Programmatic API
+- **[Architecture](architecture.md)** - How it works
 
-**Congratulations!** 🎉 You've trained your first model with ModelCub.
+## Troubleshooting
+
+**"Not a ModelCub project"**: Run `modelcub project init` first.
+
+**Import fails**: Check source path exists and format is correct (YOLO/Roboflow).
+
+**UI won't start**: Port 8000 in use? Try `modelcub ui --port 3000`.
+
+**Permission errors**: Use virtual environment or `pip install --user`.

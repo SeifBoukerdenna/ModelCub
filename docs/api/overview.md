@@ -1,289 +1,521 @@
-# API Overview
+# Architecture Overview
 
-ModelCub provides a clean Python SDK for programmatic access to all functionality.
+ModelCub's design philosophy and technical architecture.
 
-## Installation
+## Design Philosophy
 
-```bash
-pip install modelcub
+### 1. Local-First, Always
+
+**Your data stays on your machine.**
+
+- Zero cloud dependencies
+- Works 100% offline
+- No telemetry, no tracking
+- Perfect for HIPAA/GDPR compliance
+- Medical, pharma, defense applications
+
+### 2. API-First Design
+
+**One source of truth: the Core API.**
+
+```
+Everything flows through Core API:
+
+CLI → Python SDK → Core API
+Web UI → FastAPI → Core API
+
+Each layer is optional and replaceable.
 ```
 
-## Quick Example
+**Benefits:**
+- Composable: Use CLI, SDK, or UI interchangeably
+- Testable: Core logic isolated from interfaces
+- Extensible: Add new interfaces without touching core
+- Maintainable: Changes in one layer don't break others
+
+### 3. Stateless Web UI
+
+**UI is pure view layer.**
+
+```
+State lives in filesystem (.modelcub/):
+├── config.yaml         # Configuration
+├── datasets.yaml       # Dataset registry
+├── runs.yaml           # Training runs
+└── annotations.db      # SQLite cache (read-only)
+
+No hidden databases, no session state.
+Kill server, restart, everything intact.
+```
+
+**Benefits:**
+- Multiple UI instances can run simultaneously
+- No state synchronization issues
+- Easy to backup (copy directory)
+- Version control friendly (Git can track everything)
+
+### 4. Format Agnostic
+
+**YOLO internally, import/export anything.**
+
+```
+Import:                  Internal:          Export:
+YOLO                     ↘                 ↗ YOLO
+Roboflow  ────────────>  YOLO  ────────>  COCO
+COCO                     ↗                 ↘ TFRecord
+Images                                       CoreML
+```
+
+**Why YOLO as internal format:**
+- Simple text-based (easy parsing)
+- Universal compatibility
+- Git-friendly (human-readable)
+- Industry standard
+- Supports detection + segmentation
+
+## System Architecture
+
+### Directory Structure
+
+```
+project-name/
+├── .modelcub/                    # Core configuration
+│   ├── config.yaml               # Project settings
+│   ├── datasets.yaml             # Dataset registry
+│   ├── runs.yaml                 # Training runs registry
+│   ├── annotations.db            # SQLite cache (UI only)
+│   ├── history/                  # Version control
+│   │   ├── commits/              # Dataset commits
+│   │   └── snapshots/            # Full snapshots
+│   ├── backups/                  # Auto-fix backups
+│   └── cache/                    # Temporary files
+│
+├── data/datasets/                # Datasets storage
+│   └── <dataset-name>/
+│       ├── images/               # Images
+│       │   ├── train/
+│       │   ├── val/
+│       │   └── test/
+│       ├── labels/               # YOLO labels
+│       │   ├── train/
+│       │   ├── val/
+│       │   └── test/
+│       ├── dataset.yaml          # YOLO config
+│       └── metadata.json         # ModelCub metadata
+│
+├── runs/                         # Training outputs
+│   └── <run-name>/
+│       ├── weights/              # Model checkpoints
+│       ├── results/              # Metrics, plots
+│       └── config.yaml           # Run configuration
+│
+├── reports/                      # Generated reports
+│   ├── validation_*.html
+│   ├── fix_report_*.html
+│   └── diff_*.html
+│
+└── modelcub.yaml                 # Project marker
+```
+
+### Component Diagram
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  User Interfaces                     │
+├─────────────┬─────────────┬──────────────┬──────────┤
+│     CLI     │  Python SDK │   Web UI     │  Future  │
+│   (Click)   │   (Public)  │   (React)    │  (API)   │
+└──────┬──────┴──────┬──────┴───────┬──────┴──────────┘
+       │             │              │
+       └─────────────┼──────────────┘
+                     │
+       ┌─────────────▼─────────────┐
+       │       FastAPI Layer       │
+       │    (REST + WebSocket)     │
+       └─────────────┬─────────────┘
+                     │
+       ┌─────────────▼─────────────┐
+       │      Core API Layer       │
+       │  (Services + Registries)  │
+       └─────────────┬─────────────┘
+                     │
+       ┌─────────────▼─────────────┐
+       │      File System          │
+       │  (.modelcub/ + data/)     │
+       └───────────────────────────┘
+```
+
+## Core Components
+
+### 1. Configuration System
+
+**File:** `src/modelcub/core/config.py`
+
+Pydantic models for type-safe configuration:
 
 ```python
-from modelcub import Project, Dataset, Model
-
-# Create project
-project = Project.init("my-project", path="./path/to/init/project)
-
-dataset = project.import_dataset(source="./photos", name="animals", classes=["bear1", "bear2", "bear3"], force=True, delete_existent=True)
-
-
-# Validate and fix
-dataset.validate()
-dataset.fix(auto=True)
-
-# Train model
-model = Model("yolov11n", task="detect")
-run = model.train(dataset=dataset, auto=True)
-
-# Evaluate
-results = run.evaluate(split="val")
-print(f"mAP50: {results.map50:.3f}")
+ProjectConfig
+├── project: ProjectInfo
+├── defaults: DefaultSettings
+│   ├── device (cuda/cpu/mps)
+│   ├── batch_size
+│   ├── image_size
+│   └── format
+└── paths: PathSettings
 ```
 
-## Core Classes
+### 2. Registry System
 
-### Project
+**File:** `src/modelcub/core/registries.py`
 
-Manage ModelCub projects, configurations, and metadata.
+**DatasetRegistry:**
+- Stores dataset metadata in `datasets.yaml`
+- CRUD operations for datasets
+- Validates dataset consistency
+
+**RunRegistry:**
+- Stores training runs in `runs.yaml`
+- Tracks experiments and checkpoints
+- Links runs to datasets
+
+**Design:**
+- YAML for human readability
+- Atomic writes (write temp → rename)
+- No database dependencies
+
+### 3. Service Layer
+
+**Files:** `src/modelcub/services/*.py`
+
+**Responsibilities:**
+- Business logic
+- Validation
+- Error handling
+- Event publishing
+
+**Services:**
+- `project_service.py` - Project lifecycle
+- `dataset_service.py` - Dataset operations
+- `annotation_service.py` - Annotation management
+- `class_service.py` - Class operations
+
+**Pattern:**
+```python
+def service_function(request: RequestModel) -> tuple[int, str]:
+    """
+    Returns: (exit_code, message)
+    - 0: Success
+    - 1: Error
+    - 2: Invalid input
+    """
+```
+
+### 4. Event Bus
+
+**File:** `src/modelcub/core/events.py`
+
+Simple pub/sub for cross-component communication:
 
 ```python
-from modelcub import Project
+@dataclass
+class ProjectInitialized:
+    path: str
+    name: str
 
-# Create/load projects
-project = Project.init("my-project")
-project = Project.load("my-project")
-
-# Access configuration
-project.config.defaults.batch_size = 32
-project.save_config()
+bus.publish(ProjectInitialized(...))
+bus.subscribe(ProjectInitialized, handler)
 ```
 
-**[Read Project API Reference →](/api/project)**
+**Use cases:**
+- Logging
+- Notifications
+- Cache invalidation
+- Future: webhooks, integrations
 
-### Dataset
+## Web Stack
 
-Import, validate, fix, and version control datasets.
+### Backend (FastAPI)
 
+**File:** `src/modelcub/ui/backend/main.py`
+
+```
+FastAPI Application
+├── Routes (/api/v1/)
+│   ├── /projects
+│   ├── /datasets
+│   └── /models
+├── Middleware
+│   ├── CORS
+│   ├── Error handling
+│   ├── Project context
+│   └── Response formatting
+└── WebSocket (/ws)
+    └── Real-time updates
+```
+
+**Design:**
+- RESTful endpoints
+- JSON responses
+- WebSocket for live updates (training progress)
+- Static file serving (React build)
+
+### Frontend (React)
+
+**File:** `src/modelcub/ui/frontend/`
+
+```
+React Application
+├── Pages
+│   ├── Dashboard
+│   ├── Datasets
+│   ├── DatasetViewer
+│   ├── Models
+│   └── Settings
+├── Components
+│   ├── Layout (sidebar, header)
+│   ├── ProjectSelector
+│   ├── Toast notifications
+│   └── ClassManagerModal
+└── API Client
+    └── Typed requests
+```
+
+**Tech:**
+- React 18 + TypeScript
+- Vite for builds
+- Tailwind CSS
+- Custom CSS variables for theming
+- Lucide icons
+
+**State Management:**
+- Local state (useState)
+- API sync via custom hooks
+- No Redux/MobX (keeping it simple)
+- Future: Zustand for complex state
+
+## Data Flow Examples
+
+### Dataset Import
+
+```
+1. User: modelcub dataset add --source ./data --name v1
+
+2. CLI parses args → calls SDK
+
+3. SDK: Dataset.from_yolo("./data", name="v1")
+   - Validates source directory
+   - Parses YOLO format
+   - Copies to project structure
+
+4. Service: add_dataset(request)
+   - Validates request
+   - Creates dataset directory
+   - Registers in datasets.yaml
+   - Publishes DatasetAdded event
+
+5. Returns success message to user
+```
+
+### UI Dataset Viewing
+
+```
+1. User opens browser → http://localhost:8000
+
+2. React app loads
+   - Fetches project info (GET /api/v1/projects)
+   - Fetches dataset list (GET /api/v1/datasets)
+
+3. User clicks dataset
+   - Navigates to /datasets/:name
+   - Fetches images (GET /api/v1/datasets/:name/images?limit=50)
+
+4. FastAPI reads from filesystem
+   - Scans images/ directory
+   - Returns image paths + metadata
+   - Pagination for large datasets
+
+5. React renders image grid
+   - Lazy loading
+   - Virtual scrolling
+   - Click to view full size
+```
+
+## Technology Stack
+
+### Core
+- **Python 3.9+** - Primary language
+- **PyTorch** - Deep learning backend
+- **Ultralytics** - YOLO implementation
+- **OpenCV** - Image processing
+- **PIL/Pillow** - Image handling
+- **Pydantic** - Data validation
+
+### CLI
+- **Click** - Command framework
+- **Rich** - Terminal formatting
+
+### Backend
+- **FastAPI** - REST API
+- **Uvicorn** - ASGI server
+- **WebSockets** - Real-time communication
+
+### Frontend
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **Tailwind CSS** - Styling
+- **Konva.js** - Canvas (planned)
+
+### Storage
+- **YAML** - Configuration, registries
+- **JSON** - Metadata
+- **SQLite** - UI cache (optional)
+- **Text files** - YOLO labels
+
+### Testing
+- **pytest** - Test framework
+- **Coverage.py** - Code coverage
+- Target: 85%+ coverage
+
+## Security
+
+### No Remote Code Execution
+
+All imports validated:
+- Check file extensions
+- Validate paths (no directory traversal)
+- Scan for malicious content
+
+### No Network Access
+
+- Zero outbound connections
+- No telemetry
+- No updates check
+- No analytics
+
+### Safe Deletion
+
+Project deletion safety:
+- Confirms before delete
+- Refuses if looks like source repo
+- Backs up on auto-fix
+
+## Performance Considerations
+
+### Large Datasets
+
+**Pagination:**
+- Web UI: 50 images per page
+- Lazy loading
+- Virtual scrolling
+
+**Caching:**
+- SQLite for annotation queries (UI only)
+- File hash caching
+- Thumbnail generation (future)
+
+### Training
+
+**Multi-GPU:**
+- Automatic detection
+- PyTorch DataParallel
+- Distributed training (future)
+
+**Memory:**
+- Batch size auto-tuning
+- Gradient accumulation
+- Mixed precision (AMP)
+
+## Extensibility
+
+### Plugin System (Future)
+
+```
+plugins/
+├── augmentations/
+│   └── custom_aug.py
+├── formats/
+│   └── custom_format.py
+└── models/
+    └── custom_model.py
+```
+
+**Hook points:**
+- Custom augmentations
+- Format converters
+- Model architectures
+- Training callbacks
+
+### API Extensions
+
+FastAPI makes it easy:
 ```python
-from modelcub import Dataset
-
-# Import dataset
-dataset = Dataset.from_path("./yolo-data", name="v1")
-
-# Validate and fix
-report = dataset.validate()
-dataset.fix(auto=True)
-
-# Version control
-dataset.commit(message="Initial import")
-diff = dataset.diff("v1", "v2")
+# Custom route
+@app.get("/api/v1/custom")
+async def custom_endpoint():
+    return {"message": "Custom"}
 ```
 
-**[Read Dataset API Reference →](/api/dataset)**
+## Version Control Design (In Progress)
 
-### Model
+### Commit System
 
-Train, evaluate, and export models.
-
-```python
-from modelcub import Model
-
-# Create model
-model = Model("yolov11n", task="detect")
-
-# Train
-run = model.train(dataset=dataset, epochs=50, auto=True)
-
-# Evaluate
-results = run.evaluate(split="val")
-
-# Export
-run.export(format="onnx", output="model.onnx")
+```
+.modelcub/history/
+├── commits/
+│   ├── abc123.yaml         # Commit metadata
+│   └── abc123_manifest.json # File hashes
+└── snapshots/
+    └── abc123/             # Optional full snapshot
 ```
 
-**[Read Model API Reference →](/api/model)**
+### Diff Algorithm
 
-## Design Principles
+1. Load file hashes for both versions
+2. Find added/removed/modified files
+3. For modified labels: parse and compare
+4. Generate statistics and impact analysis
 
-### Simple by Default
+### Visual Diff
 
-Most operations work with minimal configuration:
+Web UI showing:
+- Side-by-side comparison
+- Color-coded changes
+- Filter by change type
+- Annotation overlays
 
-```python
-# Just works
-dataset.fix(auto=True)
-model.train(dataset=dataset, auto=True)
+## Future Architecture
+
+### Cloud Sync (Optional)
+
+```
+Local ModelCub ↔ S3/GCS/Azure
+              ↕
+         Cloud Sync Service
 ```
 
-### Explicit When Needed
+**Design:**
+- Optional, not required
+- E2E encryption
+- Differential sync
+- Conflict resolution
 
-Full control available when you need it:
+### Team Collaboration
 
-```python
-# Customize everything
-model.train(
-    dataset=dataset,
-    epochs=50,
-    batch_size=16,
-    image_size=640,
-    device="cuda:0",
-    learning_rate=0.01,
-    optimizer="adam"
-)
+```
+User A ─┐
+User B ─┼─> Shared Project
+User C ─┘
 ```
 
-### Pythonic API
+**Features:**
+- Multi-annotator mode
+- Consensus labeling
+- Review workflows
+- User permissions
 
-Follows Python conventions and best practices:
-
-```python
-# Properties for data access
-print(project.name)
-print(project.created)
-
-# Methods for actions
-project.save_config()
-dataset.fix(auto=True)
-
-# Context managers for automatic cleanup
-with Project.load("my-project") as project:
-    project.config.defaults.batch_size = 32
-```
-
-### Type Hints
-
-Full type annotations for better IDE support:
-
-```python
-from modelcub import Project
-from pathlib import Path
-
-def setup_project(name: str, path: Path) -> Project:
-    project = Project.init(name, path=str(path))
-    return project
-```
-
-## Common Patterns
-
-### Project Setup
-
-```python
-from modelcub import Project
-
-# Create and configure
-project = Project.init("cv-pipeline")
-project.config.defaults.device = "cuda"
-project.config.defaults.batch_size = 32
-project.save_config()
-```
-
-### Dataset Import and Validation
-
-```python
-from modelcub import Dataset
-
-# Import dataset
-dataset = Dataset.from_path("./data", name="production-v1")
-
-# Validate
-report = dataset.validate()
-print(f"Health Score: {report.health_score}/100")
-
-# Fix issues
-if report.critical:
-    dataset.fix(auto=True)
-```
-
-### Training Workflow
-
-```python
-from modelcub import Model
-
-# Train with auto-optimization
-model = Model("yolov11n", task="detect")
-run = model.train(dataset=dataset, auto=True)
-
-# Check results
-if run.best_map50 > 0.85:
-    run.export(format="onnx")
-```
-
-### Version Control
-
-```python
-from modelcub import Dataset
-
-dataset = Dataset.load("production-v1")
-
-# Commit current state
-dataset.commit(message="Initial import")
-
-# Make changes...
-
-# Commit again
-dataset.commit(message="Added 500 images")
-
-# Compare versions
-diff = dataset.diff("v1", "v2")
-print(f"Images added: {len(diff.added_images)}")
-```
-
-## Error Handling
-
-All methods raise descriptive exceptions:
-
-```python
-from modelcub import Project
-
-try:
-    project = Project.load("nonexistent")
-except ValueError as e:
-    print(f"Error: {e}")
-    # Error: Not a valid ModelCub project: /path/to/nonexistent
-
-try:
-    project.delete(confirm=False)
-except RuntimeError as e:
-    print(f"Error: {e}")
-    # Error: Must set confirm=True to delete project
-```
-
-## Async Support
-
-ModelCub is currently synchronous. Async support may be added in future versions.
-
-For now, use threading or multiprocessing for concurrent operations:
-
-```python
-from concurrent.futures import ThreadPoolExecutor
-from modelcub import Dataset
-
-datasets = ["ds1", "ds2", "ds3"]
-
-with ThreadPoolExecutor(max_workers=3) as executor:
-    futures = [
-        executor.submit(Dataset.load(name).validate)
-        for name in datasets
-    ]
-
-    for future in futures:
-        report = future.result()
-        print(f"Health: {report.health_score}/100")
-```
-
-## API Reference
-
-Detailed documentation for each class:
-
-- **[Project](/api/project)** - Project management
-- **[Dataset](/api/dataset)** - Dataset operations
-- **[Model](/api/model)** - Training and evaluation
-- **[Run](/api/run)** - Training run management
-- **[Configuration](/api/configuration)** - Config objects
-
-## Examples
-
-See the **[Examples](/examples/)** section for complete workflows:
-
-- Medical imaging pipeline
-- Dataset versioning workflow
-- Multi-GPU training
-- Production deployment
-
-## Need Help?
-
-- **[GitHub Discussions](https://github.com/SeifBoukerdenna/ModelCub/discussions)** - Ask questions
-- **[GitHub Issues](https://github.com/SeifBoukerdenna/ModelCub/issues)** - Report bugs
-- **[CLI Reference](/cli/reference)** - Command-line interface
+**Implementation:**
+- Git-like branching
+- Merge strategies
+- Conflict resolution
+- Change attribution
