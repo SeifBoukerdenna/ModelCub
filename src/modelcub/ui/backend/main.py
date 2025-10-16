@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import projects, datasets, models
+from .routes import projects, datasets, models, jobs
 from .websockets import ConnectionManager
 from .middleware import APIResponseMiddleware, ErrorHandlerMiddleware, ProjectContextMiddleware
 from ..shared.api.config import APIConfig, Endpoints
@@ -48,6 +48,7 @@ manager = ConnectionManager()
 app.include_router(projects.router, prefix=APIConfig.PREFIX)
 app.include_router(datasets.router, prefix=APIConfig.PREFIX)
 app.include_router(models.router, prefix=APIConfig.PREFIX)
+app.include_router(jobs.router, prefix=APIConfig.PREFIX)
 
 
 # Health check

@@ -76,6 +76,8 @@ export interface DeleteProjectRequest {
   confirm: boolean;
 }
 
+export type LoadingState = "idle" | "loading" | "success" | "error";
+
 // ==================== DATASET TYPES ====================
 
 export interface Dataset {
@@ -104,7 +106,8 @@ export interface ImportDatasetRequest {
   source: string;
   name?: string;
   recursive?: boolean;
-  copy?: boolean;
+  copy_files?: boolean;
+  classes?: string[];
 }
 
 export interface ImageInfo {
@@ -159,3 +162,43 @@ export const ErrorCode = {
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+export interface Job {
+  job_id: string;
+  dataset_name: string;
+  status:
+    | "pending"
+    | "running"
+    | "paused"
+    | "completed"
+    | "failed"
+    | "cancelled";
+  total_tasks: number;
+  completed_tasks: number;
+  failed_tasks: number;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  paused_at: string | null;
+  can_resume: boolean;
+  is_terminal: boolean;
+}
+
+export interface Task {
+  task_id: string;
+  job_id: string;
+  image_id: string;
+  image_path: string;
+  status: "pending" | "in_progress" | "completed" | "failed" | "skipped";
+  attempts: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface CreateJobRequest {
+  dataset_name: string;
+  image_ids?: string[];
+  auto_start?: boolean;
+  config?: Record<string, any>;
+}

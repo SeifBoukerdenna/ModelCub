@@ -1,11 +1,10 @@
 import { useApiSync } from "@/hooks/useApiSync";
 import { api, useGetDataset } from "@/lib/api";
 import { Dataset } from "@/lib/api/types";
-import { ArrowLeft, PencilLine, Play, Settings } from "lucide-react";
+import { ArrowLeft, PencilLine, Play, Settings, AlertCircle } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ClassManagerModal from "../ClassManagerModal";
-
 
 const DatasetViewer = () => {
     const { name: name_dataset } = useParams();
@@ -16,6 +15,8 @@ const DatasetViewer = () => {
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
+    const [creatingJob, setCreatingJob] = useState(false);
+    const [jobError, setJobError] = useState<string | null>(null);
 
     const { data: dataset, loading, error, execute: getDataset } = useGetDataset();
     const [classManagerDataset, setClassManagerDataset] = useState<Dataset | null>(null);
@@ -28,27 +29,54 @@ const DatasetViewer = () => {
 
     const handleClassUpdate = () => {
         getDataset(name_dataset ?? "");
-        setClassManagerDataset(null)
+        setClassManagerDataset(null);
+    };
 
+    const handleStartAnnotation = async () => {
+        if (!name_dataset || creatingJob) return;
+
+        try {
+            setCreatingJob(true);
+            setJobError(null);
+
+            // Create job
+            const job = await api.createJob({
+                dataset_name: name_dataset,
+                auto_start: true,
+            });
+
+            console.log('Created job:', job);
+
+            // Navigate to annotation view with job context
+            navigate(`/datasets/${name_dataset}/annotate?job_id=${job.job_id}`);
+        } catch (err: any) {
+            const errorMessage = err?.message || 'Failed to create annotation job';
+            setJobError(errorMessage);
+            console.error('Job creation error:', err);
+
+            // Clear error after 5 seconds
+            setTimeout(() => setJobError(null), 5000);
+        } finally {
+            setCreatingJob(false);
+        }
     };
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             // Ignore when typing in inputs/textareas/contentEditable
-            const t = e.target as HTMLElement | null
+            const t = e.target as HTMLElement | null;
             const typing = t && (
                 t.tagName === 'INPUT' ||
                 t.tagName === 'TEXTAREA' ||
                 t.isContentEditable
-            )
+            );
             if (!typing && (e.key === 'a' || e.key === 'A')) {
-                navigate(`/datasets/${name_dataset}/annotate`)
+                handleStartAnnotation();
             }
-        }
-        window.addEventListener('keydown', onKey)
-        return () => window.removeEventListener('keydown', onKey)
-    }, [navigate, name_dataset])
-
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [name_dataset, creatingJob]);
 
     const loadMore = useCallback(async () => {
         if (loading || !hasMore || !name_dataset) return;
@@ -100,6 +128,14 @@ const DatasetViewer = () => {
 
     return (
         <div className="dataset-viewer">
+            {/* Job Error Banner */}
+            {jobError && (
+                <div className="job-error-banner">
+                    <AlertCircle size={16} />
+                    <span>{jobError}</span>
+                </div>
+            )}
+
             <div className="dataset-header">
                 <div>
                     <button
@@ -119,18 +155,18 @@ const DatasetViewer = () => {
                 <div className="annotate-cta">
                     <button
                         className="annotate-cta__button"
-                        onClick={() => navigate(`/datasets/${name_dataset}/annotate`)}
+                        onClick={handleStartAnnotation}
+                        disabled={creatingJob}
                         title="Start annotations"
                     >
                         <Play size={16} />
-                        Start Annotation
+                        {creatingJob ? 'Creating Job...' : 'Start Annotation'}
                     </button>
                     <div className="annotate-cta__hint">
                         <span className="annotate-cta__icon"><PencilLine size={14} /></span>
                         Hotkey: <kbd>A</kbd>
                     </div>
                 </div>
-
 
                 {dataset?.classes && dataset.classes.length > 0 ? (
                     <div className="classes-panel">
@@ -197,7 +233,6 @@ const DatasetViewer = () => {
                     onUpdate={handleClassUpdate}
                 />
             )}
-
 
             <div className="image-grid">
                 {images.map((img, idx) => (

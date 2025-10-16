@@ -1,0 +1,348 @@
+/* ============================================
+   Annotation View Styles
+   ============================================ */
+
+.annotation-view {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ============================================
+   Header
+   ============================================ */
+
+.annotation-header {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+
+[data-theme='dark'] .annotation-header {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.annotation-header__left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.annotation-header__left h1 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.annotation-header__center {
+    display: flex;
+    justify-content: center;
+}
+
+.annotation-header__right {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ============================================
+   Job Progress
+   ============================================ */
+
+.job-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    width: 100%;
+    max-width: 400px;
+}
+
+.job-progress__bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--color-background);
+    border-radius: var(--border-radius-full);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+}
+
+[data-theme='dark'] .job-progress__bar {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.job-progress__fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+    transition: width 0.3s ease;
+}
+
+.job-progress__text {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+/* ============================================
+   Job Controls
+   ============================================ */
+
+.job-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* ============================================
+   Main Content
+   ============================================ */
+
+.annotation-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    overflow: hidden;
+}
+
+/* ============================================
+   Canvas Area
+   ============================================ */
+
+.annotation-canvas {
+    position: relative;
+    background-color: var(--color-background);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+[data-theme='dark'] .annotation-canvas {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.annotation-canvas__wrapper {
+    position: relative;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.annotation-canvas__image {
+    max-width: 100%;
+    max-height: calc(100vh - 200px);
+    object-fit: contain;
+    display: block;
+}
+
+.annotation-canvas__placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    padding: var(--spacing-xl);
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: var(--border-radius-lg);
+    color: white;
+}
+
+.annotation-canvas__placeholder p {
+    margin: 0;
+    margin-bottom: var(--spacing-sm);
+}
+
+.annotation-canvas__placeholder-hint {
+    font-size: var(--font-size-sm);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.annotation-canvas__loading {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-lg);
+}
+
+/* ============================================
+   Sidebar
+   ============================================ */
+
+.annotation-sidebar {
+    background-color: var(--color-surface);
+    border-left: 1px solid var(--color-border);
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+}
+
+[data-theme='dark'] .annotation-sidebar {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.annotation-task-info,
+.annotation-job-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.annotation-task-info h3,
+.annotation-job-info h3 {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.annotation-task-info__item,
+.annotation-job-info__item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.annotation-task-info__item .label,
+.annotation-job-info__item .label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.annotation-task-info__item .value,
+.annotation-job-info__item .value {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    font-family: monospace;
+}
+
+.annotation-task-info__item .value.error,
+.annotation-job-info__item .value.error {
+    color: var(--color-error);
+}
+
+/* Status badges */
+.value.status-pending {
+    color: var(--color-text-secondary);
+}
+
+.value.status-running,
+.value.status-in_progress {
+    color: var(--color-primary);
+}
+
+.value.status-completed {
+    color: var(--color-success);
+}
+
+.value.status-failed,
+.value.status-cancelled {
+    color: var(--color-error);
+}
+
+.value.status-paused {
+    color: var(--color-warning);
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+
+.annotation-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+}
+
+[data-theme='dark'] .annotation-footer {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.annotation-footer__left,
+.annotation-footer__right {
+    display: flex;
+    align-items: center;
+}
+
+.annotation-footer__center {
+    display: flex;
+    justify-content: center;
+}
+
+.annotation-footer__hint {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
+
+/* ============================================
+   States
+   ============================================ */
+
+.annotation-loading,
+.annotation-empty,
+.annotation-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-xl);
+    color: var(--color-text-secondary);
+}
+
+.annotation-error {
+    color: var(--color-error);
+}
+
+.annotation-error svg {
+    color: var(--color-error);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 1024px) {
+    .annotation-content {
+        grid-template-columns: 1fr;
+    }
+
+    .annotation-sidebar {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .annotation-header {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .annotation-header__right {
+        justify-content: flex-start;
+    }
+
+    .annotation-footer {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .annotation-footer__left,
+    .annotation-footer__center,
+    .annotation-footer__right {
+        justify-content: center;
+    }
+}

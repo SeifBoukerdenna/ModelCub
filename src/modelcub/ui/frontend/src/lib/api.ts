@@ -3,31 +3,20 @@
  * Path: frontend/src/lib/api.ts
  */
 import { useState, useCallback } from "react";
-import type { Project } from "@/types";
-import { Dataset, DatasetDetail } from "./api/types";
-
-// ==================== TYPES ====================
-
-export interface ImportDatasetRequest {
-  source: string;
-  name?: string;
-  recursive?: boolean;
-  copy_files?: boolean;
-  classes?: string[];
-}
-
-export interface CreateProjectRequest {
-  name: string;
-  path?: string;
-  force?: boolean;
-}
-
-export interface SetConfigRequest {
-  key: string;
-  value: string | number | boolean;
-}
-
-type LoadingState = "idle" | "loading" | "success" | "error";
+import type { LoadingState, Project } from "@/types";
+import {
+  CreateJobRequest,
+  CreateProjectRequest,
+  Dataset,
+  DatasetDetail,
+  ImageInfo,
+  ImportDatasetRequest,
+  Job,
+  ProjectConfigFull,
+  SetConfigRequest,
+  Task,
+} from "./api/types";
+import { ENDPOINTS } from "@/config/api.config";
 
 interface UseAPIState<T> {
   data: T | null;
@@ -169,17 +158,23 @@ class ModelCubAPI {
     return this.request(`/projects/config?path=${encodeURIComponent(path)}`);
   }
 
-  async setProjectConfig(path: string, data: SetConfigRequest): Promise<any> {
-    return this.request(`/projects/config?path=${encodeURIComponent(path)}`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+  async setProjectConfig(
+    path: string,
+    data: SetConfigRequest
+  ): Promise<ProjectConfigFull> {
+    return this.request<ProjectConfigFull>(
+      `${ENDPOINTS.projectConfig}?path=${encodeURIComponent(path)}`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
   }
 
   // ==================== DATASET METHODS ====================
 
   async listDatasets(): Promise<Dataset[]> {
-    return this.request("/datasets");
+    return this.request<Dataset[]>(ENDPOINTS.datasets);
   }
 
   async getDataset(
@@ -196,6 +191,23 @@ class ModelCubAPI {
       ...(split && { split }),
     });
     return this.request(`/datasets/${datasetName}?${params}`);
+  }
+
+  async listDatasetImages(
+    datasetId: string,
+    params?: { split?: string; limit?: number; offset?: number }
+  ): Promise<ImageInfo[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.split) queryParams.set("split", params.split);
+    if (params?.limit) queryParams.set("limit", params.limit.toString());
+    if (params?.offset) queryParams.set("offset", params.offset.toString());
+
+    const query = queryParams.toString();
+    const endpoint = `${ENDPOINTS.datasetImages(datasetId)}${
+      query ? `?${query}` : ""
+    }`;
+
+    return this.request<ImageInfo[]>(endpoint);
   }
 
   async importDataset(data: ImportDatasetRequest): Promise<Dataset> {
@@ -366,6 +378,44 @@ class ModelCubAPI {
     return this.request(`/datasets/${encodeURIComponent(datasetName)}`, {
       method: "DELETE",
     });
+  }
+
+  async createJob(data: CreateJobRequest): Promise<Job> {
+    return this.request<Job>("/jobs/create", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getJob(jobId: string): Promise<Job> {
+    return this.request<Job>(`/jobs/${jobId}`);
+  }
+
+  async startJob(jobId: string): Promise<Job> {
+    return this.request<Job>(`/jobs/${jobId}/start`, {
+      method: "POST",
+    });
+  }
+
+  async pauseJob(jobId: string): Promise<Job> {
+    return this.request<Job>(`/jobs/${jobId}/pause`, {
+      method: "POST",
+    });
+  }
+
+  async cancelJob(jobId: string): Promise<Job> {
+    return this.request<Job>(`/jobs/${jobId}/cancel`, {
+      method: "POST",
+    });
+  }
+
+  async getJobTasks(jobId: string, status?: string): Promise<Task[]> {
+    const params = status ? `?status=${status}` : "";
+    return this.request<Task[]>(`/jobs/${jobId}/tasks${params}`);
+  }
+
+  async getNextTask(jobId: string): Promise<Task | null> {
+    return this.request<Task | null>(`/jobs/${jobId}/next-task`);
   }
 
   // ==================== MODEL METHODS ====================

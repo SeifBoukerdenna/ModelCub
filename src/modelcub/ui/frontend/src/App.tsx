@@ -10,8 +10,10 @@ import Projects from './pages/Projects'
 import Datasets from './pages/Datasets'
 import Models from './pages/Models'
 import Settings from './pages/Settings'
-import DatasetViewer from './components/datasets/DatasetViewer'
 import { HotkeysProvider } from './hotkeys/HotkeysProvider'
+
+import { AnnotationView } from './components/AnnotationViewer'
+import DatasetViewer from './components/datasets/DatasetViewer'
 
 const App: React.FC = () => {
     useEffect(() => {
@@ -62,6 +64,13 @@ const App: React.FC = () => {
                                     <DatasetViewer />
                                 </ProjectGuard>
                             }
+                        />
+
+                        <Route path="/datasets/:name/annotate" element={
+                            <ProjectGuard>
+                                <AnnotationView />
+                            </ProjectGuard>
+                        }
                         />
 
                         <Route

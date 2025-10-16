@@ -41,5 +41,4 @@ def dataset_to_schema(dataset, project_path: str) -> DatasetSchema:
         source=info.source,
         size_bytes=size_bytes,
         size_formatted=size_formatted,
-        images=info.images
     )

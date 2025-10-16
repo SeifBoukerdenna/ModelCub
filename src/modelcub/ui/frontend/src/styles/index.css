@@ -15,6 +15,7 @@
 @import '../components/theme-toggle.css';
 @import '../styles/settings.css';
 @import '../styles/datasetViewer.css';
+@import '../components/AnnotationViewer.css';
 
 /*============================================CSS Variables (Design Tokens)============================================*/
 :root {

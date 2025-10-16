@@ -32,6 +32,15 @@ class Endpoints:
     MODELS = "/models"
     MODEL_DETAIL = "/models/{model_id}"
 
+    # Jobs (NEW)
+    JOBS = "/jobs"
+    JOB_DETAIL = "/jobs/{job_id}"
+    JOB_START = "/jobs/{job_id}/start"
+    JOB_PAUSE = "/jobs/{job_id}/pause"
+    JOB_CANCEL = "/jobs/{job_id}/cancel"
+    JOB_TASKS = "/jobs/{job_id}/tasks"
+    JOB_NEXT_TASK = "/jobs/{job_id}/next-task"
+
     # WebSocket
     WS = "/ws"
 
