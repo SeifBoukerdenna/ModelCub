@@ -51,9 +51,6 @@ const ProjectSwitcher: React.FC = () => {
         window.location.href = '/projects'
     }
 
-    if (projects.length === 0) {
-        return null
-    }
 
     if (!selectedProject) {
         return (

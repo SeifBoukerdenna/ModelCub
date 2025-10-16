@@ -1,5 +1,5 @@
 /* ============================================
-   Annotation View Styles
+   Annotation View
    ============================================ */
 
 .annotation-view {
@@ -10,108 +10,109 @@
 }
 
 /* ============================================
-   Header
+   Compact Header
    ============================================ */
 
-.annotation-header {
+.annotation-header-compact {
     display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    gap: var(--spacing-lg);
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-lg);
     background-color: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
+    height: 60px;
 }
 
-[data-theme='dark'] .annotation-header {
+[data-theme='dark'] .annotation-header-compact {
     background-color: rgba(255, 255, 255, 0.02);
 }
 
-.annotation-header__left {
+.annotation-header-compact__left {
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
 }
 
-.annotation-header__left h1 {
-    font-size: var(--font-size-lg);
+.annotation-title {
+    font-size: var(--font-size-md);
     font-weight: 600;
     color: var(--color-text-primary);
-    margin: 0;
 }
 
-.annotation-header__center {
+.annotation-header-compact__center {
     display: flex;
     justify-content: center;
 }
 
-.annotation-header__right {
+.annotation-header-compact__right {
     display: flex;
     justify-content: flex-end;
 }
 
 /* ============================================
-   Job Progress
+   Progress
    ============================================ */
 
-.job-progress {
+.progress-compact {
     display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-    width: 100%;
-    max-width: 400px;
+    align-items: center;
+    gap: var(--spacing-md);
+    min-width: 250px;
 }
 
-.job-progress__bar {
-    width: 100%;
-    height: 8px;
+.progress-compact__text {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    font-family: monospace;
+}
+
+.progress-compact__bar {
+    flex: 1;
+    height: 6px;
     background-color: var(--color-background);
     border-radius: var(--border-radius-full);
     overflow: hidden;
     border: 1px solid var(--color-border);
 }
 
-[data-theme='dark'] .job-progress__bar {
+[data-theme='dark'] .progress-compact__bar {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-.job-progress__fill {
+.progress-compact__fill {
     height: 100%;
     background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
     transition: width 0.3s ease;
 }
 
-.job-progress__text {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
-    text-align: center;
-}
-
 /* ============================================
-   Job Controls
+   Navigation Controls
    ============================================ */
 
-.job-controls {
+.nav-controls {
     display: flex;
     gap: var(--spacing-sm);
 }
 
 /* ============================================
-   Main Content
+   Content
    ============================================ */
 
-.annotation-content {
+.annotation-content-full {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 300px;
+    grid-template-columns: 1fr 320px;
     overflow: hidden;
+    height: calc(100vh - 60px);
 }
 
 /* ============================================
-   Canvas Area
+   Canvas
    ============================================ */
 
-.annotation-canvas {
+.annotation-canvas-full {
     position: relative;
     background-color: var(--color-background);
     display: flex;
@@ -120,8 +121,8 @@
     overflow: hidden;
 }
 
-[data-theme='dark'] .annotation-canvas {
-    background-color: rgba(0, 0, 0, 0.2);
+[data-theme='dark'] .annotation-canvas-full {
+    background-color: rgba(0, 0, 0, 0.3);
 }
 
 .annotation-canvas__wrapper {
@@ -135,29 +136,31 @@
 
 .annotation-canvas__image {
     max-width: 100%;
-    max-height: calc(100vh - 200px);
+    max-height: 100%;
     object-fit: contain;
     display: block;
 }
 
-.annotation-canvas__placeholder {
+.annotation-canvas__overlay {
     position: absolute;
-    top: 50%;
+    bottom: var(--spacing-xl);
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
     text-align: center;
-    padding: var(--spacing-xl);
-    background-color: rgba(0, 0, 0, 0.7);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: rgba(0, 0, 0, 0.85);
     border-radius: var(--border-radius-lg);
     color: white;
+    backdrop-filter: blur(10px);
 }
 
-.annotation-canvas__placeholder p {
+.annotation-canvas__overlay p {
     margin: 0;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+    font-weight: 500;
 }
 
-.annotation-canvas__placeholder-hint {
+.annotation-canvas__overlay-hint {
     font-size: var(--font-size-sm);
     color: rgba(255, 255, 255, 0.7);
 }
@@ -171,7 +174,7 @@
    Sidebar
    ============================================ */
 
-.annotation-sidebar {
+.annotation-sidebar-compact {
     background-color: var(--color-surface);
     border-left: 1px solid var(--color-border);
     padding: var(--spacing-lg);
@@ -181,118 +184,195 @@
     gap: var(--spacing-xl);
 }
 
-[data-theme='dark'] .annotation-sidebar {
+[data-theme='dark'] .annotation-sidebar-compact {
     background-color: rgba(255, 255, 255, 0.02);
 }
 
-.annotation-task-info,
-.annotation-job-info {
+.sidebar-section {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
 }
 
-.annotation-task-info h3,
-.annotation-job-info h3 {
-    font-size: var(--font-size-md);
+.sidebar-section h3 {
+    font-size: var(--font-size-xs);
     font-weight: 600;
-    color: var(--color-text-primary);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     margin: 0;
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 1px solid var(--color-border);
 }
 
-.annotation-task-info__item,
-.annotation-job-info__item {
+/* ============================================
+   Info Grid
+   ============================================ */
+
+.info-grid {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
     gap: var(--spacing-sm);
 }
 
-.annotation-task-info__item .label,
-.annotation-job-info__item .label {
-    font-size: var(--font-size-sm);
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs) 0;
+}
+
+.info-item .label {
+    font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
     font-weight: 500;
 }
 
-.annotation-task-info__item .value,
-.annotation-job-info__item .value {
+.info-item .value {
     font-size: var(--font-size-sm);
     color: var(--color-text-primary);
+    text-align: right;
+    word-break: break-word;
+}
+
+.info-item .value.mono {
     font-family: monospace;
 }
 
-.annotation-task-info__item .value.error,
-.annotation-job-info__item .value.error {
-    color: var(--color-error);
+.info-item .value.small {
+    font-size: var(--font-size-xs);
 }
 
-/* Status badges */
-.value.status-pending {
+.info-item .value.error {
+    color: var(--color-error);
+    font-weight: 600;
+}
+
+/* ============================================
+   Status Badges
+   ============================================ */
+
+.status-badge {
+    padding: 2px 8px;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+.status-badge.status-pending {
+    background-color: rgba(156, 163, 175, 0.2);
     color: var(--color-text-secondary);
 }
 
-.value.status-running,
-.value.status-in_progress {
+.status-badge.status-running,
+.status-badge.status-in_progress {
+    background-color: rgba(59, 130, 246, 0.2);
     color: var(--color-primary);
 }
 
-.value.status-completed {
+.status-badge.status-completed {
+    background-color: rgba(34, 197, 94, 0.2);
     color: var(--color-success);
 }
 
-.value.status-failed,
-.value.status-cancelled {
+.status-badge.status-failed,
+.status-badge.status-cancelled {
+    background-color: rgba(239, 68, 68, 0.2);
     color: var(--color-error);
 }
 
-.value.status-paused {
-    color: var(--color-warning);
+/* ============================================
+   Shortcuts
+   ============================================ */
+
+.shortcuts-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.shortcut-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.shortcut-item kbd {
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    padding: 2px 6px;
+    font-size: var(--font-size-xs);
+    font-family: monospace;
+    color: var(--color-text-primary);
+}
+
+[data-theme='dark'] .shortcut-item kbd {
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* ============================================
-   Footer
+   Classes List
    ============================================ */
 
-.annotation-footer {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+.classes-list-compact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.class-item {
+    display: flex;
     align-items: center;
-    gap: var(--spacing-lg);
-    padding: var(--spacing-md) var(--spacing-lg);
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+}
+
+[data-theme='dark'] .class-item {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.class-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.class-name {
+    flex: 1;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+}
+
+.class-shortcut {
     background-color: var(--color-surface);
-    border-top: 1px solid var(--color-border);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    padding: 2px 6px;
+    font-size: var(--font-size-xs);
+    font-family: monospace;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
 }
 
-[data-theme='dark'] .annotation-footer {
-    background-color: rgba(255, 255, 255, 0.02);
-}
-
-.annotation-footer__left,
-.annotation-footer__right {
-    display: flex;
-    align-items: center;
-}
-
-.annotation-footer__center {
-    display: flex;
-    justify-content: center;
-}
-
-.annotation-footer__hint {
+.empty-state {
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
     font-style: italic;
+    margin: 0;
 }
 
 /* ============================================
-   States
+   Error State
    ============================================ */
 
-.annotation-loading,
-.annotation-empty,
 .annotation-error {
     display: flex;
     flex-direction: column;
@@ -300,15 +380,8 @@
     justify-content: center;
     gap: var(--spacing-md);
     padding: var(--spacing-xl);
-    color: var(--color-text-secondary);
-}
-
-.annotation-error {
     color: var(--color-error);
-}
-
-.annotation-error svg {
-    color: var(--color-error);
+    height: 100vh;
 }
 
 /* ============================================
@@ -316,33 +389,25 @@
    ============================================ */
 
 @media (max-width: 1024px) {
-    .annotation-content {
+    .annotation-content-full {
         grid-template-columns: 1fr;
     }
 
-    .annotation-sidebar {
+    .annotation-sidebar-compact {
         display: none;
     }
 }
 
 @media (max-width: 768px) {
-    .annotation-header {
+    .annotation-header-compact {
         grid-template-columns: 1fr;
+        height: auto;
         gap: var(--spacing-sm);
     }
 
-    .annotation-header__right {
-        justify-content: flex-start;
-    }
-
-    .annotation-footer {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-sm);
-    }
-
-    .annotation-footer__left,
-    .annotation-footer__center,
-    .annotation-footer__right {
+    .annotation-header-compact__left,
+    .annotation-header-compact__center,
+    .annotation-header-compact__right {
         justify-content: center;
     }
 }

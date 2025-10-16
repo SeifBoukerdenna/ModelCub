@@ -17,6 +17,7 @@ const DatasetViewer = () => {
     const [totalCount, setTotalCount] = useState(0);
     const [creatingJob, setCreatingJob] = useState(false);
     const [jobError, setJobError] = useState<string | null>(null);
+    // const [existingJob, setExistingJob] = useState<any | null>(null);
 
     const { data: dataset, loading, error, execute: getDataset } = useGetDataset();
     const [classManagerDataset, setClassManagerDataset] = useState<Dataset | null>(null);
@@ -39,22 +40,35 @@ const DatasetViewer = () => {
             setCreatingJob(true);
             setJobError(null);
 
-            // Create job
-            const job = await api.createJob({
-                dataset_name: name_dataset,
-                auto_start: true,
-            });
+            // Check for existing running/paused jobs
+            const jobs = await api.listJobs();
+            const existingJob = jobs.find(
+                j => j.dataset_name === name_dataset &&
+                    (j.status === 'running' || j.status === 'paused' || j.status === 'pending')
+            );
 
-            console.log('Created job:', job);
+            if (existingJob) {
+                // Resume existing job
+                console.log('Resuming existing job:', existingJob.job_id);
+                if (existingJob.status === 'paused' || existingJob.status === 'pending') {
+                    await api.startJob(existingJob.job_id);
+                }
+                navigate(`/datasets/${name_dataset}/annotate?job_id=${existingJob.job_id}`);
+            } else {
+                // Create new job
+                const job = await api.createJob({
+                    dataset_name: name_dataset,
+                    auto_start: true,
+                });
 
-            // Navigate to annotation view with job context
-            navigate(`/datasets/${name_dataset}/annotate?job_id=${job.job_id}`);
+                console.log('Created job:', job.job_id);
+                navigate(`/datasets/${name_dataset}/annotate?job_id=${job.job_id}`);
+            }
         } catch (err: any) {
             const errorMessage = err?.message || 'Failed to create annotation job';
             setJobError(errorMessage);
             console.error('Job creation error:', err);
 
-            // Clear error after 5 seconds
             setTimeout(() => setJobError(null), 5000);
         } finally {
             setCreatingJob(false);

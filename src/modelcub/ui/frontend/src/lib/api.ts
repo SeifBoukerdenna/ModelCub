@@ -387,6 +387,11 @@ class ModelCubAPI {
     });
   }
 
+  async listJobs(status?: string): Promise<Job[]> {
+    const params = status ? `?status=${status}` : "";
+    return this.request<Job[]>(`/jobs${params}`);
+  }
+
   async getJob(jobId: string): Promise<Job> {
     return this.request<Job>(`/jobs/${jobId}`);
   }
