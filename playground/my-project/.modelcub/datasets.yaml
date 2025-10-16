@@ -1,0 +1,16 @@
+datasets:
+  6460f53b:
+    id: 6460f53b
+    name: my-dataset
+    created: '2025-10-16T13:58:20.883245Z'
+    status: unlabeled
+    num_images: 4
+    images:
+      total: 4
+      unlabeled: 4
+    classes:
+    - cat
+    - dog
+    path: data/datasets/my-dataset
+    source: photos
+    num_classes: 2

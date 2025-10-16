@@ -198,6 +198,12 @@ class Project:
         """Path to history directory."""
         return self.modelcub_dir / "history"
 
+    @property
+    def jobs(self) -> 'JobManager':
+        """Job manager for this project."""
+        from .job import JobManager
+        return JobManager(self.path)
+
     # ========== Config Methods ==========
 
     def save_config(self) -> None:

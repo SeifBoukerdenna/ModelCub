@@ -173,6 +173,7 @@ def dataset_run(args) -> int:
 
     return 0
 
+
 def handle_dataset_import(args) -> int:
     """Handle dataset import command."""
     from pathlib import Path
@@ -225,7 +226,7 @@ def handle_dataset_import(args) -> int:
         project_path=project_root(),
         source=source,
         dataset_name=args.name,
-        classes=classes,  # ADD THIS
+        classes=classes,
         copy=not args.symlink,
         validate=not args.no_validate,
         recursive=args.recursive,
@@ -250,6 +251,7 @@ def handle_dataset_import(args) -> int:
     else:
         print(f"❌ {result.message}")
         return 1
+
 
 def classes_run(args) -> int:
     """Handle dataset classes commands."""
@@ -333,6 +335,7 @@ def ui_run(args) -> int:
     from modelcub.commands.ui import run
     return run(args)
 
+
 def annotate_run(args) -> int:
     """Handle annotation commands."""
     from modelcub.sdk import Project
@@ -360,6 +363,38 @@ def annotate_run(args) -> int:
         for ann in labeled:
             print(f"  {ann['image_id']}: {ann['num_boxes']} boxes")
         return 0
+
+
+def job_run(args) -> int:
+    """Handle annotation job commands."""
+    from modelcub.services.job_service import (
+        create_job, start_job, pause_job, cancel_job,
+        list_jobs, get_job_status as get_job_status_handler, watch_job
+    )
+
+    if args.job_cmd == "create":
+        return create_job(args)
+
+    elif args.job_cmd == "start":
+        return start_job(args)
+
+    elif args.job_cmd == "pause":
+        return pause_job(args)
+
+    elif args.job_cmd == "cancel":
+        return cancel_job(args)
+
+    elif args.job_cmd == "list":
+        return list_jobs(args)
+
+    elif args.job_cmd == "status":
+        return get_job_status_handler(args)
+
+    elif args.job_cmd == "watch":
+        return watch_job(args)
+
+    return 0
+
 
 def setup_parsers() -> argparse.ArgumentParser:
     """Setup argument parsers for all commands."""
@@ -431,7 +466,7 @@ def setup_parsers() -> argparse.ArgumentParser:
     p_ds_import = ds_sub.add_parser("import", help="Import images from a folder")
     p_ds_import.add_argument("--source", required=True, help="Source directory containing images")
     p_ds_import.add_argument("--name", default=None, help="Dataset name (auto-generated if not provided)")
-    p_ds_import.add_argument("--classes", default=None, help="Classes (comma-separated)")  # ADD THIS
+    p_ds_import.add_argument("--classes", default=None, help="Classes (comma-separated)")
     p_ds_import.add_argument("--symlink", action="store_true", help="Create symlinks instead of copying files")
     p_ds_import.add_argument("--no-validate", action="store_true", help="Skip image validation")
     p_ds_import.add_argument("--recursive", action="store_true", help="Recursively scan subdirectories")
@@ -504,6 +539,7 @@ def setup_parsers() -> argparse.ArgumentParser:
     p_class_rename.add_argument("new_name", help="New class name")
     p_class_rename.set_defaults(func=classes_run)
 
+    # ---- annotate ----
     p_ann = sub.add_parser("annotate", help="Annotation commands")
     ann_sub = p_ann.add_subparsers(dest="ann_cmd", required=True)
 
@@ -514,6 +550,51 @@ def setup_parsers() -> argparse.ArgumentParser:
     p_ann_list = ann_sub.add_parser("list", help="List annotations")
     p_ann_list.add_argument("dataset", help="Dataset name")
     p_ann_list.set_defaults(func=annotate_run)
+
+    # ---- job ----
+    p_job = sub.add_parser("job", help="Manage annotation jobs")
+    job_sub = p_job.add_subparsers(dest="job_cmd", required=True)
+
+    # job create
+    p_job_create = job_sub.add_parser("create", help="Create an annotation job")
+    p_job_create.add_argument("dataset", help="Dataset name")
+    p_job_create.add_argument("--images", nargs="+", help="Specific image IDs to annotate")
+    p_job_create.add_argument("--workers", type=int, default=4, help="Number of worker threads")
+    p_job_create.add_argument("--auto-start", action="store_true", help="Automatically start the job")
+    p_job_create.set_defaults(func=job_run)
+
+    # job start
+    p_job_start = job_sub.add_parser("start", help="Start or resume a job")
+    p_job_start.add_argument("job_id", help="Job ID")
+    p_job_start.add_argument("--watch", action="store_true", help="Watch job progress")
+    p_job_start.set_defaults(func=job_run)
+
+    # job pause
+    p_job_pause = job_sub.add_parser("pause", help="Pause a running job")
+    p_job_pause.add_argument("job_id", help="Job ID")
+    p_job_pause.set_defaults(func=job_run)
+
+    # job cancel
+    p_job_cancel = job_sub.add_parser("cancel", help="Cancel a job")
+    p_job_cancel.add_argument("job_id", help="Job ID")
+    p_job_cancel.add_argument("--force", action="store_true", help="Skip confirmation")
+    p_job_cancel.set_defaults(func=job_run)
+
+    # job list
+    p_job_list = job_sub.add_parser("list", help="List all jobs")
+    p_job_list.add_argument("--status", choices=["pending", "running", "paused", "completed", "failed", "cancelled"],
+                           help="Filter by status")
+    p_job_list.set_defaults(func=job_run)
+
+    # job status
+    p_job_status = job_sub.add_parser("status", help="Get detailed job status")
+    p_job_status.add_argument("job_id", help="Job ID")
+    p_job_status.set_defaults(func=job_run)
+
+    # job watch
+    p_job_watch = job_sub.add_parser("watch", help="Watch job progress")
+    p_job_watch.add_argument("job_id", help="Job ID")
+    p_job_watch.set_defaults(func=job_run)
 
     return parser
 

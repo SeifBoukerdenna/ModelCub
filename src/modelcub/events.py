@@ -41,16 +41,71 @@ class DatasetDeleted:
     name: str
     path: str
 
+
 @dataclass
 class AnnotationSaved:
     dataset_name: str
     image_id: str
     num_boxes: int
 
+
 @dataclass
 class AnnotationDeleted:
     dataset_name: str
     image_id: str
+
+
+@dataclass
+class JobCreated:
+    job_id: str
+    dataset_name: str
+    total_tasks: int
+
+
+@dataclass
+class JobStarted:
+    job_id: str
+    dataset_name: str
+
+
+@dataclass
+class JobPaused:
+    job_id: str
+    progress: float
+
+
+@dataclass
+class JobCompleted:
+    job_id: str
+    dataset_name: str
+    total_tasks: int
+    duration: float
+
+
+@dataclass
+class JobFailed:
+    job_id: str
+    error_message: str
+
+
+@dataclass
+class JobCancelled:
+    job_id: str
+
+
+@dataclass
+class TaskCompleted:
+    job_id: str
+    task_id: str
+    image_id: str
+
+
+@dataclass
+class TaskFailed:
+    job_id: str
+    task_id: str
+    image_id: str
+    error_message: str
 
 
 class EventBus:

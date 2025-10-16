@@ -1,7 +1,7 @@
 import { useApiSync } from "@/hooks/useApiSync";
 import { api, useGetDataset } from "@/lib/api";
 import { Dataset } from "@/lib/api/types";
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, PencilLine, Play, Settings } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ClassManagerModal from "../ClassManagerModal";
@@ -31,6 +31,24 @@ const DatasetViewer = () => {
         setClassManagerDataset(null)
 
     };
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            // Ignore when typing in inputs/textareas/contentEditable
+            const t = e.target as HTMLElement | null
+            const typing = t && (
+                t.tagName === 'INPUT' ||
+                t.tagName === 'TEXTAREA' ||
+                t.isContentEditable
+            )
+            if (!typing && (e.key === 'a' || e.key === 'A')) {
+                navigate(`/datasets/${name_dataset}/annotate`)
+            }
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [navigate, name_dataset])
+
 
     const loadMore = useCallback(async () => {
         if (loading || !hasMore || !name_dataset) return;
@@ -97,6 +115,22 @@ const DatasetViewer = () => {
                         {totalCount} images (loaded {images.length})
                     </p>
                 </div>
+
+                <div className="annotate-cta">
+                    <button
+                        className="annotate-cta__button"
+                        onClick={() => navigate(`/datasets/${name_dataset}/annotate`)}
+                        title="Start annotations"
+                    >
+                        <Play size={16} />
+                        Start Annotation
+                    </button>
+                    <div className="annotate-cta__hint">
+                        <span className="annotate-cta__icon"><PencilLine size={14} /></span>
+                        Hotkey: <kbd>A</kbd>
+                    </div>
+                </div>
+
 
                 {dataset?.classes && dataset.classes.length > 0 ? (
                     <div className="classes-panel">

@@ -7,11 +7,11 @@
 }
 
 .dataset-header {
-    margin-bottom: var(--spacing-xl);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: start;
     gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
 }
 
 .dataset-header h1 {
@@ -186,4 +186,76 @@
     100% {
         background-position: -200% 0;
     }
+}
+
+.annotate-cta {
+    display: inline-flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 6px;
+    justify-self: center;
+    /* keeps it centered in the header */
+}
+
+.annotate-cta__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-weight: 700;
+    font-size: var(--font-size-sm);
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--color-primary-500);
+    background: var(--color-primary-500);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.06s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.annotate-cta__button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.annotate-cta__button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Dark mode naturally works because we rely on your CSS vars. Still, add a subtle focus ring: */
+.annotate-cta__button:focus-visible {
+    outline: 2px solid var(--color-primary-300);
+    outline-offset: 2px;
+}
+
+/* Hint row under the button */
+.annotate-cta__hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.annotate-cta__icon {
+    display: inline-flex;
+    opacity: 0.9;
+}
+
+/* Keyboard badge */
+.annotate-cta__hint kbd {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-bottom-width: 2px;
+    padding: 0 6px;
+    border-radius: 6px;
+    font-family: var(--font-family-mono);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+[data-theme='dark'] .annotate-cta__hint kbd {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--color-gray-300);
 }
