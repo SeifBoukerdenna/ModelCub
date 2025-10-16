@@ -89,6 +89,7 @@ export interface Dataset {
   source?: string;
   size_bytes: number;
   size_formatted: string;
+  images?: number;
 }
 
 export interface DatasetDetail extends Dataset {

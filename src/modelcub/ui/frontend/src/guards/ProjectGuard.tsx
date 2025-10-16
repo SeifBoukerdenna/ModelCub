@@ -60,6 +60,12 @@ const ProjectGuard: React.FC<ProjectGuardProps> = ({ children }) => {
                 <p className="empty-state__description">
                     The selected project could not be found.
                 </p>
+                <button
+                    className="btn btn--secondary"
+                    onClick={() => navigate('/projects')}
+                >
+                    Go to the Project Page
+                </button>
             </div>
         )
     }

@@ -104,6 +104,7 @@ class Dataset(BaseModel):
     source: Optional[str] = None
     size_bytes: int = 0
     size_formatted: str = "0 B"
+    images: int = 0
 
 class ImageInfo(BaseModel):
     """Image information."""

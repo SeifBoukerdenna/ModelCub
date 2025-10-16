@@ -90,7 +90,7 @@ const DatasetCard = ({ dataset, onClick, onManageClasses, onDelete }: DatasetCar
                     }}>
                         <span>Images:</span>
                         <strong style={{ color: 'var(--color-text-primary)' }}>
-                            {dataset.size_formatted}
+                            {dataset.images}
                         </strong>
                     </div>
                     <div style={{
