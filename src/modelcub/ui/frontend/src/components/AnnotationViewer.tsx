@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { X, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, AlertCircle, Settings } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Job, Task } from '@/lib/api/types';
+
+import './AnnotationViewer.css';
+import ClassManagerModal from './ClassManagerModal';
 
 export const AnnotationView = () => {
     const { name: datasetName } = useParams<{ name: string }>();
@@ -16,12 +19,24 @@ export const AnnotationView = () => {
     const [allTasks, setAllTasks] = useState<Task[]>([]);
     const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
     const [error, setError] = useState<string | null>(null);
-
+    const [classes, setClasses] = useState<string[]>([]);
+    const [showClassManager, setShowClassManager] = useState(false);
 
     const currentTask = allTasks[currentTaskIndex] || null;
     const imageUrl = currentTask
         ? `/api/v1/datasets/${datasetName}/image/${currentTask.image_path}?project_path=${encodeURIComponent(projectPath || '')}`
         : null;
+
+    // Load classes
+    const loadClasses = useCallback(async () => {
+        if (!datasetName) return;
+        try {
+            const dataset = await api.getDataset(datasetName);
+            setClasses(dataset.classes || []);
+        } catch (err) {
+            console.error('Failed to load classes:', err);
+        }
+    }, [datasetName]);
 
     // Load all tasks for navigation
     const loadAllTasks = useCallback(async () => {
@@ -103,7 +118,26 @@ export const AnnotationView = () => {
 
         loadJob();
         loadAllTasks();
-    }, [jobId, loadJob, loadAllTasks]);
+        loadClasses();
+    }, [jobId, loadJob, loadAllTasks, loadClasses]);
+
+
+    const handleCompleteTask = async () => {
+        if (!currentTask || !jobId) return;
+
+        try {
+            await api.completeTask(jobId, currentTask.task_id);
+
+            // Reload tasks and job
+            await loadAllTasks();
+            await loadJob();
+
+            // Auto-advance to next
+            goToNext();
+        } catch (err: any) {
+            console.error('Failed to complete task:', err);
+        }
+    };
 
     if (!jobId || error) {
         return (
@@ -191,6 +225,13 @@ export const AnnotationView = () => {
                             />
                             <div className="annotation-canvas__overlay">
                                 <p>Annotation tools will go here</p>
+                                <button
+                                    className="btn btn--primary"
+                                    onClick={handleCompleteTask}
+                                    style={{ marginTop: 'var(--spacing-md)' }}
+                                >
+                                    ✓ Complete Task (Test)
+                                </button>
                                 <p className="annotation-canvas__overlay-hint">
                                     Use ← → or A/D to navigate • ESC to exit
                                 </p>
@@ -205,6 +246,57 @@ export const AnnotationView = () => {
 
                 {/* Sidebar */}
                 <div className="annotation-sidebar-compact">
+                    {/* Dataset Classes */}
+                    <div className="sidebar-section">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-sm)' }}>
+                            <h3>Classes ({classes.length})</h3>
+                            <button
+                                className="btn btn--xs btn--secondary"
+                                onClick={() => setShowClassManager(true)}
+                                title="Manage classes"
+                                style={{
+                                    padding: '4px 8px',
+                                    fontSize: 'var(--font-size-xs)'
+                                }}
+                            >
+                                <Settings size={12} />
+                                Edit
+                            </button>
+                        </div>
+                        {classes.length > 0 ? (
+                            <div className="classes-list" style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 'var(--spacing-xs)'
+                            }}>
+                                {classes.map((className, idx) => (
+                                    <span
+                                        key={idx}
+                                        className="class-tag"
+                                        style={{
+                                            padding: '4px 8px',
+                                            background: 'var(--color-primary-alpha)',
+                                            border: '1px solid var(--color-primary)',
+                                            borderRadius: 'var(--border-radius-sm)',
+                                            fontSize: 'var(--font-size-xs)',
+                                            fontWeight: 500
+                                        }}
+                                    >
+                                        {className}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p style={{
+                                fontSize: 'var(--font-size-sm)',
+                                color: 'var(--color-text-secondary)'
+                            }}>
+                                No classes defined. Click Edit to add.
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Current Task */}
                     <div className="sidebar-section">
                         <h3>Current Task</h3>
                         <div className="info-grid">
@@ -225,6 +317,7 @@ export const AnnotationView = () => {
                         </div>
                     </div>
 
+                    {/* Job Info */}
                     <div className="sidebar-section">
                         <h3>Job Info</h3>
                         {job && (
@@ -253,6 +346,7 @@ export const AnnotationView = () => {
                         )}
                     </div>
 
+                    {/* Keyboard Shortcuts */}
                     <div className="sidebar-section">
                         <h3>Keyboard Shortcuts</h3>
                         <div className="shortcuts-list">
@@ -276,6 +370,20 @@ export const AnnotationView = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Class Manager Modal */}
+            {showClassManager && datasetName && (
+                <ClassManagerModal
+                    isOpen={true}
+                    onClose={() => {
+                        setShowClassManager(false);
+                        loadClasses(); // Refresh after edit
+                    }}
+                    datasetId={datasetName}
+                    initialClasses={classes}
+                    onUpdate={loadClasses}
+                />
+            )}
         </div>
     );
 };

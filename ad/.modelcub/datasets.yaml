@@ -1,0 +1,16 @@
+datasets:
+  ea059ef9:
+    id: ea059ef9
+    name: asa
+    created: '2025-10-16T18:38:48.856094Z'
+    status: unlabeled
+    num_images: 6
+    images:
+      total: 6
+      unlabeled: 6
+    classes:
+    - aa
+    - aaas
+    path: data/datasets/asa
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_7w6wf1h0
+    num_classes: 2

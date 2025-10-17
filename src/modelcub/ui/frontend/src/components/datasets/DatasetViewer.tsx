@@ -1,238 +1,381 @@
-import { useApiSync } from "@/hooks/useApiSync";
-import { api, useGetDataset } from "@/lib/api";
-import { Dataset } from "@/lib/api/types";
-import { ArrowLeft, PencilLine, Play, Settings, AlertCircle } from "lucide-react";
-import { useEffect, useRef, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import ClassManagerModal from "../ClassManagerModal";
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Play, Pause, Settings, Trash2, RefreshCw } from 'lucide-react';
+import { api } from '@/lib/api';
+import type { Dataset, Job } from '@/lib/api/types';
+import { useToast } from '@/hooks/useToast';
+import Loading from '../Loading';
+import ErrorMessage from '../ErrorMessage';
+import ClassManagerModal from '../ClassManagerModal';
+import DeleteConfirmModal from '../DeleteConfirmModal';
+import { JobDetailsModal } from './JobDetailsModal';
 
 const DatasetViewer = () => {
-    const { name: name_dataset } = useParams();
-    useApiSync();
+    const { name } = useParams<{ name: string }>();
     const navigate = useNavigate();
+    const { showToast } = useToast();
 
-    const [images, setImages] = useState<any[]>([]);
-    const [page, setPage] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const [totalCount, setTotalCount] = useState(0);
-    const [creatingJob, setCreatingJob] = useState(false);
-    const [jobError, setJobError] = useState<string | null>(null);
-    // const [existingJob, setExistingJob] = useState<any | null>(null);
-
-    const { data: dataset, loading, error, execute: getDataset } = useGetDataset();
+    const [dataset, setDataset] = useState<Dataset | null>(null);
+    const [jobs, setJobs] = useState<Job[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [loadingJobs, setLoadingJobs] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [classManagerDataset, setClassManagerDataset] = useState<Dataset | null>(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
-    const projectPath = api.getProjectPath();
-    const observerRef = useRef<IntersectionObserver | null>(null);
-    const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    const PAGE_SIZE = 50;
+    const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
-    const handleClassUpdate = () => {
-        getDataset(name_dataset ?? "");
-        setClassManagerDataset(null);
-    };
-
-    const handleStartAnnotation = async () => {
-        if (!name_dataset || creatingJob) return;
+    // Load dataset
+    const loadDataset = useCallback(async () => {
+        if (!name) return;
 
         try {
-            setCreatingJob(true);
-            setJobError(null);
-
-            // Check for existing running/paused jobs
-            const jobs = await api.listJobs();
-            const existingJob = jobs.find(
-                j => j.dataset_name === name_dataset &&
-                    (j.status === 'running' || j.status === 'paused' || j.status === 'pending')
-            );
-
-            if (existingJob) {
-                // Resume existing job
-                console.log('Resuming existing job:', existingJob.job_id);
-                if (existingJob.status === 'paused' || existingJob.status === 'pending') {
-                    await api.startJob(existingJob.job_id);
-                }
-                navigate(`/datasets/${name_dataset}/annotate?job_id=${existingJob.job_id}`);
-            } else {
-                // Create new job
-                const job = await api.createJob({
-                    dataset_name: name_dataset,
-                    auto_start: true,
-                });
-
-                console.log('Created job:', job.job_id);
-                navigate(`/datasets/${name_dataset}/annotate?job_id=${job.job_id}`);
-            }
+            setLoading(true);
+            setError(null);
+            const data = await api.getDataset(name);
+            setDataset(data);
         } catch (err: any) {
-            const errorMessage = err?.message || 'Failed to create annotation job';
-            setJobError(errorMessage);
-            console.error('Job creation error:', err);
-
-            setTimeout(() => setJobError(null), 5000);
+            setError(err.message || 'Failed to load dataset');
         } finally {
-            setCreatingJob(false);
+            setLoading(false);
+        }
+    }, [name]);
+
+    // Load jobs for this dataset
+    const loadJobs = useCallback(async () => {
+        if (!dataset) return;
+
+        setLoadingJobs(true);
+        try {
+            const allJobs = await api.listJobs();
+            const datasetJobs = allJobs.filter(j => j.dataset_name === dataset.name);
+            setJobs(datasetJobs);
+        } catch (err) {
+            console.error('Failed to load jobs:', err);
+        } finally {
+            setLoadingJobs(false);
+        }
+    }, [dataset?.name]);
+
+    // Auto-refresh jobs when there are active ones
+    useEffect(() => {
+        if (dataset) {
+            loadJobs();
+        }
+    }, [dataset?.name, loadJobs]);
+
+    useEffect(() => {
+        loadDataset();
+    }, [loadDataset]);
+
+    const handleStartAnnotation = async () => {
+        if (!dataset) return;
+
+        try {
+            // Create and start a new job
+            const job = await api.createJob({
+                dataset_name: dataset.name,
+                auto_start: true
+            });
+
+            showToast('Annotation job started', 'success');
+
+            // Navigate to annotation view
+            navigate(`/datasets/${dataset.name}/annotate?job_id=${job.job_id}`);
+        } catch (err: any) {
+            showToast(err.message || 'Failed to start annotation', 'error');
         }
     };
 
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            // Ignore when typing in inputs/textareas/contentEditable
-            const t = e.target as HTMLElement | null;
-            const typing = t && (
-                t.tagName === 'INPUT' ||
-                t.tagName === 'TEXTAREA' ||
-                t.isContentEditable
-            );
-            if (!typing && (e.key === 'a' || e.key === 'A')) {
-                handleStartAnnotation();
-            }
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [name_dataset, creatingJob]);
+    const handleContinueJob = (jobId: string) => {
+        navigate(`/datasets/${dataset?.name}/annotate?job_id=${jobId}`);
+    };
 
-    const loadMore = useCallback(async () => {
-        if (loading || !hasMore || !name_dataset) return;
-
-        const result = await getDataset(name_dataset, true, undefined, PAGE_SIZE, page * PAGE_SIZE);
-
-        if (result?.image_list) {
-            setImages(prev => [...prev, ...(result.image_list ?? [])]);
-            setTotalCount(result.total_images || result.image_list.length);
-            setHasMore(result.image_list.length === PAGE_SIZE);
-            setPage(prev => prev + 1);
+    const handlePauseJob = async (jobId: string) => {
+        try {
+            await api.pauseJob(jobId);
+            showToast('Job paused', 'success');
+            loadJobs();
+        } catch (err: any) {
+            showToast(err.message || 'Failed to pause job', 'error');
         }
-    }, [name_dataset, page, loading, hasMore, getDataset]);
+    };
 
-    useEffect(() => {
-        if (name_dataset) {
-            setImages([]);
-            setPage(0);
-            setHasMore(true);
-            getDataset(name_dataset, true, undefined, PAGE_SIZE, 0).then(result => {
-                if (result?.image_list) {
-                    setImages(result.image_list);
-                    setTotalCount(result.total_images || result.image_list.length);
-                    setHasMore(result.image_list.length === PAGE_SIZE);
-                    setPage(1);
-                }
-            });
+    const handleResumeJob = async (jobId: string) => {
+        try {
+            await api.startJob(jobId);
+            showToast('Job resumed', 'success');
+            loadJobs();
+        } catch (err: any) {
+            showToast(err.message || 'Failed to resume job', 'error');
         }
-    }, [name_dataset]);
+    };
 
-    useEffect(() => {
-        if (!loadMoreRef.current) return;
+    const handleClassUpdate = useCallback(() => {
+        loadDataset();
+    }, [loadDataset]);
 
-        observerRef.current = new IntersectionObserver(
-            entries => {
-                if (entries[0]?.isIntersecting && hasMore && !loading) {
-                    loadMore();
-                }
-            },
-            { threshold: 0.1 }
-        );
+    const handleDelete = async () => {
+        if (!dataset) return;
 
-        observerRef.current.observe(loadMoreRef.current);
+        setIsDeleting(true);
+        try {
+            await api.deleteDataset(dataset.name);
+            showToast('Dataset deleted successfully', 'success');
+            navigate('/datasets');
+        } catch (err: any) {
+            showToast(err.message || 'Failed to delete dataset', 'error');
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteModal(false);
+        }
+    };
 
-        return () => observerRef.current?.disconnect();
-    }, [loadMore, hasMore, loading]);
+    if (loading) {
+        return <Loading message="Loading dataset..." />;
+    }
 
-    if (error) return <div className="error">Error: {error}</div>;
+    if (error || !dataset) {
+        return <ErrorMessage message={error || 'Dataset not found'} />;
+    }
+
+    const activeJobs = jobs.filter(j => ['pending', 'running', 'paused'].includes(j.status));
+    const completedJobs = jobs.filter(j => ['completed', 'failed', 'cancelled'].includes(j.status));
 
     return (
         <div className="dataset-viewer">
-            {/* Job Error Banner */}
-            {jobError && (
-                <div className="job-error-banner">
-                    <AlertCircle size={16} />
-                    <span>{jobError}</span>
-                </div>
-            )}
-
+            {/* Header */}
             <div className="dataset-header">
-                <div>
-                    <button
-                        className="btn btn--sm btn--secondary"
-                        onClick={() => navigate('/datasets')}
-                        style={{ marginBottom: 'var(--spacing-sm)' }}
-                    >
-                        <ArrowLeft size={16} />
-                        Back to Datasets
-                    </button>
-                    <h1>{name_dataset}</h1>
-                    <p className="dataset-count">
-                        {totalCount} images (loaded {images.length})
-                    </p>
-                </div>
+                <button
+                    className="btn btn--ghost"
+                    onClick={() => navigate('/datasets')}
+                >
+                    <ArrowLeft size={18} />
+                    Back to Datasets
+                </button>
 
-                <div className="annotate-cta">
-                    <button
-                        className="annotate-cta__button"
-                        onClick={handleStartAnnotation}
-                        disabled={creatingJob}
-                        title="Start annotations"
-                    >
-                        <Play size={16} />
-                        {creatingJob ? 'Creating Job...' : 'Start Annotation'}
-                    </button>
-                    <div className="annotate-cta__hint">
-                        <span className="annotate-cta__icon"><PencilLine size={14} /></span>
-                        Hotkey: <kbd>A</kbd>
+                <div className="dataset-header__title">
+                    <h1>{dataset.name}</h1>
+                    <div className="dataset-header__actions">
+                        <button
+                            className="btn btn--secondary"
+                            onClick={() => setClassManagerDataset(dataset)}
+                        >
+                            <Settings size={18} />
+                            Manage Classes
+                        </button>
+                        <button
+                            className="btn btn--danger"
+                            onClick={() => setShowDeleteModal(true)}
+                        >
+                            <Trash2 size={18} />
+                            Delete
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                {dataset?.classes && dataset.classes.length > 0 ? (
-                    <div className="classes-panel">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                            <h3 style={{ margin: 0 }}>Classes ({dataset.classes.length})</h3>
-                            <button
-                                className="btn btn--xs btn--secondary"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setClassManagerDataset(dataset);
-                                }}
-                                title="Manage classes"
-                                style={{
-                                    padding: '4px 8px',
-                                    fontSize: 'var(--font-size-xs)'
-                                }}
-                            >
-                                <Settings size={12} />
-                                Edit
-                            </button>
-                        </div>
-                        <div className="classes-list">
-                            {dataset.classes.map((className, idx) => (
-                                <span key={idx} className="class-tag">
-                                    {className}
-                                </span>
-                            ))}
-                        </div>
+            {/* Stats Grid */}
+            <div className="stats-grid">
+                <div className="stat-card">
+                    <div className="stat-label">Total Images</div>
+                    <div className="stat-value">{dataset?.images?.toLocaleString()}</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-label">Classes</div>
+                    <div className="stat-value">{dataset.classes?.length || 0}</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-label">Size</div>
+                    <div className="stat-value">{dataset.size_formatted}</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-label">Number of jobs</div>
+                    <div className="stat-value">{(activeJobs && completedJobs) && (activeJobs.length + completedJobs.length)}</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-label">Created</div>
+                    <div className="stat-value">{dataset.created ? new Date(dataset.created).toLocaleDateString() : '-'}</div>
+                </div>
+            </div>
+
+            {/* Classes Section */}
+            <div className="dataset-section">
+                <div className="section-header">
+                    <h3>Annotation Jobs</h3>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                        <button
+                            className="btn btn--xs btn--secondary"
+                            onClick={loadJobs}
+                            disabled={loadingJobs}
+                        >
+                            <RefreshCw size={14} className={loadingJobs ? 'spinner' : ''} />
+                            Refresh
+                        </button>
+                        <button
+                            className="btn btn--sm btn--primary"
+                            onClick={handleStartAnnotation}
+                        >
+                            <Play size={16} />
+                            Start Annotation
+                        </button>
+                    </div>
+                </div>
+                {dataset.classes && dataset.classes.length > 0 ? (
+                    <div className="classes-list">
+                        {dataset.classes.map((cls, idx) => (
+                            <span key={idx} className="class-badge">
+                                {cls}
+                            </span>
+                        ))}
                     </div>
                 ) : (
-                    <div className="classes-panel">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                            <h3 style={{ margin: 0 }}>No classes yet</h3>
-                            <button
-                                className="btn btn--xs btn--secondary"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setClassManagerDataset(dataset);
-                                }}
-                                title="Add classes"
-                                style={{
-                                    padding: '4px 8px',
-                                    fontSize: 'var(--font-size-xs)'
-                                }}
-                            >
-                                <Settings size={12} />
-                                Add
-                            </button>
-                        </div>
-                        <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                            Click Add to create classes for this dataset
+                    <div className="empty-state">
+                        <p>No classes defined yet</p>
+                        <button
+                            className="btn btn--sm btn--primary"
+                            onClick={() => setClassManagerDataset(dataset)}
+                        >
+                            Add Classes
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Annotation Jobs Section */}
+            <div className="dataset-section">
+                <div className="section-header">
+                    <h3>Annotation Jobs</h3>
+                    <button
+                        className="btn btn--sm btn--primary"
+                        onClick={handleStartAnnotation}
+                    >
+                        <Play size={16} />
+                        Start Annotation
+                    </button>
+                </div>
+
+                {loadingJobs ? (
+                    <div className="loading-jobs">
+                        <RefreshCw size={18} className="spinner" />
+                        Loading jobs...
+                    </div>
+                ) : jobs.length === 0 ? (
+                    <div className="empty-state">
+                        <p>No annotation jobs yet</p>
+                        <p className="empty-state__hint">
+                            Start annotating to create your first job
                         </p>
+                    </div>
+                ) : (
+                    <div className="jobs-list">
+                        {/* Active Jobs */}
+                        {activeJobs.length > 0 && (
+                            <>
+                                <h4>Active Jobs</h4>
+                                {activeJobs.map(job => (
+                                    <div key={job.job_id} className="job-card active" onClick={() => setSelectedJob(job)}>
+                                        <div className="job-header">
+                                            <span className={`status-badge status-${job.status}`}>
+                                                {job.status}
+                                            </span>
+                                            <span className="job-id">{job.job_id}</span>
+                                        </div>
+                                        <div className="job-progress">
+                                            <div className="progress-bar">
+                                                <div
+                                                    className="progress-fill"
+                                                    style={{
+                                                        width: `${(job.completed_tasks / job.total_tasks) * 100}%`
+                                                    }}
+                                                />
+                                            </div>
+                                            <span className="progress-text">
+                                                {job.completed_tasks} / {job.total_tasks}
+                                            </span>
+                                        </div>
+                                        <div className="job-meta">
+                                            <span className="job-time">
+                                                Started {new Date(job.created_at).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <div className="job-actions" onClick={(e) => e.stopPropagation()}>
+                                            {job.status === 'running' && (
+                                                <button
+                                                    className="btn btn--xs btn--primary"
+                                                    onClick={() => handleContinueJob(job.job_id)}
+                                                >
+                                                    Continue
+                                                </button>
+                                            )}
+                                            {job.status === 'paused' && (
+                                                <>
+                                                    <button
+                                                        className="btn btn--xs btn--primary"
+                                                        onClick={() => handleResumeJob(job.job_id)}
+                                                    >
+                                                        <Play size={14} />
+                                                        Resume
+                                                    </button>
+                                                    <button
+                                                        className="btn btn--xs btn--secondary"
+                                                        onClick={() => handleContinueJob(job.job_id)}
+                                                    >
+                                                        View
+                                                    </button>
+                                                </>
+                                            )}
+                                            {job.status === 'pending' && (
+                                                <button
+                                                    className="btn btn--xs btn--primary"
+                                                    onClick={() => handleResumeJob(job.job_id)}
+                                                >
+                                                    <Play size={14} />
+                                                    Start
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+
+                        {/* Job History */}
+                        {completedJobs.length > 0 && (
+                            <>
+                                <h4 style={{ marginTop: activeJobs.length > 0 ? 'var(--spacing-xl)' : 0 }}>
+                                    History
+                                </h4>
+                                {completedJobs.slice(0, 5).map(job => (
+                                    <div key={job.job_id} className="job-card history" onClick={() => setSelectedJob(job)}>
+                                        <div className="job-header">
+                                            <span className={`status-badge status-${job.status}`}>
+                                                {job.status}
+                                            </span>
+                                            <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                <span className='job-id'>
+                                                    {job.job_id}
+                                                </span>
+                                                <span className="job-time">
+                                                    {new Date(job.created_at).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="job-summary">
+                                            {job.completed_tasks} / {job.total_tasks} completed
+                                            {job.failed_tasks > 0 && ` (${job.failed_tasks} failed)`}
+                                        </div>
+                                    </div>
+                                ))}
+                                {completedJobs.length > 5 && (
+                                    <p className="jobs-more">
+                                        + {completedJobs.length - 5} more completed job(s)
+                                    </p>
+                                )}
+                            </>
+                        )}
                     </div>
                 )}
             </div>
@@ -240,73 +383,40 @@ const DatasetViewer = () => {
             {/* Class Manager Modal */}
             {classManagerDataset && (
                 <ClassManagerModal
-                    isOpen={!!classManagerDataset}
+                    isOpen={true}
                     onClose={() => setClassManagerDataset(null)}
                     datasetId={classManagerDataset.name}
-                    initialClasses={classManagerDataset.classes}
+                    initialClasses={classManagerDataset.classes || []}
                     onUpdate={handleClassUpdate}
                 />
             )}
 
-            <div className="image-grid">
-                {images.map((img, idx) => (
-                    <ImageCard
-                        key={`${img.path}-${idx}`}
-                        img={img}
-                        datasetName={name_dataset!}
-                        projectPath={projectPath}
-                    />
-                ))}
-            </div>
-
-            {hasMore && (
-                <div ref={loadMoreRef} className="load-more">
-                    {loading ? "Loading..." : ""}
-                </div>
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <DeleteConfirmModal
+                    isOpen={true}
+                    title="Delete Dataset"
+                    message={
+                        <>
+                            <p>Are you sure you want to delete <strong>{dataset.name}</strong>?</p>
+                            <p style={{ marginTop: 'var(--spacing-sm)' }}>
+                                This will permanently delete all images and annotations.
+                            </p>
+                        </>
+                    }
+                    onConfirm={handleDelete}
+                    onCancel={() => setShowDeleteModal(false)}
+                    isDeleting={isDeleting}
+                />
             )}
-        </div>
-    );
-};
 
-const ImageCard = ({ img, datasetName, projectPath }: any) => {
-    const [isVisible, setIsVisible] = useState(false);
-    const imgRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            entries => {
-                if (entries[0]?.isIntersecting) {
-                    setIsVisible(true);
-                    observer.disconnect();
-                }
-            },
-            { rootMargin: '50px' }
-        );
-
-        if (imgRef.current) observer.observe(imgRef.current);
-
-        return () => observer.disconnect();
-    }, []);
-
-    return (
-        <div ref={imgRef} className="image-card">
-            <div className="image-container">
-                {isVisible ? (
-                    <img
-                        src={`/api/v1/datasets/${datasetName}/image/${img.path}?project_path=${encodeURIComponent(projectPath || '')}`}
-                        alt={img.filename}
-                        loading="lazy"
-                    />
-                ) : (
-                    <div className="image-placeholder" />
-                )}
-            </div>
-
-            <span className={`label-badge ${img.has_labels ? 'labeled' : 'unlabeled'}`}>
-                {img.has_labels ? '✓' : '○'}
-            </span>
-
-            <div className="image-filename">{img.filename}</div>
+            {/* Job Modal */}
+            {selectedJob && (
+                <JobDetailsModal
+                    job={selectedJob}
+                    onClose={() => setSelectedJob(null)}
+                />
+            )}
         </div>
     );
 };

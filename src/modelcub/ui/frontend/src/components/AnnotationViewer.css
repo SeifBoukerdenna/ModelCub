@@ -9,6 +9,16 @@
     overflow: hidden;
 }
 
+.annotation-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: var(--spacing-md);
+    color: var(--color-text-secondary);
+}
+
 /* ============================================
    Compact Header
    ============================================ */
@@ -65,7 +75,7 @@
     font-weight: 600;
     color: var(--color-text-primary);
     white-space: nowrap;
-    font-family: monospace;
+    font-family: var(--font-mono);
 }
 
 .progress-compact__bar {
@@ -83,7 +93,7 @@
 
 .progress-compact__fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+    background: var(--color-primary);
     transition: width 0.3s ease;
 }
 
@@ -93,19 +103,17 @@
 
 .nav-controls {
     display: flex;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-xs);
 }
 
 /* ============================================
-   Content
+   Main Content
    ============================================ */
 
 .annotation-content-full {
+    display: flex;
     flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 320px;
     overflow: hidden;
-    height: calc(100vh - 60px);
 }
 
 /* ============================================
@@ -113,61 +121,58 @@
    ============================================ */
 
 .annotation-canvas-full {
-    position: relative;
-    background-color: var(--color-background);
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    background-color: var(--color-background);
+    position: relative;
 }
 
 [data-theme='dark'] .annotation-canvas-full {
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: #0a0a0a;
 }
 
 .annotation-canvas__wrapper {
     position: relative;
-    max-width: 100%;
-    max-height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    max-width: 90%;
+    max-height: 90%;
 }
 
 .annotation-canvas__image {
     max-width: 100%;
     max-height: 100%;
-    object-fit: contain;
     display: block;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .annotation-canvas__image {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .annotation-canvas__overlay {
     position: absolute;
-    bottom: var(--spacing-xl);
-    left: 50%;
-    transform: translateX(-50%);
-    text-align: center;
-    padding: var(--spacing-md) var(--spacing-lg);
-    background-color: rgba(0, 0, 0, 0.85);
-    border-radius: var(--border-radius-lg);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
     color: white;
-    backdrop-filter: blur(10px);
-}
-
-.annotation-canvas__overlay p {
-    margin: 0;
-    margin-bottom: var(--spacing-xs);
-    font-weight: 500;
+    gap: var(--spacing-sm);
 }
 
 .annotation-canvas__overlay-hint {
     font-size: var(--font-size-sm);
-    color: rgba(255, 255, 255, 0.7);
+    opacity: 0.8;
 }
 
 .annotation-canvas__loading {
-    color: var(--color-text-secondary);
     font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
 }
 
 /* ============================================
@@ -175,13 +180,12 @@
    ============================================ */
 
 .annotation-sidebar-compact {
+    width: 320px;
     background-color: var(--color-surface);
     border-left: 1px solid var(--color-border);
-    padding: var(--spacing-lg);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-xl);
 }
 
 [data-theme='dark'] .annotation-sidebar-compact {
@@ -189,18 +193,21 @@
 }
 
 .sidebar-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-section:last-child {
+    border-bottom: none;
 }
 
 .sidebar-section h3 {
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--color-text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin: 0;
+    letter-spacing: 0.5px;
+    margin: 0 0 var(--spacing-md) 0;
 }
 
 /* ============================================
@@ -216,73 +223,37 @@
 .info-item {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-xs) 0;
+    align-items: center;
+    font-size: var(--font-size-sm);
 }
 
 .info-item .label {
-    font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
-    font-weight: 500;
 }
 
 .info-item .value {
-    font-size: var(--font-size-sm);
     color: var(--color-text-primary);
-    text-align: right;
-    word-break: break-word;
+    font-weight: 500;
 }
 
 .info-item .value.mono {
-    font-family: monospace;
+    font-family: var(--font-mono);
 }
 
 .info-item .value.small {
     font-size: var(--font-size-xs);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .info-item .value.error {
     color: var(--color-error);
-    font-weight: 600;
 }
 
 /* ============================================
-   Status Badges
-   ============================================ */
-
-.status-badge {
-    padding: 2px 8px;
-    border-radius: var(--border-radius-sm);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    text-transform: lowercase;
-}
-
-.status-badge.status-pending {
-    background-color: rgba(156, 163, 175, 0.2);
-    color: var(--color-text-secondary);
-}
-
-.status-badge.status-running,
-.status-badge.status-in_progress {
-    background-color: rgba(59, 130, 246, 0.2);
-    color: var(--color-primary);
-}
-
-.status-badge.status-completed {
-    background-color: rgba(34, 197, 94, 0.2);
-    color: var(--color-success);
-}
-
-.status-badge.status-failed,
-.status-badge.status-cancelled {
-    background-color: rgba(239, 68, 68, 0.2);
-    color: var(--color-error);
-}
-
-/* ============================================
-   Shortcuts
+   Keyboard Shortcuts
    ============================================ */
 
 .shortcuts-list {
@@ -293,95 +264,29 @@
 
 .shortcut-item {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: var(--spacing-md);
+    align-items: center;
     font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
 }
 
 .shortcut-item kbd {
+    display: inline-block;
+    padding: 2px 6px;
     background-color: var(--color-background);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-sm);
-    padding: 2px 6px;
+    font-family: var(--font-mono);
     font-size: var(--font-size-xs);
-    font-family: monospace;
-    color: var(--color-text-primary);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 [data-theme='dark'] .shortcut-item kbd {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* ============================================
-   Classes List
-   ============================================ */
-
-.classes-list-compact {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-}
-
-.class-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-xs);
-    border-radius: var(--border-radius-sm);
-    background-color: var(--color-background);
-    border: 1px solid var(--color-border);
-}
-
-[data-theme='dark'] .class-item {
-    background-color: rgba(255, 255, 255, 0.03);
-}
-
-.class-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.class-name {
-    flex: 1;
-    font-size: var(--font-size-sm);
-    color: var(--color-text-primary);
-}
-
-.class-shortcut {
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-sm);
-    padding: 2px 6px;
-    font-size: var(--font-size-xs);
-    font-family: monospace;
+.shortcut-item span {
     color: var(--color-text-secondary);
-    flex-shrink: 0;
-}
-
-.empty-state {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
-    font-style: italic;
-    margin: 0;
-}
-
-/* ============================================
-   Error State
-   ============================================ */
-
-.annotation-error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-xl);
-    color: var(--color-error);
-    height: 100vh;
 }
 
 /* ============================================
@@ -389,12 +294,12 @@
    ============================================ */
 
 @media (max-width: 1024px) {
-    .annotation-content-full {
-        grid-template-columns: 1fr;
+    .annotation-sidebar-compact {
+        width: 280px;
     }
 
-    .annotation-sidebar-compact {
-        display: none;
+    .progress-compact {
+        min-width: 200px;
     }
 }
 
@@ -403,11 +308,30 @@
         grid-template-columns: 1fr;
         height: auto;
         gap: var(--spacing-sm);
+        padding: var(--spacing-sm);
     }
 
-    .annotation-header-compact__left,
     .annotation-header-compact__center,
     .annotation-header-compact__right {
-        justify-content: center;
+        justify-content: flex-start;
+    }
+
+    .annotation-content-full {
+        flex-direction: column;
+    }
+
+    .annotation-sidebar-compact {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--color-border);
+        max-height: 40vh;
+    }
+
+    .nav-controls {
+        width: 100%;
+    }
+
+    .nav-controls button {
+        flex: 1;
     }
 }

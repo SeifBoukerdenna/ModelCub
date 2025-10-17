@@ -414,6 +414,12 @@ class ModelCubAPI {
     });
   }
 
+  async completeTask(jobId: string, taskId: string): Promise<Task> {
+    return this.request<Task>(`/jobs/${jobId}/tasks/${taskId}/complete`, {
+      method: "POST",
+    });
+  }
+
   async getJobTasks(jobId: string, status?: string): Promise<Task[]> {
     const params = status ? `?status=${status}` : "";
     return this.request<Task[]>(`/jobs/${jobId}/tasks${params}`);

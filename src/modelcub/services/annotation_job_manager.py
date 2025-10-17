@@ -555,14 +555,16 @@ class AnnotationJobManager:
         Handle a single annotation task.
         This should be customized based on your annotation logic.
         """
-        # Example: Auto-annotate using a model, or validate existing annotations
-        # For now, just a placeholder that simulates work
-        time.sleep(0.1)
+        # DISABLED: Auto-completion for testing manual annotation
+        # time.sleep(0.1)
+        # return {
+        #     "processed": True,
+        #     "timestamp": datetime.now().isoformat()
+        # }
 
-        return {
-            "processed": True,
-            "timestamp": datetime.now().isoformat()
-        }
+        # Just wait indefinitely - tasks will be completed manually via UI
+        time.sleep(999999)
+        return {}
 
     def _monitor_jobs(self):
         """Monitor active jobs and update their status"""

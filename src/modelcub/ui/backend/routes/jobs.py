@@ -6,6 +6,8 @@ from pathlib import Path
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from datetime import datetime
+
 from ..dependencies import ProjectRequired
 from ...shared.api.config import Endpoints
 from ...shared.api.schemas import APIResponse
@@ -249,6 +251,44 @@ async def cancel_job(
         raise NotFoundError(message=str(e), code=ErrorCode.DATASET_NOT_FOUND)
     except Exception as e:
         logger.error(f"Failed to cancel job: {e}", exc_info=True)
+        raise
+
+@router.post("/{job_id}/tasks/{task_id}/complete")
+async def complete_task(
+    job_id: str,
+    task_id: str,
+    project: ProjectRequired
+) -> APIResponse[TaskResponse]:
+    """Mark a task as completed (for testing)."""
+    try:
+        manager = _get_job_manager(project.path)
+
+        # Get the task
+        tasks = manager.get_tasks(job_id)
+        task = next((t for t in tasks if t.task_id == task_id), None)
+
+        if not task:
+            raise NotFoundError(message="Task not found", code=ErrorCode.DATASET_NOT_FOUND)
+
+        # Mark as completed
+        from modelcub.services.annotation_job_manager import TaskStatus
+        task.status = TaskStatus.COMPLETED
+        task.completed_at = datetime.now()
+        manager.store.save_task(task)
+
+        # Update job counters
+        job = manager.get_job(job_id)
+        if job:
+            job.completed_tasks += 1
+            manager.store.save_job(job)
+
+        return APIResponse(
+            success=True,
+            data=_task_to_response(task),
+            message="Task marked as completed"
+        )
+    except Exception as e:
+        logger.error(f"Failed to complete task: {e}", exc_info=True)
         raise
 
 
