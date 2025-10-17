@@ -429,6 +429,19 @@ class ModelCubAPI {
     return this.request<Task | null>(`/jobs/${jobId}/next-task`);
   }
 
+  async updateTaskStatus(
+    jobId: string,
+    taskId: string,
+    status: string
+  ): Promise<Task> {
+    return this.request<Task>(
+      `/jobs/${jobId}/tasks/${taskId}/status?status=${status}`,
+      {
+        method: "POST",
+      }
+    );
+  }
+
   // ==================== MODEL METHODS ====================
 
   async listModels(): Promise<any[]> {

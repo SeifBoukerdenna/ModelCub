@@ -1,4 +1,4 @@
-"""FastAPI application for ModelCub UI - Refactored."""
+"""FastAPI application for ModelCub UI with WebSocket support."""
 from pathlib import Path
 import logging
 
@@ -29,7 +29,7 @@ app = FastAPI(
     redoc_url=f"{APIConfig.PREFIX}/redoc",
 )
 
-# Add middleware (order matters - first added is outermost)
+# Add middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -44,14 +44,16 @@ app.add_middleware(APIResponseMiddleware)
 # WebSocket connection manager
 manager = ConnectionManager()
 
-# Include API routers with versioned prefix
+# Inject WebSocket manager into jobs router
+jobs.set_websocket_manager(manager)
+
+# Include API routers
 app.include_router(projects.router, prefix=APIConfig.PREFIX)
 app.include_router(datasets.router, prefix=APIConfig.PREFIX)
 app.include_router(models.router, prefix=APIConfig.PREFIX)
 app.include_router(jobs.router, prefix=APIConfig.PREFIX)
 
 
-# Health check
 @app.get(f"{APIConfig.PREFIX}{Endpoints.HEALTH}")
 async def health_check() -> APIResponse[dict]:
     """Health check endpoint."""
@@ -65,25 +67,32 @@ async def health_check() -> APIResponse[dict]:
     )
 
 
-# WebSocket endpoint
 @app.websocket(Endpoints.WS)
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket connection for real-time updates."""
+    """WebSocket connection for real-time job updates."""
     client_id = await manager.connect(websocket)
+    logger.info(f"WebSocket client {client_id} connected")
+
     try:
         while True:
+            # Keep connection alive
             data = await websocket.receive_text()
-            logger.debug(f"Received from {client_id}: {data}")
-            await manager.send_to_client(client_id, {"echo": data})
+
+            # Echo back for heartbeat
+            if data == "ping":
+                await manager.send_to_client(client_id, {"type": "pong"})
+            else:
+                logger.debug(f"Received from {client_id}: {data}")
+
     except WebSocketDisconnect:
         manager.disconnect(client_id)
-        logger.info(f"Client {client_id} disconnected")
+        logger.info(f"WebSocket client {client_id} disconnected")
     except Exception as e:
-        logger.error(f"WebSocket error: {e}", exc_info=True)
+        logger.error(f"WebSocket error for client {client_id}: {e}", exc_info=True)
         manager.disconnect(client_id)
 
 
-# Serve built UI in production
+# Serve frontend in production
 FRONTEND_BUILD_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
 if FRONTEND_BUILD_DIR.exists():
@@ -95,13 +104,11 @@ if FRONTEND_BUILD_DIR.exists():
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        """Serve React SPA with client-side routing support."""
-        # Don't serve API routes
+        """Serve React SPA with client-side routing."""
         if full_path.startswith("api/"):
             return {"error": "Not found"}, 404
 
         file_path = FRONTEND_BUILD_DIR / full_path
-
         if file_path.is_file():
             return FileResponse(file_path)
 
@@ -122,6 +129,8 @@ def run_server(
 
     logger.info(f"🚀 Starting ModelCub API at http://{host}:{port}")
     logger.info(f"📚 API Documentation: http://{host}:{port}{APIConfig.PREFIX}/docs")
+    logger.info(f"🔌 WebSocket endpoint: ws://{host}:{port}/ws")
+
     if reload:
         logger.info("🔄 Auto-reload enabled")
 

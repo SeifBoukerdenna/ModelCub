@@ -101,7 +101,6 @@
 }
 
 .empty-state__hint {
-
     font-size: var(--font-size-sm);
     color: var(--color-text-tertiary);
 }
@@ -135,6 +134,7 @@
     border-radius: var(--border-radius-md);
     background: var(--color-surface);
     transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .job-card:hover {
@@ -171,18 +171,44 @@
 }
 
 .progress-bar {
+    position: relative;
     flex: 1;
-    height: 8px;
+    height: 24px;
     background: var(--color-background);
     border-radius: var(--border-radius-full);
     overflow: hidden;
     border: 1px solid var(--color-border);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
     height: 100%;
-    background: var(--color-primary);
-    transition: width 0.3s ease;
+    background: linear-gradient(90deg, #10b981 0%, #14b8a6 100%);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: var(--border-radius-full);
+    overflow: hidden;
+}
+
+.progress-fill::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.2) 50%,
+            transparent 100%);
+    animation: shimmer 2s infinite;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(16, 185, 129, 0.2);
+    filter: blur(3px);
 }
 
 .progress-text {
@@ -220,6 +246,26 @@
     text-align: center;
     margin-top: var(--spacing-sm);
     font-style: italic;
+}
+
+.jobs-more-button {
+    width: 100%;
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-sm);
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--border-radius-md);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.jobs-more-button:hover {
+    background: var(--color-background);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
 }
 
 /* Status badges */
@@ -264,6 +310,222 @@
     color: #6b7280;
 }
 
+/* Job Details Modal */
+
+.job-details-modal {
+    max-width: 700px;
+    width: 90vw;
+    max-height: 85vh;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.modal-header h2 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    margin: 0;
+    color: var(--color-text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+    max-height: calc(85vh - 140px);
+}
+
+.job-details-section {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-xl);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.job-details-section:last-child {
+    border-bottom: none;
+}
+
+.job-details-section h3 {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--color-text-primary);
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.detail-item .label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.detail-item .value {
+    font-size: var(--font-size-md);
+    color: var(--color-text-primary);
+    font-weight: 600;
+}
+
+.progress-stats {
+    display: flex;
+    gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+}
+
+.progress-stats .stat {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+/* Enhanced Progress Bar */
+
+.enhanced-progress-container {
+    margin-top: var(--spacing-md);
+}
+
+.progress-bar-enhanced {
+    position: relative;
+    height: 32px;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-full);
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: var(--spacing-sm);
+}
+
+.progress-fill-enhanced {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #14b8a6 100%);
+    transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: var(--border-radius-full);
+    overflow: hidden;
+}
+
+.progress-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            transparent 100%);
+    animation: shimmer 2s infinite;
+}
+
+.progress-glow {
+    position: absolute;
+    inset: 0;
+    background: rgba(16, 185, 129, 0.3);
+    filter: blur(4px);
+}
+
+.progress-overlay-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    z-index: 10;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.progress-dots {
+    display: flex;
+    gap: 4px;
+    margin-top: var(--spacing-sm);
+}
+
+.progress-dot {
+    flex: 1;
+    height: 6px;
+    background: var(--color-border);
+    border-radius: var(--border-radius-full);
+    transition: all 0.3s ease;
+}
+
+.progress-dot.completed {
+    background: linear-gradient(90deg, #10b981 0%, #14b8a6 100%);
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Tasks List */
+
+.tasks-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    background: var(--color-surface);
+}
+
+.task-item {
+    display: grid;
+    grid-template-columns: 24px 140px 1fr;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--font-size-sm);
+    transition: background 0.15s ease;
+}
+
+.task-item:hover {
+    background: var(--color-background);
+}
+
+.task-item:last-child {
+    border-bottom: none;
+}
+
+.task-name {
+    font-weight: 500;
+    font-family: var(--font-mono);
+}
+
+.task-path {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Dark theme adjustments */
 
 [data-theme='dark'] .stat-card {
@@ -282,8 +544,25 @@
     background-color: rgba(255, 255, 255, 0.05);
 }
 
+[data-theme='dark'] .progress-bar-enhanced {
+    background-color: rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 [data-theme='dark'] .empty-state {
     background-color: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme='dark'] .tasks-list {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme='dark'] .modal-header {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme='dark'] .progress-overlay-text {
+    color: #ffffff;
 }
 
 /* Responsive */
@@ -309,5 +588,27 @@
 
     .job-actions .btn {
         width: 100%;
+    }
+
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .progress-stats {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .task-item {
+        grid-template-columns: 24px 1fr;
+    }
+
+    .task-name {
+        grid-column: 2;
+    }
+
+    .task-path {
+        grid-column: 2;
+        margin-top: 2px;
     }
 }

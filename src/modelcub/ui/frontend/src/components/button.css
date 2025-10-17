@@ -55,6 +55,7 @@
 [data-theme='dark'] .btn--secondary:hover:not(:disabled) {
     background-color: var(--color-gray-700);
     border-color: var(--color-gray-600);
+    color: black;
 }
 
 /* Danger Button */

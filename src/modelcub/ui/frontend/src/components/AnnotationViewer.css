@@ -19,6 +19,14 @@
     color: var(--color-text-secondary);
 }
 
+.progress-header-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+    gap: var(--spacing-md);
+}
+
 /* ============================================
    Compact Header
    ============================================ */

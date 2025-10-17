@@ -1,7 +1,8 @@
-"""Annotation job management API routes."""
+"""Annotation job management API routes with WebSocket events."""
 from typing import List, Optional
 import logging
 from pathlib import Path
+import asyncio
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -20,6 +21,26 @@ from ....services.annotation_job_manager import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix=Endpoints.JOBS, tags=["Jobs"])
+
+# Global reference to websocket manager - injected from main
+_ws_manager = None
+
+def set_websocket_manager(manager):
+    """Set the websocket manager instance"""
+    global _ws_manager
+    _ws_manager = manager
+
+
+async def broadcast_job_update(job_id: str, event_type: str, data: dict):
+    """Broadcast job update via WebSocket"""
+    if _ws_manager:
+        message = {
+            "type": event_type,
+            "job_id": job_id,
+            "data": data,
+            "timestamp": datetime.now().isoformat()
+        }
+        await _ws_manager.broadcast(message)
 
 
 # ==================== REQUEST/RESPONSE MODELS ====================
@@ -126,6 +147,13 @@ async def create_job(
             job = manager.start_job(job.job_id)
             logger.info(f"Started job: {job.job_id}")
 
+            # Broadcast job started event
+            await broadcast_job_update(
+                job.job_id,
+                "job.started",
+                _job_to_response(job).dict()
+            )
+
         return APIResponse(
             success=True,
             data=_job_to_response(job),
@@ -173,7 +201,7 @@ async def get_job(
         if not job:
             raise NotFoundError(
                 message=f"Job not found: {job_id}",
-                code=ErrorCode.DATASET_NOT_FOUND  # Reusing error code
+                code=ErrorCode.DATASET_NOT_FOUND
             )
 
         return APIResponse(
@@ -198,6 +226,13 @@ async def start_job(
         manager = _get_job_manager(project.path)
         job = manager.start_job(job_id)
 
+        # Broadcast job started/resumed event
+        await broadcast_job_update(
+            job.job_id,
+            "job.started",
+            _job_to_response(job).dict()
+        )
+
         return APIResponse(
             success=True,
             data=_job_to_response(job),
@@ -219,6 +254,13 @@ async def pause_job(
     try:
         manager = _get_job_manager(project.path)
         job = manager.pause_job(job_id)
+
+        # Broadcast job paused event
+        await broadcast_job_update(
+            job.job_id,
+            "job.paused",
+            _job_to_response(job).dict()
+        )
 
         return APIResponse(
             success=True,
@@ -242,6 +284,13 @@ async def cancel_job(
         manager = _get_job_manager(project.path)
         job = manager.cancel_job(job_id)
 
+        # Broadcast job cancelled event
+        await broadcast_job_update(
+            job.job_id,
+            "job.cancelled",
+            _job_to_response(job).dict()
+        )
+
         return APIResponse(
             success=True,
             data=_job_to_response(job),
@@ -253,13 +302,14 @@ async def cancel_job(
         logger.error(f"Failed to cancel job: {e}", exc_info=True)
         raise
 
+
 @router.post("/{job_id}/tasks/{task_id}/complete")
 async def complete_task(
     job_id: str,
     task_id: str,
     project: ProjectRequired
 ) -> APIResponse[TaskResponse]:
-    """Mark a task as completed (for testing)."""
+    """Mark a task as completed"""
     try:
         manager = _get_job_manager(project.path)
 
@@ -271,7 +321,6 @@ async def complete_task(
             raise NotFoundError(message="Task not found", code=ErrorCode.DATASET_NOT_FOUND)
 
         # Mark as completed
-        from modelcub.services.annotation_job_manager import TaskStatus
         task.status = TaskStatus.COMPLETED
         task.completed_at = datetime.now()
         manager.store.save_task(task)
@@ -280,7 +329,31 @@ async def complete_task(
         job = manager.get_job(job_id)
         if job:
             job.completed_tasks += 1
+
+            # Check if job is complete
+            if job.completed_tasks + job.failed_tasks >= job.total_tasks:
+                job.status = JobStatus.COMPLETED
+                job.completed_at = datetime.now()
+
             manager.store.save_job(job)
+
+            # Broadcast task completed event
+            await broadcast_job_update(
+                job.job_id,
+                "task.completed",
+                {
+                    "task": _task_to_response(task).dict(),
+                    "job": _job_to_response(job).dict()
+                }
+            )
+
+            # If job completed, broadcast that too
+            if job.status == JobStatus.COMPLETED:
+                await broadcast_job_update(
+                    job.job_id,
+                    "job.completed",
+                    _job_to_response(job).dict()
+                )
 
         return APIResponse(
             success=True,
@@ -289,6 +362,62 @@ async def complete_task(
         )
     except Exception as e:
         logger.error(f"Failed to complete task: {e}", exc_info=True)
+        raise
+
+
+@router.post("/{job_id}/tasks/{task_id}/status")
+async def update_task_status(
+    job_id: str,
+    task_id: str,
+    status: str,
+    project: ProjectRequired
+) -> APIResponse[TaskResponse]:
+    """Update task status (pending, in_progress, completed, failed)"""
+    try:
+        manager = _get_job_manager(project.path)
+
+        # Get the task
+        tasks = manager.get_tasks(job_id)
+        task = next((t for t in tasks if t.task_id == task_id), None)
+
+        if not task:
+            raise NotFoundError(message="Task not found", code=ErrorCode.DATASET_NOT_FOUND)
+
+        # Update status
+        try:
+            new_status = TaskStatus(status)
+        except ValueError:
+            raise ValueError(f"Invalid status: {status}")
+
+        task.status = new_status
+
+        if new_status == TaskStatus.IN_PROGRESS and not task.started_at:
+            task.started_at = datetime.now()
+        elif new_status == TaskStatus.COMPLETED:
+            task.completed_at = datetime.now()
+
+        manager.store.save_task(task)
+
+        # Reload job for updated counts
+        job = manager.get_job(job_id)
+
+        # Broadcast task status update
+        await broadcast_job_update(
+            job.job_id,
+            "task.status_updated",
+            {
+                "task": _task_to_response(task).dict(),
+                "job": _job_to_response(job).dict() if job else None
+            }
+        )
+
+        return APIResponse(
+            success=True,
+            data=_task_to_response(task),
+            message=f"Task status updated to {status}"
+        )
+    except Exception as e:
+        logger.error(f"Failed to update task status: {e}", exc_info=True)
         raise
 
 

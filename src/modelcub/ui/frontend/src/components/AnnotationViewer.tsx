@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { X, ChevronLeft, ChevronRight, AlertCircle, Settings } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, AlertCircle, Settings, CheckCircle, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useJobWebSocket } from '@/hooks/useJobWebSocket';
 import type { Job, Task } from '@/lib/api/types';
 
 import './AnnotationViewer.css';
@@ -10,7 +11,6 @@ import ClassManagerModal from './ClassManagerModal';
 export const AnnotationView = () => {
     const { name: datasetName } = useParams<{ name: string }>();
     const [searchParams] = useSearchParams();
-    const projectPath = api.getProjectPath();
     const navigate = useNavigate();
 
     const jobId = searchParams.get('job_id');
@@ -21,13 +21,41 @@ export const AnnotationView = () => {
     const [error, setError] = useState<string | null>(null);
     const [classes, setClasses] = useState<string[]>([]);
     const [showClassManager, setShowClassManager] = useState(false);
+    const [isLoadingImage, setIsLoadingImage] = useState(true);
 
+    const projectPath = api.getProjectPath();
     const currentTask = allTasks[currentTaskIndex] || null;
     const imageUrl = currentTask
         ? `/api/v1/datasets/${datasetName}/image/${currentTask.image_path}?project_path=${encodeURIComponent(projectPath || '')}`
         : null;
 
-    // Load classes
+    // WebSocket subscriptions
+    useJobWebSocket(jobId, {
+        onTaskCompleted: (task, updatedJob) => {
+            console.log('Task completed via WebSocket');
+            setJob(updatedJob);
+            setAllTasks(prev => prev.map(t =>
+                t.task_id === task.task_id ? task : t
+            ));
+        },
+        onJobStarted: (updatedJob) => {
+            console.log('Job started via WebSocket');
+            setJob(updatedJob);
+        },
+        onJobPaused: (updatedJob) => {
+            console.log('Job paused via WebSocket');
+            setJob(updatedJob);
+        },
+        onJobCancelled: (updatedJob) => {
+            console.log('Job cancelled via WebSocket');
+            setJob(updatedJob);
+        },
+        onJobCompleted: (updatedJob) => {
+            console.log('Job completed via WebSocket');
+            setJob(updatedJob);
+        }
+    });
+
     const loadClasses = useCallback(async () => {
         if (!datasetName) return;
         try {
@@ -38,22 +66,28 @@ export const AnnotationView = () => {
         }
     }, [datasetName]);
 
-    // Load all tasks for navigation
     const loadAllTasks = useCallback(async () => {
         if (!jobId) return;
-
         try {
             const tasks = await api.getJobTasks(jobId);
             setAllTasks(tasks);
+
+            // Auto-select first incomplete task
+            if (currentTaskIndex === 0 && tasks.length > 0) {
+                const firstIncomplete = tasks.findIndex(t =>
+                    t.status === 'pending' || t.status === 'in_progress'
+                );
+                if (firstIncomplete >= 0) {
+                    setCurrentTaskIndex(firstIncomplete);
+                }
+            }
         } catch (err: any) {
             console.error('Failed to load tasks:', err);
         }
     }, [jobId]);
 
-    // Load job details
     const loadJob = useCallback(async () => {
         if (!jobId) return;
-
         try {
             const jobData = await api.getJob(jobId);
             setJob(jobData);
@@ -63,7 +97,29 @@ export const AnnotationView = () => {
         }
     }, [jobId]);
 
-    // Navigation
+    // Mark task as in_progress when viewing
+    useEffect(() => {
+        if (!currentTask || !jobId) return;
+
+        const markInProgress = async () => {
+            if (currentTask.status === 'pending') {
+                try {
+                    await api.updateTaskStatus(jobId, currentTask.task_id, 'in_progress');
+                    // Update local state
+                    setAllTasks(prev => prev.map(t =>
+                        t.task_id === currentTask.task_id
+                            ? { ...t, status: 'in_progress' as any }
+                            : t
+                    ));
+                } catch (err) {
+                    console.error('Failed to mark task as in_progress:', err);
+                }
+            }
+        };
+
+        markInProgress();
+    }, [currentTask?.task_id, jobId]);
+
     const goToNext = useCallback(() => {
         if (currentTaskIndex < allTasks.length - 1) {
             setCurrentTaskIndex(prev => prev + 1);
@@ -81,6 +137,17 @@ export const AnnotationView = () => {
     const handleExit = useCallback(() => {
         navigate(`/datasets/${datasetName}`);
     }, [datasetName, navigate]);
+
+    const handleCompleteTask = async () => {
+        if (!currentTask || !jobId) return;
+        try {
+            await api.completeTask(jobId, currentTask.task_id);
+            // WebSocket handles state updates
+            goToNext();
+        } catch (err: any) {
+            console.error('Failed to complete task:', err);
+        }
+    };
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -121,22 +188,17 @@ export const AnnotationView = () => {
         loadClasses();
     }, [jobId, loadJob, loadAllTasks, loadClasses]);
 
-
-    const handleCompleteTask = async () => {
-        if (!currentTask || !jobId) return;
-
-        try {
-            await api.completeTask(jobId, currentTask.task_id);
-
-            // Reload tasks and job
-            await loadAllTasks();
-            await loadJob();
-
-            // Auto-advance to next
-            goToNext();
-        } catch (err: any) {
-            console.error('Failed to complete task:', err);
+    // Handle image loading
+    useEffect(() => {
+        if (imageUrl) {
+            setIsLoadingImage(true);
         }
+    }, [imageUrl]);
+
+    const handleImageLoad = () => setIsLoadingImage(false);
+    const handleImageError = () => {
+        setIsLoadingImage(false);
+        console.error('Failed to load image');
     };
 
     if (!jobId || error) {
@@ -145,10 +207,7 @@ export const AnnotationView = () => {
                 <div className="annotation-error">
                     <AlertCircle size={24} />
                     <p>{error || 'No job ID provided'}</p>
-                    <button
-                        className="btn btn--secondary"
-                        onClick={() => navigate(`/datasets/${datasetName}`)}
-                    >
+                    <button className="btn btn--secondary" onClick={() => navigate(`/datasets/${datasetName}`)}>
                         Back to Dataset
                     </button>
                 </div>
@@ -156,35 +215,55 @@ export const AnnotationView = () => {
         );
     }
 
-    const progressPercent = job
+    const progressPercent = allTasks.length > 0
         ? Math.round(((currentTaskIndex + 1) / allTasks.length) * 100)
         : 0;
 
+    const completedCount = allTasks.filter(t => t.status === 'completed').length;
+
     return (
         <div className="annotation-view">
-            {/* Compact Header */}
+            {/* Header */}
             <div className="annotation-header-compact">
                 <div className="annotation-header-compact__left">
-                    <button
-                        className="btn btn--sm btn--ghost"
-                        onClick={handleExit}
-                        title="Exit (Esc)"
-                    >
+                    <button className="btn btn--sm btn--ghost" onClick={handleExit} title="Exit (Esc)">
                         <X size={18} />
                     </button>
                     <span className="annotation-title">Annotate: {datasetName}</span>
                 </div>
 
                 <div className="annotation-header-compact__center">
-                    <div className="progress-compact">
-                        <span className="progress-compact__text">
-                            {currentTaskIndex + 1} / {allTasks.length}
-                        </span>
-                        <div className="progress-compact__bar">
+                    <div className="progress-compact-enhanced">
+                        <div className="progress-header-info">
+                            <span className="progress-position">
+                                Image {currentTaskIndex + 1} of {allTasks.length}
+                            </span>
+                            <span className="progress-percentage">
+                                {Math.round((completedCount / allTasks.length) * 100)}% Complete
+                            </span>
+                        </div>
+                        <div className="progress-bar-header">
                             <div
-                                className="progress-compact__fill"
-                                style={{ width: `${progressPercent}%` }}
-                            />
+                                className="progress-fill-header"
+                                style={{ width: `${(completedCount / allTasks.length) * 100}%` }}
+                            >
+                                <div className="progress-shimmer-header"></div>
+                            </div>
+                            {/* Task indicators */}
+                            <div className="task-indicators">
+                                {allTasks.map((task, idx) => (
+                                    <div
+                                        key={task.task_id}
+                                        className={`task-indicator ${task.status === 'completed' ? 'completed' :
+                                            idx === currentTaskIndex ? 'current' : 'pending'
+                                            }`}
+                                        style={{
+                                            left: `${(idx / allTasks.length) * 100}%`,
+                                            width: `${100 / allTasks.length}%`
+                                        }}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -200,11 +279,7 @@ export const AnnotationView = () => {
                             <ChevronLeft size={18} />
                             Previous
                         </button>
-                        <button
-                            className="btn btn--sm btn--primary"
-                            onClick={goToNext}
-                            title="Next (→/D)"
-                        >
+                        <button className="btn btn--sm btn--primary" onClick={goToNext} title="Next (→/D)">
                             Next
                             <ChevronRight size={18} />
                         </button>
@@ -218,11 +293,39 @@ export const AnnotationView = () => {
                 <div className="annotation-canvas-full">
                     {currentTask && imageUrl ? (
                         <div className="annotation-canvas__wrapper">
+                            {/* Status Indicator */}
+                            <div className={`annotation-canvas__status-overlay status-${currentTask.status}`}>
+                                {currentTask.status === 'completed' && (
+                                    <>
+                                        <CheckCircle size={18} />
+                                        <span>COMPLETED</span>
+                                    </>
+                                )}
+                                {currentTask.status === 'pending' && (
+                                    <>
+                                        <AlertCircle size={18} />
+                                        <span>PENDING</span>
+                                    </>
+                                )}
+                                {currentTask.status === 'in_progress' && (
+                                    <>
+                                        <Clock size={18} />
+                                        <span>IN PROGRESS</span>
+                                    </>
+                                )}
+                            </div>
+
                             <img
                                 src={imageUrl}
                                 alt={currentTask.image_id}
                                 className="annotation-canvas__image"
+                                onLoad={handleImageLoad}
+                                onError={handleImageError}
+                                style={{ display: isLoadingImage ? 'none' : 'block' }}
                             />
+                            {isLoadingImage && (
+                                <div className="annotation-canvas__loading">Loading image...</div>
+                            )}
                             <div className="annotation-canvas__overlay">
                                 <p>Annotation tools will go here</p>
                                 <button
@@ -238,9 +341,7 @@ export const AnnotationView = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="annotation-canvas__loading">
-                            Loading image...
-                        </div>
+                        <div className="annotation-canvas__loading">Loading image...</div>
                     )}
                 </div>
 
@@ -254,21 +355,14 @@ export const AnnotationView = () => {
                                 className="btn btn--xs btn--secondary"
                                 onClick={() => setShowClassManager(true)}
                                 title="Manage classes"
-                                style={{
-                                    padding: '4px 8px',
-                                    fontSize: 'var(--font-size-xs)'
-                                }}
+                                style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)' }}
                             >
                                 <Settings size={12} />
                                 Edit
                             </button>
                         </div>
                         {classes.length > 0 ? (
-                            <div className="classes-list" style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: 'var(--spacing-xs)'
-                            }}>
+                            <div className="classes-list" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)' }}>
                                 {classes.map((className, idx) => (
                                     <span
                                         key={idx}
@@ -287,10 +381,7 @@ export const AnnotationView = () => {
                                 ))}
                             </div>
                         ) : (
-                            <p style={{
-                                fontSize: 'var(--font-size-sm)',
-                                color: 'var(--color-text-secondary)'
-                            }}>
+                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
                                 No classes defined. Click Edit to add.
                             </p>
                         )}
@@ -307,12 +398,14 @@ export const AnnotationView = () => {
                             <div className="info-item">
                                 <span className="label">Status</span>
                                 <span className={`value status-badge status-${currentTask?.status || 'pending'}`}>
-                                    {currentTask?.status || 'pending'}
+                                    {currentTask?.status?.replace('_', ' ').toUpperCase() || 'PENDING'}
                                 </span>
                             </div>
                             <div className="info-item">
                                 <span className="label">Path</span>
-                                <span className="value mono small">{currentTask?.image_path || '-'}</span>
+                                <span className="value mono small" title={currentTask?.image_path || '-'}>
+                                    {currentTask?.image_path || '-'}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -324,17 +417,21 @@ export const AnnotationView = () => {
                             <div className="info-grid">
                                 <div className="info-item">
                                     <span className="label">Job ID</span>
-                                    <span className="value mono small">{job.job_id}</span>
+                                    <span className="value mono small" title={job.job_id}>
+                                        {job.job_id}
+                                    </span>
                                 </div>
                                 <div className="info-item">
                                     <span className="label">Status</span>
                                     <span className={`value status-badge status-${job.status}`}>
-                                        {job.status}
+                                        {job.status.toUpperCase()}
                                     </span>
                                 </div>
                                 <div className="info-item">
                                     <span className="label">Progress</span>
-                                    <span className="value">{currentTaskIndex + 1} / {allTasks.length}</span>
+                                    <span className="value">
+                                        {completedCount} / {job.total_tasks} completed
+                                    </span>
                                 </div>
                                 {job.failed_tasks > 0 && (
                                     <div className="info-item">
@@ -377,7 +474,7 @@ export const AnnotationView = () => {
                     isOpen={true}
                     onClose={() => {
                         setShowClassManager(false);
-                        loadClasses(); // Refresh after edit
+                        loadClasses();
                     }}
                     datasetId={datasetName}
                     initialClasses={classes}

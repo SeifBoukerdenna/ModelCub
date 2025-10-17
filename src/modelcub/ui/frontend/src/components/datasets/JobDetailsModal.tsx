@@ -45,52 +45,46 @@ export const JobDetailsModal = ({ job, onClose }: JobDetailsModalProps) => {
         return `${seconds}s`;
     };
 
+    const progressPercentage = (job.completed_tasks / job.total_tasks) * 100;
+
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" style={{ maxWidth: '700px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal job-details-modal" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="modal__header">
-                    <h2 className="modal__title">Job Details</h2>
+                <div className="modal-header">
+                    <h2>Job Details</h2>
                     <button className="modal__close" onClick={onClose} aria-label="Close">
                         <X size={20} />
                     </button>
                 </div>
 
                 {/* Body */}
-                <div className="modal__body">
+                <div className="modal-body">
                     {/* Overview */}
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <label className="form-label">Overview</label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--spacing-md)' }}>
-                            <div>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 'var(--spacing-xs)' }}>
-                                    JOB ID
-                                </span>
-                                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+                    <div className="job-details-section">
+                        <h3>Overview</h3>
+                        <div className="details-grid">
+                            <div className="detail-item">
+                                <span className="label">Job ID</span>
+                                <span className="value" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--font-size-sm)' }}>
                                     {job.job_id}
                                 </span>
                             </div>
-                            <div>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 'var(--spacing-xs)' }}>
-                                    DATASET
-                                </span>
-                                <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+                            <div className="detail-item">
+                                <span className="label">Dataset</span>
+                                <span className="value" style={{ fontSize: 'var(--font-size-sm)' }}>
                                     {job.dataset_name}
                                 </span>
                             </div>
-                            <div>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 'var(--spacing-xs)' }}>
-                                    STATUS
-                                </span>
+                            <div className="detail-item">
+                                <span className="label">Status</span>
                                 <span className={`status-badge status-${job.status}`}>
                                     {job.status}
                                 </span>
                             </div>
-                            <div>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 'var(--spacing-xs)' }}>
-                                    DURATION
-                                </span>
-                                <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+                            <div className="detail-item">
+                                <span className="label">Duration</span>
+                                <span className="value" style={{ fontSize: 'var(--font-size-sm)' }}>
                                     {formatDuration(duration)}
                                 </span>
                             </div>
@@ -98,68 +92,74 @@ export const JobDetailsModal = ({ job, onClose }: JobDetailsModalProps) => {
                     </div>
 
                     {/* Progress */}
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <label className="form-label">Progress</label>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-md)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)' }}>
+                    <div className="job-details-section">
+                        <h3>Progress</h3>
+                        <div className="progress-stats">
+                            <div className="stat">
                                 <CheckCircle size={16} style={{ color: 'var(--color-success)' }} />
                                 <span>{completedTasks.length} Completed</span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)' }}>
+                            <div className="stat">
                                 <Clock size={16} style={{ color: 'var(--color-text-secondary)' }} />
-                                <span>{pendingTasks.length} Pending</span>
+                                <span>{pendingTasks.length} Pending (only counted loaded tasks)</span>
                             </div>
                             {failedTasks.length > 0 && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)' }}>
+                                <div className="stat">
                                     <XCircle size={16} style={{ color: 'var(--color-error)' }} />
                                     <span>{failedTasks.length} Failed</span>
                                 </div>
                             )}
                         </div>
-                        <div style={{ height: '16px', background: 'var(--color-background)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-full)', overflow: 'hidden', marginBottom: 'var(--spacing-sm)' }}>
-                            <div
-                                style={{
-                                    height: '100%',
-                                    background: 'var(--color-primary)',
-                                    width: `${(job.completed_tasks / job.total_tasks) * 100}%`,
-                                    transition: 'width 0.3s ease'
-                                }}
-                            />
-                        </div>
-                        <div style={{ textAlign: 'center', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
-                            {job.completed_tasks} / {job.total_tasks} tasks
-                            ({Math.round((job.completed_tasks / job.total_tasks) * 100)}%)
+
+                        {/* Enhanced Progress Bar */}
+                        <div className="enhanced-progress-container">
+                            <div className="progress-bar-enhanced">
+                                <div
+                                    className="progress-fill-enhanced"
+                                    style={{ width: `${progressPercentage}%` }}
+                                >
+                                    <div className="progress-shimmer"></div>
+                                    <div className="progress-glow"></div>
+                                </div>
+                                <div className="progress-overlay-text">
+                                    {job.completed_tasks} / {job.total_tasks} tasks ({Math.round(progressPercentage)}%)
+                                </div>
+                            </div>
+
+                            {/* Progress Indicator Dots */}
+                            <div className="progress-dots">
+                                {Array.from({ length: job.total_tasks }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className={`progress-dot ${i < job.completed_tasks ? 'completed' : ''}`}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     </div>
 
                     {/* Timestamps */}
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <label className="form-label">Timestamps</label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--spacing-md)' }}>
-                            <div>
-                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 'var(--spacing-xs)' }}>
-                                    CREATED
-                                </span>
-                                <span style={{ fontSize: 'var(--font-size-sm)' }}>
+                    <div className="job-details-section">
+                        <h3>Timestamps</h3>
+                        <div className="details-grid">
+                            <div className="detail-item">
+                                <span className="label">Created</span>
+                                <span className="value" style={{ fontSize: 'var(--font-size-sm)' }}>
                                     {new Date(job.created_at).toLocaleString()}
                                 </span>
                             </div>
                             {job.started_at && (
-                                <div>
-                                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 'var(--spacing-xs)' }}>
-                                        STARTED
-                                    </span>
-                                    <span style={{ fontSize: 'var(--font-size-sm)' }}>
+                                <div className="detail-item">
+                                    <span className="label">Started</span>
+                                    <span className="value" style={{ fontSize: 'var(--font-size-sm)' }}>
                                         {new Date(job.started_at).toLocaleString()}
                                     </span>
                                 </div>
                             )}
                             {job.completed_at && (
-                                <div>
-                                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 'var(--spacing-xs)' }}>
-                                        COMPLETED
-                                    </span>
-                                    <span style={{ fontSize: 'var(--font-size-sm)' }}>
+                                <div className="detail-item">
+                                    <span className="label">Completed</span>
+                                    <span className="value" style={{ fontSize: 'var(--font-size-sm)' }}>
                                         {new Date(job.completed_at).toLocaleString()}
                                     </span>
                                 </div>
@@ -168,37 +168,26 @@ export const JobDetailsModal = ({ job, onClose }: JobDetailsModalProps) => {
                     </div>
 
                     {/* Tasks */}
-                    <div>
-                        <label className="form-label">Tasks ({tasks.length})</label>
+                    <div className="job-details-section" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                        <h3>Tasks ({tasks.length})</h3>
                         {loading ? (
                             <p style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 'var(--spacing-lg)' }}>
                                 Loading tasks...
                             </p>
                         ) : (
-                            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-md)', background: 'var(--color-background)' }}>
+                            <div className="tasks-list">
                                 {tasks.slice(0, 20).map(task => (
-                                    <div
-                                        key={task.task_id}
-                                        style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: '24px 140px 1fr',
-                                            alignItems: 'center',
-                                            gap: 'var(--spacing-sm)',
-                                            padding: 'var(--spacing-sm) var(--spacing-md)',
-                                            borderBottom: '1px solid var(--color-border)',
-                                            fontSize: 'var(--font-size-sm)'
-                                        }}
-                                    >
+                                    <div key={task.task_id} className="task-item">
                                         <div>
                                             {task.status === 'completed' && <CheckCircle size={14} style={{ color: 'var(--color-success)' }} />}
                                             {task.status === 'failed' && <XCircle size={14} style={{ color: 'var(--color-error)' }} />}
                                             {task.status === 'pending' && <Clock size={14} style={{ color: 'var(--color-text-secondary)' }} />}
                                             {task.status === 'in_progress' && <AlertCircle size={14} style={{ color: 'var(--color-warning)' }} />}
                                         </div>
-                                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
+                                        <span className="task-name">
                                             {task.image_id}
                                         </span>
-                                        <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        <span className="task-path">
                                             {task.image_path}
                                         </span>
                                     </div>
