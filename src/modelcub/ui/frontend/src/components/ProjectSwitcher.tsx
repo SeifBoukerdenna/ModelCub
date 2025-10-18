@@ -48,7 +48,7 @@ const ProjectSwitcher: React.FC = () => {
         setSelectedProject(project.path)
         setIsOpen(false)
         toast.success(`Switched to project: ${project.name}`)
-        window.location.href = '/projects'
+        // window.location.href = '/projects'
     }
 
 
