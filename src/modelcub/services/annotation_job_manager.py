@@ -366,6 +366,10 @@ class AnnotationJobManager:
         self._monitor_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
 
+    """
+Replace the create_job method in annotation_job_manager.py (around line 443-491)
+"""
+
     def create_job(
         self,
         dataset_name: str,
@@ -394,11 +398,11 @@ class AnnotationJobManager:
             project_path=self.project_path
         )
 
-        code, result = get_annotation(req)
-        if code != 0:
-            raise ValueError(f"Failed to get dataset images: {result}")
+        result = get_annotation(req)
+        if not result.success:
+            raise ValueError(f"Failed to get dataset images: {result.message}")
 
-        data = json.loads(result)
+        data = result.data
         all_images = data.get("images", [])
 
         # Filter images if specified
@@ -433,6 +437,7 @@ class AnnotationJobManager:
             self.store.save_task(task)
 
         return job
+
 
     def start_job(self, job_id: str) -> AnnotationJob:
         """Start or resume a job"""

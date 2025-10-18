@@ -77,10 +77,10 @@ class Project:
             force=force
         )
 
-        code, msg = init_project(req)
+        result = init_project(req)
 
-        if code != 0:
-            raise RuntimeError(f"Failed to initialize project: {msg}")
+        if not result.success:
+            raise RuntimeError(f"Failed to initialize project: {result.message}")
 
         return cls(target_path)
 
@@ -298,24 +298,24 @@ class Project:
             yes=True
         )
 
-        code, msg = delete_project(req)
+        result = delete_project(req)
 
-        if code != 0:
-            raise RuntimeError(f"Failed to delete project: {msg}")
+        if not result.success:
+            raise RuntimeError(f"Failed to delete project: {result.message}")
 
     # ========== Dataset Operations ==========
 
     def import_dataset(
-    self,
-    source: str | Path,
-    name: Optional[str] = None,
-    classes: Optional[List[str]] = None,
-    recursive: bool = False,
-    copy: bool = True,
-    validate: bool = True,
-    force: bool = False,
-    delete_existent: bool = False
-) -> Dataset:
+        self,
+        source: str | Path,
+        name: Optional[str] = None,
+        classes: Optional[List[str]] = None,
+        recursive: bool = False,
+        copy: bool = True,
+        validate: bool = True,
+        force: bool = False,
+        delete_existent: bool = False
+    ) -> Dataset:
         """
         Import images as a dataset into this project.
 

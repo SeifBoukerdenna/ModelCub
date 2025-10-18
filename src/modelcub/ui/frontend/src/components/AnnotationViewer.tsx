@@ -215,10 +215,6 @@ export const AnnotationView = () => {
         );
     }
 
-    const progressPercent = allTasks.length > 0
-        ? Math.round(((currentTaskIndex + 1) / allTasks.length) * 100)
-        : 0;
-
     const completedCount = allTasks.filter(t => t.status === 'completed').length;
 
     return (

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 import shutil
+import json
 
 from ..core.registries import DatasetRegistry
 from ..core.paths import project_root
@@ -404,48 +405,79 @@ class Dataset:
         if not self._data:
             raise ValueError(f"Dataset no longer exists: {self.name}")
 
-    # ========== Annoation Operations ===========
+    # ========== Annotation Operations ===========
 
     def get_annotation(self, image_id: str) -> Dict[str, Any]:
+        """
+        Get annotations for a specific image.
+
+        Args:
+            image_id: Image identifier
+
+        Returns:
+            Annotation data dictionary
+
+        Raises:
+            ValueError: If annotation retrieval fails
+        """
         from ..services.annotation_service import get_annotation, GetAnnotationRequest
-        import json
 
         req = GetAnnotationRequest(
             dataset_name=self.name,
             image_id=image_id,
-            project_path=self._project_path  # This was missing
+            project_path=self._project_path
         )
 
-        code, result = get_annotation(req)
+        result = get_annotation(req)
 
-        if code != 0:
-            raise ValueError(f"Failed to get annotation: {result}")
+        if not result.success:
+            raise ValueError(f"Failed to get annotation: {result.message}")
 
-        return json.loads(result)
+        return result.data if result.data else {}
 
     def get_annotations(self) -> List[Dict[str, Any]]:
+        """
+        Get all annotations for this dataset.
+
+        Returns:
+            List of annotation dictionaries
+
+        Raises:
+            ValueError: If annotation retrieval fails
+        """
         from ..services.annotation_service import get_annotation, GetAnnotationRequest
-        import json
 
         req = GetAnnotationRequest(
             dataset_name=self.name,
             image_id=None,
-            project_path=self._project_path  # Add this
+            project_path=self._project_path
         )
 
-        code, result = get_annotation(req)
+        result = get_annotation(req)
 
-        if code != 0:
-            raise ValueError(f"Failed to get annotations: {result}")
+        if not result.success:
+            raise ValueError(f"Failed to get annotations: {result.message}")
 
-        data = json.loads(result)
+        data = result.data if result.data else {}
         return data.get("images", [])
 
     def save_annotation(self, image_id: str, boxes: List[Box]) -> Dict[str, Any]:
+        """
+        Save annotations for an image.
+
+        Args:
+            image_id: Image identifier
+            boxes: List of bounding boxes
+
+        Returns:
+            Result dictionary
+
+        Raises:
+            ValueError: If save fails
+        """
         from ..services.annotation_service import (
             save_annotation, SaveAnnotationRequest, BoundingBox
         )
-        import json
 
         bbox_list = [
             BoundingBox(
@@ -462,19 +494,31 @@ class Dataset:
             dataset_name=self.name,
             image_id=image_id,
             boxes=bbox_list,
-            project_path=self._project_path  # Add this line
+            project_path=self._project_path
         )
 
-        code, result = save_annotation(req)
+        result = save_annotation(req)
 
-        if code != 0:
-            raise ValueError(f"Failed to save annotation: {result}")
+        if not result.success:
+            raise ValueError(f"Failed to save annotation: {result.message}")
 
-        return json.loads(result)
+        return result.data if result.data else {}
 
     def delete_box(self, image_id: str, box_index: int) -> Dict[str, Any]:
+        """
+        Delete a specific bounding box from an image.
+
+        Args:
+            image_id: Image identifier
+            box_index: Index of box to delete
+
+        Returns:
+            Result dictionary
+
+        Raises:
+            ValueError: If deletion fails
+        """
         from ..services.annotation_service import delete_annotation, DeleteAnnotationRequest
-        import json
 
         req = DeleteAnnotationRequest(
             dataset_name=self.name,
@@ -483,23 +527,31 @@ class Dataset:
             project_path=self._project_path
         )
 
-        code, result = delete_annotation(req)
+        result = delete_annotation(req)
 
-        if code != 0:
-            raise ValueError(f"Failed to delete box: {result}")
+        if not result.success:
+            raise ValueError(f"Failed to delete box: {result.message}")
 
-        return json.loads(result)
+        return result.data if result.data else {}
 
     def annotation_stats(self) -> Dict[str, Any]:
+        """
+        Get annotation statistics for this dataset.
+
+        Returns:
+            Statistics dictionary
+
+        Raises:
+            ValueError: If stats retrieval fails
+        """
         from ..services.annotation_service import get_annotation_stats
-        import json
 
-        code, result = get_annotation_stats(self.name, self._project_path)
+        result = get_annotation_stats(self.name, self._project_path)
 
-        if code != 0:
-            raise ValueError(f"Failed to get stats: {result}")
+        if not result.success:
+            raise ValueError(f"Failed to get stats: {result.message}")
 
-        return json.loads(result)
+        return result.data if result.data else {}
 
 
     # ========== String Representations ==========
