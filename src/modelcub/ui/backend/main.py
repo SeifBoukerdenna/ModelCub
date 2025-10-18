@@ -13,6 +13,16 @@ from .middleware import APIResponseMiddleware, ErrorHandlerMiddleware, ProjectCo
 from ..shared.api.config import APIConfig, Endpoints
 from ..shared.api.schemas import APIResponse
 
+from ...core.logging_config import setup_logging
+
+
+setup_logging()
+
+# Configure uvicorn logger
+logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+logging.getLogger("uvicorn.error").setLevel(logging.INFO)
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,

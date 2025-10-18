@@ -13,9 +13,10 @@ def dataset():
 def list():
     """List all datasets in the project."""
     from modelcub.services.dataset_service import list_datasets
-    code, msg = list_datasets()
-    click.echo(msg)
-    raise SystemExit(code)
+
+    result = list_datasets()
+    click.echo(result.message)
+    raise SystemExit(0 if result.success else result.code)
 
 
 @dataset.command()
@@ -23,9 +24,10 @@ def list():
 def info(name: str):
     """Show detailed information about a dataset."""
     from modelcub.services.dataset_service import info_dataset
-    code, msg = info_dataset(name)
-    click.echo(msg)
-    raise SystemExit(code)
+
+    result = info_dataset(name)
+    click.echo(result.message)
+    raise SystemExit(0 if result.success else result.code)
 
 
 @dataset.command()
@@ -52,9 +54,10 @@ def add(name: str, source: str, classes: str, n: int, train_frac: float,
         seed=seed,
         force=force
     )
-    code, msg = add_dataset(req)
-    click.echo(msg)
-    raise SystemExit(code)
+
+    result = add_dataset(req)
+    click.echo(result.message)
+    raise SystemExit(0 if result.success else result.code)
 
 
 @dataset.command(name='import')
@@ -75,7 +78,6 @@ def import_(source: str, name: str, classes: str, symlink: bool,
 
     source_path = Path(source).resolve()
 
-    # Parse classes if provided
     classes_list = None
     if classes:
         classes_list = [c.strip() for c in classes.split(",") if c.strip()]
@@ -157,12 +159,11 @@ def edit(name: str, new_name: str, classes: str):
         click.echo("❌ Provide at least one option: --new-name or --classes")
         raise SystemExit(2)
 
-    # For now, only classes editing is implemented
     if classes:
         req = EditDatasetRequest(name=name, classes=classes)
-        code, msg = edit_dataset(req)
-        click.echo(msg)
-        raise SystemExit(code)
+        result = edit_dataset(req)
+        click.echo(result.message)
+        raise SystemExit(0 if result.success else result.code)
 
     if new_name:
         click.echo("⚠️  Dataset renaming not yet implemented")
@@ -177,14 +178,10 @@ def delete(name: str, yes: bool, purge_cache: bool):
     """Delete a dataset."""
     from modelcub.services.dataset_service import delete_dataset, DeleteDatasetRequest
 
-    req = DeleteDatasetRequest(
-        name=name,
-        yes=yes,
-        purge_cache=purge_cache
-    )
-    code, msg = delete_dataset(req)
-    click.echo(msg)
-    raise SystemExit(code)
+    req = DeleteDatasetRequest(name=name, yes=yes, purge_cache=purge_cache)
+    result = delete_dataset(req)
+    click.echo(result.message)
+    raise SystemExit(0 if result.success else result.code)
 
 
 # ============ dataset classes subcommands ============
@@ -265,10 +262,7 @@ def classes_remove(dataset: str, class_name: str, yes: bool):
                 click.echo(f"❌ Class not found: {class_name}")
                 raise SystemExit(2)
 
-            confirm = click.confirm(
-                f"Remove '{class_name}' from {dataset}?",
-                default=False
-            )
+            confirm = click.confirm(f"Remove '{class_name}' from {dataset}?", default=False)
             if not confirm:
                 click.echo("❌ Cancelled")
                 raise SystemExit(1)

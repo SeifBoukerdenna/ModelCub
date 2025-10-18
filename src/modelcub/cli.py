@@ -1,7 +1,6 @@
-"""
-ModelCub CLI - Main entry point.
-"""
+"""ModelCub CLI with logging support."""
 import click
+import os
 from modelcub.commands import project, dataset, annotation, job, ui_cmd
 
 
@@ -12,7 +11,6 @@ def cli():
     pass
 
 
-# Register command groups
 cli.add_command(project.project)
 cli.add_command(dataset.dataset)
 cli.add_command(annotation.annotate)
@@ -21,7 +19,12 @@ cli.add_command(ui_cmd.ui)
 
 
 def main():
-    """Entry point for the CLI."""
+    """Entry point with logging setup."""
+    # Setup logging before anything else
+    from modelcub.core.logging_config import setup_logging
+    log_level = os.environ.get("MODELCUB_LOG_LEVEL")
+    setup_logging(force_level=log_level)
+
     try:
         cli()
     except KeyboardInterrupt:

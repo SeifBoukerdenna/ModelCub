@@ -37,18 +37,44 @@ class PathsConfig:
 
 
 @dataclass
+class LoggingConfig:
+    """Logging configuration."""
+    level: str = "INFO"
+    format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    handlers: dict = None
+
+    def __post_init__(self):
+        if self.handlers is None:
+            self.handlers = {
+                "console": {"enabled": True, "level": "INFO"},
+                "file": {
+                    "enabled": True,
+                    "level": "DEBUG",
+                    "path": ".modelcub/logs/modelcub.log",
+                    "max_bytes": 10485760,
+                    "backup_count": 5
+                }
+            }
+
+@dataclass
 class Config:
     """Complete ModelCub project configuration."""
     project: ProjectConfig
     defaults: DefaultsConfig
     paths: PathsConfig
+    logging: LoggingConfig = None
+
+    def __post_init__(self):
+        if self.logging is None:
+            self.logging = LoggingConfig()
 
     def to_dict(self) -> dict:
         """Convert to dictionary for YAML serialization."""
         return {
             "project": asdict(self.project),
             "defaults": asdict(self.defaults),
-            "paths": asdict(self.paths)
+            "paths": asdict(self.paths),
+            "logging": asdict(self.logging)
         }
 
     @classmethod
@@ -163,17 +189,7 @@ def save_config(project_root: Path, config: Config) -> None:
 
 
 def create_default_config(name: str) -> Config:
-    """
-    Create default configuration with auto-detected device.
-
-    Args:
-        name: Project name
-
-    Returns:
-        Config: Default configuration with detected device
-    """
     from .hardware import detect_device
-
     device = detect_device()
 
     return Config(
@@ -182,12 +198,7 @@ def create_default_config(name: str) -> Config:
             created=datetime.utcnow().isoformat() + "Z",
             version="1.0.0"
         ),
-        defaults=DefaultsConfig(
-            device=device,  # Auto-detected!
-            batch_size=16,
-            image_size=640,
-            workers=8,
-            format="yolo"
-        ),
-        paths=PathsConfig()
+        defaults=DefaultsConfig(device=device, batch_size=16, image_size=640, workers=8, format="yolo"),
+        paths=PathsConfig(),
+        logging=LoggingConfig()
     )

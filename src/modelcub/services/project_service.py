@@ -1,8 +1,4 @@
-"""
-Project service with Timeline architecture.
-
-Creates the full .modelcub/ structure as specified in timeline.md
-"""
+"""Project service with logging and timing."""
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,6 +6,8 @@ from pathlib import Path
 from ..core.io import delete_tree
 from ..core.config import Config, create_default_config, save_config, load_config
 from ..core.registries import initialize_registries
+from ..core.service_result import ServiceResult
+from ..core.service_logging import log_service_call
 from ..events import ProjectInitialized, ProjectDeleted, bus
 
 
@@ -57,6 +55,7 @@ def _create_directory_structure(root: Path, config: Config) -> None:
     (modelcub_dir / "history" / "snapshots").mkdir(parents=True, exist_ok=True)
     (modelcub_dir / "cache").mkdir(parents=True, exist_ok=True)
     (modelcub_dir / "backups").mkdir(parents=True, exist_ok=True)
+    (modelcub_dir / "logs").mkdir(parents=True, exist_ok=True)
 
 
 def _write_project_files(root: Path, name: str, config: Config, force: bool) -> None:
@@ -107,10 +106,9 @@ def _is_repository(root: Path) -> bool:
     return len(repo_markers) >= 2
 
 
-def init_project(req: InitProjectRequest) -> tuple[int, str]:
-    """
-    Initialize a new ModelCub project with full timeline architecture.
-    """
+@log_service_call("init_project")
+def init_project(req: InitProjectRequest) -> ServiceResult[str]:
+    """Initialize a new ModelCub project."""
     root = Path(req.path).resolve()
     root.mkdir(parents=True, exist_ok=True)
 
@@ -119,7 +117,8 @@ def init_project(req: InitProjectRequest) -> tuple[int, str]:
     if not req.force and _looks_like_project(root):
         config = load_config(root)
         if config:
-            return 1, f"Project already initialized: {name}\nUse --force to reinitialize."
+            msg = f"Project already initialized: {name}\nUse --force to reinitialize."
+            return ServiceResult.error(msg, code=1)
 
     config = create_default_config(name)
 
@@ -151,27 +150,28 @@ def init_project(req: InitProjectRequest) -> tuple[int, str]:
 Project root: {root}
 """
 
-    return 0, msg
+    return ServiceResult.ok(data=str(root), message=msg)
 
 
-def delete_project(req: DeleteProjectRequest) -> tuple[int, str]:
-    """
-    Delete a ModelCub project directory.
-    """
+@log_service_call("delete_project")
+def delete_project(req: DeleteProjectRequest) -> ServiceResult[str]:
+    """Delete a ModelCub project directory."""
     root = _resolve_delete_target(req.target)
 
     if not _looks_like_project(root):
-        return 2, f"❌ Not a ModelCub project: {root}\n   (No .modelcub/ or modelcub.yaml found)"
+        msg = f"❌ Not a ModelCub project: {root}\n   (No .modelcub/ or modelcub.yaml found)"
+        return ServiceResult.error(msg, code=2)
 
     if not req.yes:
-        return 2, (
+        msg = (
             f"⚠️  Refusing to delete without confirmation.\n"
             f"   Target: {root}\n"
             f"   Use --yes flag to confirm deletion."
         )
+        return ServiceResult.error(msg, code=2)
 
     if _is_repository(root):
-        return 2, (
+        msg = (
             f"🚨 SAFETY: Refusing to delete {root}\n\n"
             f"   This appears to be a source repository!\n"
             f"   Detected: .git, pyproject.toml, or similar files\n\n"
@@ -180,9 +180,10 @@ def delete_project(req: DeleteProjectRequest) -> tuple[int, str]:
             f"   2. Run: modelcub project delete <path> --yes\n\n"
             f"   Or delete manually: rm -rf {root}"
         )
+        return ServiceResult.error(msg, code=2)
 
     delete_tree(root)
 
     bus.publish(ProjectDeleted(path=str(root)))
 
-    return 0, f"✅ Deleted project directory: {root}"
+    return ServiceResult.ok(data=str(root), message=f"✅ Deleted project directory: {root}")

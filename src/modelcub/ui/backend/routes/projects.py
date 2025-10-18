@@ -1,14 +1,12 @@
-"""Project management API routes."""
+"""Project routes with proper meta."""
 from typing import List
 import logging
-
 from fastapi import APIRouter
-
 from .projects_operations import ProjectOperations
 from ..dependencies import WorkingDir
 from ...shared.api.config import Endpoints
 from ...shared.api.schemas import (
-    APIResponse,
+    APIResponse, ResponseMeta,
     Project as ProjectSchema,
     ProjectConfigFull,
     CreateProjectRequest,
@@ -16,64 +14,68 @@ from ...shared.api.schemas import (
     DeleteProjectRequest as DeleteProjectBody
 )
 from ...shared.api.errors import NotFoundError, ProjectError, ErrorCode, BadRequestError
+from ....services.project_service import (
+    init_project, delete_project,
+    InitProjectRequest, DeleteProjectRequest
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix=Endpoints.PROJECTS, tags=["Projects"])
 
-
 @router.get("")
 async def list_projects(working_dir: WorkingDir) -> APIResponse[List[ProjectSchema]]:
-    """List all projects in working directory."""
     logger.info(f"Listing projects in: {working_dir}")
     projects = ProjectOperations.list_projects(working_dir)
     return APIResponse(
         success=True,
         data=projects,
-        message=f"Found {len(projects)} project(s)"
+        message=f"Found {len(projects)} project(s)",
+        meta=ResponseMeta()  # Always include
     )
-
 
 @router.post("")
 async def create_project(
     request: CreateProjectRequest,
     working_dir: WorkingDir
 ) -> APIResponse[ProjectSchema]:
-    """Create a new project."""
-    try:
-        logger.info(f"Creating project: {request.name}")
-        schema = ProjectOperations.create_project(
-            working_dir,
-            request.name,
-            request.path,
-            request.force
-        )
-        return APIResponse(
-            success=True,
-            data=schema,
-            message=f"Project '{request.name}' created successfully"
-        )
-    except ValueError as e:
-        raise BadRequestError(message=str(e), code=ErrorCode.PROJECT_INVALID)
-    except RuntimeError as e:
-        raise ProjectError(message=str(e), code=ErrorCode.PROJECT_CREATE_FAILED)
-    except Exception as e:
-        logger.error(f"Failed to create project: {e}", exc_info=True)
+    logger.info(f"Creating project: {request.name}")
+
+    service_req = InitProjectRequest(
+        path=str(request.path or (working_dir / request.name)),
+        name=request.name,
+        force=request.force
+    )
+
+    result = init_project(service_req)
+
+    if not result.success:
         raise ProjectError(
-            message=f"Failed to create project: {str(e)}",
-            code=ErrorCode.PROJECT_CREATE_FAILED
+            message=result.message,
+            code=ErrorCode.PROJECT_CREATE_FAILED,
+            details=result.metadata
         )
 
+    from modelcub.sdk import Project
+    project = Project.load(result.data)
+    from .project_utils import project_to_schema
+
+    return APIResponse(
+        success=True,
+        data=project_to_schema(project),
+        message=result.message,
+        meta=ResponseMeta(duration_ms=result.duration_ms)  # Include duration
+    )
 
 @router.get("/by-path")
 async def get_project_by_path(path: str) -> APIResponse[ProjectSchema]:
-    """Get project by path."""
     try:
         logger.info(f"Getting project at: {path}")
         schema = ProjectOperations.load_project(path)
         return APIResponse(
             success=True,
             data=schema,
-            message=f"Project '{schema.name}' loaded successfully"
+            message=f"Project '{schema.name}' loaded successfully",
+            meta=ResponseMeta()
         )
     except ValueError as e:
         raise NotFoundError(message=str(e), code=ErrorCode.PROJECT_NOT_FOUND)
@@ -84,86 +86,59 @@ async def get_project_by_path(path: str) -> APIResponse[ProjectSchema]:
             code=ErrorCode.PROJECT_INVALID
         )
 
+@router.delete("")
+async def delete_project_route(
+    body: DeleteProjectBody,
+    working_dir: WorkingDir
+) -> APIResponse[str]:
+    logger.info(f"Deleting project: {body.path}")
+    service_req = DeleteProjectRequest(target=body.path, yes=body.confirm)
+    result = delete_project(service_req)
+
+    if not result.success:
+        raise ProjectError(
+            message=result.message,
+            code=ErrorCode.PROJECT_DELETE_FAILED,
+            details=result.metadata
+        )
+
+    return APIResponse(
+        success=True,
+        data=result.data,
+        message=result.message,
+        meta=ResponseMeta(duration_ms=result.duration_ms)
+    )
 
 @router.get("/config")
 async def get_project_config(path: str) -> APIResponse[ProjectConfigFull]:
-    """Get project configuration."""
     try:
-        logger.info(f"Getting config for project at: {path}")
-        config_schema = ProjectOperations.get_config(path)
+        schema = ProjectOperations.get_config(path)
         return APIResponse(
             success=True,
-            data=config_schema,
-            message="Configuration loaded successfully"
+            data=schema,
+            message="Configuration loaded successfully",
+            meta=ResponseMeta()
         )
-    except ValueError as e:
-        raise NotFoundError(message=str(e), code=ErrorCode.PROJECT_NOT_FOUND)
     except Exception as e:
         logger.error(f"Failed to get config: {e}", exc_info=True)
         raise ProjectError(
-            message=f"Failed to load configuration: {str(e)}",
+            message=f"Failed to load config: {str(e)}",
             code=ErrorCode.PROJECT_INVALID
         )
-
 
 @router.post("/config")
-async def set_project_config(
-    path: str,
-    request: SetConfigRequest
-) -> APIResponse[ProjectConfigFull]:
-    """
-    Update project configuration.
-
-    Frontend sends a single key/value (dot-path), e.g.:
-      { "key": "defaults.batch_size", "value": 32 }
-
-    We support this shape while keeping the old explicit-field logic available
-    through ProjectOperations.update_config (not removed).
-    """
+async def set_project_config(path: str, request: SetConfigRequest) -> APIResponse[ProjectConfigFull]:
     try:
-        logger.info(f"Updating config for project at: {path} | {request.key}={request.value!r}")
-        updated = ProjectOperations.update_config_by_key(path, request.key, request.value)
+        schema = ProjectOperations.set_config(path, request)
         return APIResponse(
             success=True,
-            data=updated,
-            message="Configuration updated successfully"
+            data=schema,
+            message="Configuration updated successfully",
+            meta=ResponseMeta()
         )
-    except BadRequestError:
-        # Raised when key is unsupported or value type is invalid
-        raise
-    except ValueError as e:
-        raise NotFoundError(message=str(e), code=ErrorCode.PROJECT_NOT_FOUND)
     except Exception as e:
-        logger.error(f"Failed to update config: {e}", exc_info=True)
+        logger.error(f"Failed to set config: {e}", exc_info=True)
         raise ProjectError(
-            message=f"Failed to update configuration: {str(e)}",
+            message=f"Failed to update config: {str(e)}",
             code=ErrorCode.PROJECT_INVALID
-        )
-
-
-@router.delete("/delete")
-async def delete_project(
-    path: str,
-    body: DeleteProjectBody
-) -> APIResponse[None]:
-    """Delete a project."""
-    try:
-        logger.info(f"Deleting project at: {path}")
-        project_name = ProjectOperations.delete_project(path, body.confirm)
-        return APIResponse(
-            success=True,
-            data=None,
-            message=f"Project '{project_name}' deleted successfully"
-        )
-    except ValueError as e:
-        if "confirm" in str(e).lower():
-            raise BadRequestError(message=str(e), code=ErrorCode.PROJECT_INVALID)
-        raise NotFoundError(message=str(e), code=ErrorCode.PROJECT_NOT_FOUND)
-    except RuntimeError as e:
-        raise ProjectError(message=str(e), code=ErrorCode.PROJECT_DELETE_FAILED)
-    except Exception as e:
-        logger.error(f"Failed to delete project: {e}", exc_info=True)
-        raise ProjectError(
-            message=f"Failed to delete project: {str(e)}",
-            code=ErrorCode.PROJECT_DELETE_FAILED
         )

@@ -148,9 +148,9 @@ class ModelCubAPI {
   }
 
   async deleteProject(path: string, confirm: boolean = false): Promise<void> {
-    return this.request(`/projects/delete?path=${encodeURIComponent(path)}`, {
+    return this.request<void>("/projects", {
       method: "DELETE",
-      body: JSON.stringify({ confirm }),
+      body: JSON.stringify({ path, confirm }),
     });
   }
 

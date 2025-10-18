@@ -5,7 +5,7 @@ from modelcub.services.project_service import (
     init_project, delete_project,
     InitProjectRequest, DeleteProjectRequest
 )
-from modelcub.core.config import load_config
+from modelcub.core.config import load_config, save_config
 from modelcub.core.paths import project_root
 
 
@@ -26,7 +26,6 @@ def list_projects(path: str):
 
     click.echo(f"🔍 Searching for projects in {search_path}...")
 
-    # Find all .modelcub directories
     for item in search_path.rglob(".modelcub"):
         if item.is_dir():
             project_path = item.parent
@@ -56,14 +55,11 @@ def list_projects(path: str):
 @click.option('--force', '-f', is_flag=True, help='Overwrite existing project')
 def init(path: str, name: str, force: bool):
     """Initialize a new ModelCub project."""
-    req = InitProjectRequest(
-        path=path,
-        name=name,
-        force=force
-    )
-    code, msg = init_project(req)
-    click.echo(msg)
-    raise SystemExit(code)
+    req = InitProjectRequest(path=path, name=name, force=force)
+    result = init_project(req)
+
+    click.echo(result.message)
+    raise SystemExit(0 if result.success else result.code)
 
 
 @project.command()
@@ -71,13 +67,11 @@ def init(path: str, name: str, force: bool):
 @click.option('--yes', '-y', is_flag=True, help='Confirm deletion without prompting')
 def delete(target: str, yes: bool):
     """Delete a ModelCub project directory."""
-    req = DeleteProjectRequest(
-        target=target,
-        yes=yes
-    )
-    code, msg = delete_project(req)
-    click.echo(msg)
-    raise SystemExit(code)
+    req = DeleteProjectRequest(target=target, yes=yes)
+    result = delete_project(req)
+
+    click.echo(result.message)
+    raise SystemExit(0 if result.success else result.code)
 
 
 @project.group()
@@ -143,7 +137,6 @@ def config_set(key: str, value: str):
         parts = key.split(".")
         target = cfg
 
-        # Navigate to parent
         for part in parts[:-1]:
             if hasattr(target, part):
                 target = getattr(target, part)
@@ -151,13 +144,11 @@ def config_set(key: str, value: str):
                 click.echo(f"❌ Config key not found: {key}")
                 raise SystemExit(2)
 
-        # Set value on parent
         attr_name = parts[-1]
         if not hasattr(target, attr_name):
             click.echo(f"❌ Config key not found: {key}")
             raise SystemExit(2)
 
-        # Type conversion
         current = getattr(target, attr_name)
         if isinstance(current, bool):
             typed_value = value.lower() in ('true', '1', 'yes', 'on')
@@ -169,9 +160,6 @@ def config_set(key: str, value: str):
             typed_value = value
 
         setattr(target, attr_name, typed_value)
-
-        # Save config
-        from modelcub.core.config import save_config
         save_config(root, cfg)
 
         click.echo(f"✅ Set {key} = {typed_value}")
