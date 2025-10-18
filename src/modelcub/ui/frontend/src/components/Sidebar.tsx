@@ -117,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                         <Github size={18} />
                     </a>
                     <a
-                        href="https://docs.modelcub.ai"
+                        href="https://docs.modelcub.com"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="sidebar__link"
