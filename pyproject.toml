@@ -10,7 +10,9 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [{name = "Seif Boukerdenna"}]
-dependencies = []
+dependencies = [
+    "click>=8.1.0",
+]
 
 [project.scripts]
 modelcub = "modelcub.cli:main"
