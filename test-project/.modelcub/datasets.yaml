@@ -1,0 +1,18 @@
+datasets:
+  2f0bebe9:
+    id: 2f0bebe9
+    name: fruits
+    created: '2025-10-19T16:34:03.971921Z'
+    status: unlabeled
+    num_images: 44
+    images:
+      total: 44
+      unlabeled: 44
+    classes:
+    - a
+    - b
+    - c
+    - d
+    path: data/datasets/fruits
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_6gbe36tq
+    num_classes: 4

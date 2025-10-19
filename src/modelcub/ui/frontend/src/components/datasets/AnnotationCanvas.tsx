@@ -27,6 +27,7 @@ export const AnnotationCanvas = ({
     datasetName,
     classes,
     currentClassId,
+    onClassChange,
 }: AnnotationCanvasProps) => {
     const [showLabels, setShowLabels] = useState(true);
 
@@ -83,8 +84,14 @@ export const AnnotationCanvas = ({
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in input/textarea
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                return;
+            }
+
             // Delete selected box
-            if (e.key === 'Delete' && selectedBoxId) {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBoxId) {
                 e.preventDefault();
                 deleteBox(selectedBoxId);
             }
@@ -114,11 +121,12 @@ export const AnnotationCanvas = ({
 
             // Number keys for class selection
             if (e.key >= '1' && e.key <= '9') {
+                e.preventDefault();
                 const classIndex = parseInt(e.key) - 1;
-                if (classIndex < classes.length) {
-                    if (classes[classIndex]) {
-                        setCurrentClassId(classes[classIndex].id);
-                    }
+                if (classIndex < classes.length && classes[classIndex]) {
+                    const newClassId = classes[classIndex].id;
+                    setCurrentClassId(newClassId);
+                    onClassChange(newClassId);
                 }
             }
 
@@ -141,6 +149,7 @@ export const AnnotationCanvas = ({
         setDrawMode,
         classes,
         setCurrentClassId,
+        onClassChange,
         manualSave,
     ]);
 
@@ -170,19 +179,19 @@ export const AnnotationCanvas = ({
                     )}
                     {currentTask.status === 'pending' && (
                         <>
-                            <AlertCircle size={18} />
-                            <span>PENDING</span>
-                        </>
-                    )}
-                    {currentTask.status === 'in_progress' && (
-                        <>
                             <Clock size={18} />
                             <span>IN PROGRESS</span>
                         </>
                     )}
+                    {currentTask.status === 'failed' && (
+                        <>
+                            <AlertCircle size={18} />
+                            <span>FAILED</span>
+                        </>
+                    )}
                 </div>
 
-                {/* Konva Canvas */}
+                {/* Canvas */}
                 {!isLoading && (
                     <KonvaAnnotationCanvas
                         imageUrl={imageUrl}
