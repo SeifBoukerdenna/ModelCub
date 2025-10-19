@@ -1,11 +1,14 @@
 import { Settings } from 'lucide-react';
 import type { Job, Task } from '@/lib/api/types';
+import { getClassColor } from '@/lib/canvas/coordinates';
 
 interface AnnotationSidebarProps {
     classes: Array<{ id: number; name: string }>;
     currentTask: Task | null;
     job: Job | null;
     completedCount: number;
+    currentClassId: number;
+    onClassSelect: (classId: number) => void;
     onManageClasses: () => void;
 }
 
@@ -14,11 +17,13 @@ export const AnnotationSidebar = ({
     currentTask,
     job,
     completedCount,
+    currentClassId,
+    onClassSelect,
     onManageClasses,
 }: AnnotationSidebarProps) => {
     return (
         <div className="annotation-sidebar-compact">
-            {/* Classes */}
+            {/* Class Selector */}
             <div className="sidebar-section">
                 <div style={{
                     display: 'flex',
@@ -26,7 +31,7 @@ export const AnnotationSidebar = ({
                     alignItems: 'center',
                     marginBottom: 'var(--spacing-sm)'
                 }}>
-                    <h3>Classes ({classes.length})</h3>
+                    <h3>Select Class ({classes.length})</h3>
                     <button
                         className="btn btn--xs btn--secondary"
                         onClick={onManageClasses}
@@ -38,27 +43,84 @@ export const AnnotationSidebar = ({
                     </button>
                 </div>
                 {classes.length > 0 ? (
-                    <div className="classes-list" style={{
+                    <div style={{
                         display: 'flex',
-                        flexWrap: 'wrap',
+                        flexDirection: 'column',
                         gap: 'var(--spacing-xs)'
                     }}>
-                        {classes.map((cls) => (
-                            <span
-                                key={cls.id}
-                                className="class-tag"
-                                style={{
-                                    padding: '4px 8px',
-                                    background: 'var(--color-primary-alpha)',
-                                    border: '1px solid var(--color-primary)',
-                                    borderRadius: 'var(--border-radius-sm)',
-                                    fontSize: 'var(--font-size-xs)',
-                                    fontWeight: 500
-                                }}
-                            >
-                                {cls.name}
-                            </span>
-                        ))}
+                        {classes.map((cls, index) => {
+                            const shortcutKey = index + 1;
+                            const showShortcut = shortcutKey <= 9;
+                            const color = getClassColor(cls.id);
+
+                            return (
+                                <label
+                                    key={cls.id}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 'var(--spacing-sm)',
+                                        padding: 'var(--spacing-sm)',
+                                        background: currentClassId === cls.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                        border: `2px solid ${currentClassId === cls.id ? color : 'var(--color-border)'}`,
+                                        borderRadius: 'var(--border-radius-sm)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                    }}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="class-selector"
+                                        checked={currentClassId === cls.id}
+                                        onChange={() => onClassSelect(cls.id)}
+                                        style={{ cursor: 'pointer' }}
+                                    />
+                                    {/* Color indicator */}
+                                    <div style={{
+                                        width: '16px',
+                                        height: '16px',
+                                        borderRadius: '3px',
+                                        background: color,
+                                        flexShrink: 0,
+                                    }} />
+                                    <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        minWidth: '24px',
+                                        height: '24px',
+                                        background: 'var(--color-surface)',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: 'var(--border-radius-sm)',
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
+                                        flexShrink: 0,
+                                    }}>
+                                        {cls.id}
+                                    </span>
+                                    <span style={{
+                                        flex: 1,
+                                        fontSize: 'var(--font-size-sm)',
+                                        fontWeight: currentClassId === cls.id ? 600 : 400,
+                                    }}>
+                                        {cls.name}
+                                    </span>
+                                    {showShortcut && (
+                                        <kbd style={{
+                                            padding: '2px 6px',
+                                            background: 'var(--color-surface)',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '3px',
+                                            fontSize: '11px',
+                                            fontFamily: 'monospace',
+                                            color: 'var(--color-text-secondary)',
+                                        }}>
+                                            {shortcutKey}
+                                        </kbd>
+                                    )}
+                                </label>
+                            );
+                        })}
                     </div>
                 ) : (
                     <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
@@ -128,6 +190,22 @@ export const AnnotationSidebar = ({
                 <h3>Keyboard Shortcuts</h3>
                 <div className="shortcuts-list">
                     <div className="shortcut-item">
+                        <kbd>1-9</kbd>
+                        <span>Select class</span>
+                    </div>
+                    <div className="shortcut-item">
+                        <kbd>R</kbd>
+                        <span>Draw tool</span>
+                    </div>
+                    <div className="shortcut-item">
+                        <kbd>E</kbd>
+                        <span>Edit tool</span>
+                    </div>
+                    <div className="shortcut-item">
+                        <kbd>Del</kbd>
+                        <span>Delete selected box</span>
+                    </div>
+                    <div className="shortcut-item">
                         <div>
                             <kbd>→</kbd> <kbd>D</kbd>
                         </div>
@@ -145,9 +223,15 @@ export const AnnotationSidebar = ({
                     </div>
                     <div className="shortcut-item">
                         <div>
-                            <kbd>Ctrl</kbd>+<kbd>S</kbd>
+                            <kbd>Ctrl</kbd>+<kbd>Z</kbd>
                         </div>
-                        <span>Save (auto-save enabled)</span>
+                        <span>Undo</span>
+                    </div>
+                    <div className="shortcut-item">
+                        <div>
+                            <kbd>Ctrl</kbd>+<kbd>Y</kbd>
+                        </div>
+                        <span>Redo</span>
                     </div>
                 </div>
             </div>

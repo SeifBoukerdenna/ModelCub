@@ -1,11 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import type { Task } from '@/lib/api/types';
 import { useAnnotationState } from '@/hooks/useAnnotationState';
 import { useBoxOperations } from '@/hooks/useBoxOperations';
 import { api } from '@/lib/api';
 import { KonvaAnnotationCanvas } from '../canvas/KonvaAnnotationCanvas';
-
 
 interface AnnotationCanvasProps {
     currentTask: Task | null;
@@ -16,23 +15,25 @@ interface AnnotationCanvasProps {
     onComplete: () => void;
     datasetName: string | undefined;
     classes: Array<{ id: number; name: string }>;
+    currentClassId: number;
+    onClassChange: (classId: number) => void;
 }
 
 export const AnnotationCanvas = ({
     currentTask,
     imageUrl,
     isLoading,
-    onImageLoad,
-    onImageError,
     onComplete,
     datasetName,
     classes,
+    currentClassId,
 }: AnnotationCanvasProps) => {
+    const [showLabels, setShowLabels] = useState(true);
+
     const {
         boxes,
         selectedBoxId,
         drawMode,
-        currentClassId,
         isDirty,
         canUndo,
         canRedo,
@@ -46,7 +47,12 @@ export const AnnotationCanvas = ({
         redo,
         markClean,
         setBoxes,
-    } = useAnnotationState([], 0);
+    } = useAnnotationState([], currentClassId);
+
+    // Sync current class ID from parent
+    useEffect(() => {
+        setCurrentClassId(currentClassId);
+    }, [currentClassId, setCurrentClassId]);
 
     // Load existing annotations when task changes
     useEffect(() => {
@@ -148,7 +154,12 @@ export const AnnotationCanvas = ({
 
     return (
         <div className="annotation-canvas-full">
-            <div className="annotation-canvas__wrapper" style={{ width: '100%', height: '100%' }}>
+            <div className="annotation-canvas__wrapper" style={{
+                width: '100%',
+                height: '100%',
+                position: 'relative',
+                overflow: 'hidden'
+            }}>
                 {/* Status Indicator */}
                 <div className={`annotation-canvas__status-overlay status-${currentTask.status}`}>
                     {currentTask.status === 'completed' && (
@@ -179,6 +190,7 @@ export const AnnotationCanvas = ({
                         selectedBoxId={selectedBoxId}
                         currentClassId={currentClassId}
                         drawMode={drawMode}
+                        showLabels={showLabels}
                         onBoxAdd={addBox}
                         onBoxUpdate={updateBox}
                         onBoxSelect={selectBox}
@@ -215,6 +227,15 @@ export const AnnotationCanvas = ({
                     >
                         ✏️ Edit
                     </button>
+                    {selectedBoxId && (
+                        <button
+                            className="btn btn--sm btn--danger"
+                            onClick={() => deleteBox(selectedBoxId)}
+                            title="Delete Selected (Del)"
+                        >
+                            🗑️ Delete
+                        </button>
+                    )}
                     <button
                         className="btn btn--sm btn--secondary"
                         onClick={undo}
@@ -230,6 +251,14 @@ export const AnnotationCanvas = ({
                         title="Redo (Ctrl+Y)"
                     >
                         ↷
+                    </button>
+                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.3)', margin: '0 4px' }} />
+                    <button
+                        className={`btn btn--sm ${showLabels ? 'btn--primary' : 'btn--secondary'}`}
+                        onClick={() => setShowLabels(!showLabels)}
+                        title="Toggle Labels"
+                    >
+                        🏷️ Labels
                     </button>
                 </div>
 

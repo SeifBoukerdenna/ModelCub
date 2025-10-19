@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect, Transformer } from 'react-konva';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { Stage, Layer, Image as KonvaImage, Rect, Transformer, Text } from 'react-konva';
 import useImage from 'use-image';
 import Konva from 'konva';
 import {
@@ -18,6 +18,7 @@ interface KonvaAnnotationCanvasProps {
     selectedBoxId: string | null;
     currentClassId: number;
     drawMode: 'draw' | 'edit' | 'view';
+    showLabels: boolean;
     onBoxAdd: (box: { class_id: number; x: number; y: number; w: number; h: number }) => void;
     onBoxUpdate: (id: string, updates: Partial<AnnotationBox>) => void;
     onBoxSelect: (id: string | null) => void;
@@ -30,6 +31,7 @@ export const KonvaAnnotationCanvas = ({
     selectedBoxId,
     currentClassId,
     drawMode,
+    showLabels,
     onBoxAdd,
     onBoxUpdate,
     onBoxSelect,
@@ -63,12 +65,33 @@ export const KonvaAnnotationCanvas = ({
         return () => window.removeEventListener('resize', updateSize);
     }, []);
 
-    // Set image dimensions
+    // Calculate scaled image dimensions to fit canvas
     useEffect(() => {
-        if (image) {
-            setImageDimensions({ width: image.width, height: image.height });
+        if (image && containerRef.current) {
+            const containerWidth = containerRef.current.offsetWidth;
+            const containerHeight = containerRef.current.offsetHeight;
+
+            const imageAspect = image.width / image.height;
+            const containerAspect = containerWidth / containerHeight;
+
+            let displayWidth, displayHeight;
+
+            if (imageAspect > containerAspect) {
+                // Image is wider - fit to width
+                displayWidth = containerWidth * 0.95;
+                displayHeight = displayWidth / imageAspect;
+            } else {
+                // Image is taller - fit to height
+                displayHeight = containerHeight * 0.95;
+                displayWidth = displayHeight * imageAspect;
+            }
+
+            setImageDimensions({
+                width: displayWidth,
+                height: displayHeight
+            });
         }
-    }, [image]);
+    }, [image, canvasSize]);
 
     // Handle transformer attachment
     useEffect(() => {
@@ -244,39 +267,56 @@ export const KonvaAnnotationCanvas = ({
                         const screenBox = yoloToScreen(box, imageDimensions);
                         const isSelected = box.id === selectedBoxId;
                         const color = getClassColor(box.class_id);
+                        const className = classes.find(c => c.id === box.class_id)?.name || `Class ${box.class_id}`;
 
                         return (
-                            <Rect
-                                key={box.id}
-                                id={box.id}
-                                x={screenBox.x}
-                                y={screenBox.y}
-                                width={screenBox.width}
-                                height={screenBox.height}
-                                stroke={color}
-                                strokeWidth={isSelected ? 3 : 2}
-                                fill="transparent"
-                                draggable={drawMode === 'edit' && isSelected}
-                                onClick={() => handleBoxClick(box.id)}
-                                onTransformEnd={(e) => {
-                                    const node = e.target as Konva.Rect;
-                                    handleTransformEnd(box.id, node);
-                                }}
-                                onDragEnd={(e) => {
-                                    if (!imageDimensions) return;
-                                    const node = e.target as Konva.Rect;
-                                    const screenBox: ScreenBox = {
-                                        x: node.x(),
-                                        y: node.y(),
-                                        width: node.width(),
-                                        height: node.height(),
-                                        class_id: box.class_id,
-                                    };
-                                    const clampedBox = clampBoxToImage(screenBox, imageDimensions);
-                                    const yoloBox = screenToYolo(clampedBox, imageDimensions);
-                                    onBoxUpdate(box.id, yoloBox);
-                                }}
-                            />
+                            <React.Fragment key={box.id}>
+                                <Rect
+                                    id={box.id}
+                                    x={screenBox.x}
+                                    y={screenBox.y}
+                                    width={screenBox.width}
+                                    height={screenBox.height}
+                                    stroke={color}
+                                    strokeWidth={isSelected ? 3 : 2}
+                                    fill="transparent"
+                                    draggable={drawMode === 'edit' && isSelected}
+                                    onClick={() => handleBoxClick(box.id)}
+                                    onTransformEnd={(e) => {
+                                        const node = e.target as Konva.Rect;
+                                        handleTransformEnd(box.id, node);
+                                    }}
+                                    onDragEnd={(e) => {
+                                        if (!imageDimensions) return;
+                                        const node = e.target as Konva.Rect;
+                                        const screenBox: ScreenBox = {
+                                            x: node.x(),
+                                            y: node.y(),
+                                            width: node.width(),
+                                            height: node.height(),
+                                            class_id: box.class_id,
+                                        };
+                                        const clampedBox = clampBoxToImage(screenBox, imageDimensions);
+                                        const yoloBox = screenToYolo(clampedBox, imageDimensions);
+                                        onBoxUpdate(box.id, yoloBox);
+                                    }}
+                                />
+                                {showLabels && (
+                                    <Text
+                                        x={screenBox.x}
+                                        y={screenBox.y - 20}
+                                        text={className}
+                                        fontSize={14}
+                                        fontFamily="sans-serif"
+                                        fill={color}
+                                        padding={4}
+                                        background={color}
+                                        shadowColor="black"
+                                        shadowBlur={4}
+                                        shadowOpacity={0.8}
+                                    />
+                                )}
+                            </React.Fragment>
                         );
                     })}
 

@@ -25,6 +25,7 @@ export const AnnotationView = () => {
     const jobId = searchParams.get('job_id');
 
     const [showClassManager, setShowClassManager] = useState(false);
+    const [currentClassId, setCurrentClassId] = useState(0);
 
     // Load job and tasks
     const {
@@ -143,6 +144,8 @@ export const AnnotationView = () => {
                     onComplete={handleCompleteTask}
                     datasetName={datasetName}
                     classes={classes}
+                    currentClassId={currentClassId}
+                    onClassChange={setCurrentClassId}
                 />
 
                 {/* Sidebar */}
@@ -151,6 +154,8 @@ export const AnnotationView = () => {
                     job={job}
                     classes={classes}
                     completedCount={completedCount}
+                    currentClassId={currentClassId}
+                    onClassSelect={setCurrentClassId}
                     onManageClasses={() => setShowClassManager(true)}
                 />
             </div>

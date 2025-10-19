@@ -1,7 +1,7 @@
 /**
  * React hook for subscribing to job-related WebSocket events
  */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { wsManager } from "@/lib/websocket";
 import type { Job, Task } from "@/lib/api/types";
 
@@ -20,44 +20,52 @@ export const useJobWebSocket = (
   jobId: string | null,
   callbacks: JobWebSocketCallbacks
 ) => {
+  // Use refs to avoid recreating handlers on every render
+  const callbacksRef = useRef(callbacks);
+
+  // Update ref when callbacks change
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  }, [callbacks]);
+
   useEffect(() => {
     if (!jobId) return;
 
-    // Ensure WebSocket is connected
+    // Ensure WebSocket is connected (only once per manager instance)
     wsManager.connect();
 
     const handleTaskCompleted = (data: any) => {
       if (data.job_id === jobId && data.data?.task && data.data?.job) {
         console.log("[WS] Task completed:", data.data.task.task_id);
-        callbacks.onTaskCompleted?.(data.data.task, data.data.job);
+        callbacksRef.current.onTaskCompleted?.(data.data.task, data.data.job);
       }
     };
 
     const handleJobStarted = (data: any) => {
       if (data.job_id === jobId && data.data) {
         console.log("[WS] Job started");
-        callbacks.onJobStarted?.(data.data);
+        callbacksRef.current.onJobStarted?.(data.data);
       }
     };
 
     const handleJobPaused = (data: any) => {
       if (data.job_id === jobId && data.data) {
         console.log("[WS] Job paused");
-        callbacks.onJobPaused?.(data.data);
+        callbacksRef.current.onJobPaused?.(data.data);
       }
     };
 
     const handleJobCancelled = (data: any) => {
       if (data.job_id === jobId && data.data) {
         console.log("[WS] Job cancelled");
-        callbacks.onJobCancelled?.(data.data);
+        callbacksRef.current.onJobCancelled?.(data.data);
       }
     };
 
     const handleJobCompleted = (data: any) => {
       if (data.job_id === jobId && data.data) {
         console.log("[WS] Job completed");
-        callbacks.onJobCompleted?.(data.data);
+        callbacksRef.current.onJobCompleted?.(data.data);
       }
     };
 
@@ -76,5 +84,5 @@ export const useJobWebSocket = (
       wsManager.off("job.cancelled", handleJobCancelled);
       wsManager.off("job.completed", handleJobCompleted);
     };
-  }, [jobId, callbacks]);
+  }, [jobId]); // Only re-run when jobId changes
 };

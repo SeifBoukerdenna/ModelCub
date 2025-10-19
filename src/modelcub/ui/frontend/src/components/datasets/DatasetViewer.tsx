@@ -45,7 +45,7 @@ const DatasetViewer = () => {
     } = useDatasetJobs(dataset?.name);
 
     // Job actions
-    const { startAnnotation, continueJob, pauseJob, resumeJob } = useJobActions(
+    const { startAnnotation, continueJob, resumeJob } = useJobActions(
         dataset?.name,
         reloadJobs
     );
@@ -99,7 +99,6 @@ const DatasetViewer = () => {
                 loading={jobsLoading}
                 onStartAnnotation={startAnnotation}
                 onContinueJob={continueJob}
-                onPauseJob={pauseJob}
                 onResumeJob={resumeJob}
                 onRefresh={reloadJobs}
                 onJobClick={setSelectedJob}
