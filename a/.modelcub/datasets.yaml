@@ -1,0 +1,18 @@
+datasets:
+  b3621058:
+    id: b3621058
+    name: asda
+    created: '2025-10-18T17:29:38.499263Z'
+    status: unlabeled
+    num_images: 3
+    images:
+      total: 3
+      unlabeled: 3
+    classes:
+    - a
+    - d
+    - '2'
+    - '3'
+    path: data/datasets/asda
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_54916656
+    num_classes: 4
