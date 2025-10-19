@@ -5,6 +5,8 @@
 import { useState, useCallback } from "react";
 import type { LoadingState, Project } from "@/types";
 import {
+  Annotation,
+  Box,
   CreateJobRequest,
   CreateProjectRequest,
   Dataset,
@@ -446,6 +448,45 @@ class ModelCubAPI {
 
   async listModels(): Promise<any[]> {
     return this.request("/models");
+  }
+
+  // ==================== ANNOTATION METHODS ====================
+
+  async getAnnotation(
+    datasetName: string,
+    imageId: string
+  ): Promise<Annotation> {
+    return this.request<Annotation>(
+      `/datasets/${datasetName}/annotations/${imageId}`
+    );
+  }
+
+  async saveAnnotation(
+    datasetName: string,
+    imageId: string,
+    boxes: Box[]
+  ): Promise<{ image_id: string; num_boxes: number; label_path: string }> {
+    return this.request(`/datasets/${datasetName}/annotations/${imageId}`, {
+      method: "POST",
+      body: JSON.stringify({ boxes }),
+    });
+  }
+
+  async deleteBox(
+    datasetName: string,
+    imageId: string,
+    boxIndex: number
+  ): Promise<{
+    image_id: string;
+    deleted_index: number;
+    remaining_boxes: number;
+  }> {
+    return this.request(
+      `/datasets/${datasetName}/annotations/${imageId}/boxes/${boxIndex}`,
+      {
+        method: "DELETE",
+      }
+    );
   }
 }
 

@@ -202,3 +202,19 @@ export interface CreateJobRequest {
   auto_start?: boolean;
   config?: Record<string, any>;
 }
+
+export interface Box {
+  class_id: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Annotation {
+  image_id: string;
+  image_path: string;
+  split: string;
+  boxes: Box[];
+  num_boxes: number;
+}
