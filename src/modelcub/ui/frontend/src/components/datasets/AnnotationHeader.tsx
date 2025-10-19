@@ -6,6 +6,7 @@ interface AnnotationHeaderProps {
     currentIndex: number;
     totalTasks: number;
     completedCount: number;
+    jobId: string;
     tasks: Task[];
     canGoPrevious: boolean;
     canGoNext: boolean;
@@ -19,6 +20,7 @@ export const AnnotationHeader = ({
     currentIndex,
     totalTasks,
     completedCount,
+    jobId,
     tasks,
     canGoPrevious,
     canGoNext,

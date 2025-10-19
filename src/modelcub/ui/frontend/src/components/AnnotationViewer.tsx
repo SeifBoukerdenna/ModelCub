@@ -82,6 +82,7 @@ export const AnnotationView = () => {
         onPrevious: goToPrevious,
         onExit: () => navigate(`/datasets/${datasetName}`),
         onSave: () => console.log('Save triggered'),
+        onComplete: handleCompleteTask,
     });
 
     // Error state
@@ -117,10 +118,11 @@ export const AnnotationView = () => {
         <div className="annotation-view">
             {/* Header */}
             <AnnotationHeader
-                datasetName={datasetName || 'Unknown'}
+                datasetName={datasetName || ''}
                 currentIndex={currentIndex}
                 totalTasks={tasks.length}
                 completedCount={completedCount}
+                jobId={jobId || ''}
                 tasks={tasks}
                 canGoPrevious={canGoPrevious}
                 canGoNext={canGoNext}
@@ -139,28 +141,27 @@ export const AnnotationView = () => {
                     onImageLoad={handleImageLoad}
                     onImageError={handleImageError}
                     onComplete={handleCompleteTask}
+                    datasetName={datasetName}
+                    classes={classes}
                 />
 
                 {/* Sidebar */}
                 <AnnotationSidebar
-                    classes={classes}
                     currentTask={currentTask}
                     job={job}
+                    classes={classes}
                     completedCount={completedCount}
                     onManageClasses={() => setShowClassManager(true)}
                 />
             </div>
 
             {/* Class Manager Modal */}
-            {showClassManager && datasetName && (
+            {showClassManager && (
                 <ClassManagerModal
-                    isOpen={true}
-                    onClose={() => {
-                        setShowClassManager(false);
-                        reloadClasses();
-                    }}
-                    datasetId={datasetName}
-                    initialClasses={classes}
+                    isOpen={showClassManager}
+                    onClose={() => setShowClassManager(false)}
+                    datasetId={datasetName || ''}
+                    initialClasses={classes.map(c => c.name)}
                     onUpdate={reloadClasses}
                 />
             )}

@@ -1,5 +1,11 @@
+import { useEffect } from 'react';
 import { CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import type { Task } from '@/lib/api/types';
+import { useAnnotationState } from '@/hooks/useAnnotationState';
+import { useBoxOperations } from '@/hooks/useBoxOperations';
+import { api } from '@/lib/api';
+import { KonvaAnnotationCanvas } from '../canvas/KonvaAnnotationCanvas';
+
 
 interface AnnotationCanvasProps {
     currentTask: Task | null;
@@ -8,6 +14,8 @@ interface AnnotationCanvasProps {
     onImageLoad: () => void;
     onImageError: () => void;
     onComplete: () => void;
+    datasetName: string | undefined;
+    classes: Array<{ id: number; name: string }>;
 }
 
 export const AnnotationCanvas = ({
@@ -17,7 +25,119 @@ export const AnnotationCanvas = ({
     onImageLoad,
     onImageError,
     onComplete,
+    datasetName,
+    classes,
 }: AnnotationCanvasProps) => {
+    const {
+        boxes,
+        selectedBoxId,
+        drawMode,
+        currentClassId,
+        isDirty,
+        canUndo,
+        canRedo,
+        addBox,
+        updateBox,
+        deleteBox,
+        selectBox,
+        setDrawMode,
+        setCurrentClassId,
+        undo,
+        redo,
+        markClean,
+        setBoxes,
+    } = useAnnotationState([], 0);
+
+    // Load existing annotations when task changes
+    useEffect(() => {
+        if (!currentTask || !datasetName) return;
+
+        const loadAnnotations = async () => {
+            try {
+                const annotation = await api.getAnnotation(datasetName, currentTask.image_id);
+                setBoxes(annotation.boxes);
+            } catch (error) {
+                console.error('Failed to load annotations:', error);
+                setBoxes([]);
+            }
+        };
+
+        loadAnnotations();
+    }, [currentTask?.image_id, datasetName, setBoxes]);
+
+    // Auto-save
+    const { manualSave } = useBoxOperations({
+        datasetName,
+        imageId: currentTask?.image_id,
+        boxes,
+        isDirty,
+        onSaveComplete: markClean,
+    });
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Delete selected box
+            if (e.key === 'Delete' && selectedBoxId) {
+                e.preventDefault();
+                deleteBox(selectedBoxId);
+            }
+
+            // Undo/Redo
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z' && !e.shiftKey && canUndo) {
+                    e.preventDefault();
+                    undo();
+                } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+                    if (canRedo) {
+                        e.preventDefault();
+                        redo();
+                    }
+                }
+            }
+
+            // Tool shortcuts
+            if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                setDrawMode('draw');
+            }
+            if (e.key === 'e' || e.key === 'E') {
+                e.preventDefault();
+                setDrawMode('edit');
+            }
+
+            // Number keys for class selection
+            if (e.key >= '1' && e.key <= '9') {
+                const classIndex = parseInt(e.key) - 1;
+                if (classIndex < classes.length) {
+                    if (classes[classIndex]) {
+                        setCurrentClassId(classes[classIndex].id);
+                    }
+                }
+            }
+
+            // Manual save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                manualSave();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [
+        selectedBoxId,
+        deleteBox,
+        canUndo,
+        canRedo,
+        undo,
+        redo,
+        setDrawMode,
+        classes,
+        setCurrentClassId,
+        manualSave,
+    ]);
+
     if (!currentTask || !imageUrl) {
         return (
             <div className="annotation-canvas-full">
@@ -28,7 +148,7 @@ export const AnnotationCanvas = ({
 
     return (
         <div className="annotation-canvas-full">
-            <div className="annotation-canvas__wrapper">
+            <div className="annotation-canvas__wrapper" style={{ width: '100%', height: '100%' }}>
                 {/* Status Indicator */}
                 <div className={`annotation-canvas__status-overlay status-${currentTask.status}`}>
                     {currentTask.status === 'completed' && (
@@ -51,33 +171,95 @@ export const AnnotationCanvas = ({
                     )}
                 </div>
 
-                {/* Image Display */}
-                <img
-                    src={imageUrl}
-                    alt={currentTask.image_id}
-                    className="annotation-canvas__image"
-                    onLoad={onImageLoad}
-                    onError={onImageError}
-                    style={{ display: isLoading ? 'none' : 'block' }}
-                />
+                {/* Konva Canvas */}
+                {!isLoading && (
+                    <KonvaAnnotationCanvas
+                        imageUrl={imageUrl}
+                        boxes={boxes}
+                        selectedBoxId={selectedBoxId}
+                        currentClassId={currentClassId}
+                        drawMode={drawMode}
+                        onBoxAdd={addBox}
+                        onBoxUpdate={updateBox}
+                        onBoxSelect={selectBox}
+                        classes={classes}
+                    />
+                )}
 
                 {isLoading && (
                     <div className="annotation-canvas__loading">Loading image...</div>
                 )}
 
-                {/* Overlay - Placeholder for Canvas Tools */}
-                <div className="annotation-canvas__overlay">
-                    <p>🎨 Canvas annotation tools will be implemented here</p>
+                {/* Tool Toolbar */}
+                <div style={{
+                    position: 'absolute',
+                    top: '20px',
+                    left: '20px',
+                    display: 'flex',
+                    gap: '8px',
+                    background: 'rgba(0,0,0,0.7)',
+                    padding: '8px',
+                    borderRadius: '8px',
+                }}>
+                    <button
+                        className={`btn btn--sm ${drawMode === 'draw' ? 'btn--primary' : 'btn--secondary'}`}
+                        onClick={() => setDrawMode('draw')}
+                        title="Rectangle Tool (R)"
+                    >
+                        🔲 Draw
+                    </button>
+                    <button
+                        className={`btn btn--sm ${drawMode === 'edit' ? 'btn--primary' : 'btn--secondary'}`}
+                        onClick={() => setDrawMode('edit')}
+                        title="Edit Tool (E)"
+                    >
+                        ✏️ Edit
+                    </button>
+                    <button
+                        className="btn btn--sm btn--secondary"
+                        onClick={undo}
+                        disabled={!canUndo}
+                        title="Undo (Ctrl+Z)"
+                    >
+                        ↶
+                    </button>
+                    <button
+                        className="btn btn--sm btn--secondary"
+                        onClick={redo}
+                        disabled={!canRedo}
+                        title="Redo (Ctrl+Y)"
+                    >
+                        ↷
+                    </button>
+                </div>
+
+                {/* Complete Button */}
+                <div style={{
+                    position: 'absolute',
+                    bottom: '20px',
+                    right: '20px',
+                }}>
                     <button
                         className="btn btn--primary"
                         onClick={onComplete}
-                        style={{ marginTop: 'var(--spacing-md)' }}
                     >
-                        ✓ Complete Task (Test)
+                        ✓ Complete Task (Space)
                     </button>
-                    <p className="annotation-canvas__overlay-hint">
-                        Use ← → or A/D to navigate • ESC to exit
-                    </p>
+                </div>
+
+                {/* Info Display */}
+                <div style={{
+                    position: 'absolute',
+                    bottom: '20px',
+                    left: '20px',
+                    background: 'rgba(0,0,0,0.7)',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '12px',
+                }}>
+                    <div>Boxes: {boxes.length}</div>
+                    {isDirty && <div style={{ color: '#ffa500' }}>● Saving...</div>}
                 </div>
             </div>
         </div>

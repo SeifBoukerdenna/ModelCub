@@ -2,7 +2,7 @@ import { Settings } from 'lucide-react';
 import type { Job, Task } from '@/lib/api/types';
 
 interface AnnotationSidebarProps {
-    classes: string[];
+    classes: Array<{ id: number; name: string }>;
     currentTask: Task | null;
     job: Job | null;
     completedCount: number;
@@ -43,9 +43,9 @@ export const AnnotationSidebar = ({
                         flexWrap: 'wrap',
                         gap: 'var(--spacing-xs)'
                     }}>
-                        {classes.map((className, idx) => (
+                        {classes.map((cls) => (
                             <span
-                                key={idx}
+                                key={cls.id}
                                 className="class-tag"
                                 style={{
                                     padding: '4px 8px',
@@ -56,7 +56,7 @@ export const AnnotationSidebar = ({
                                     fontWeight: 500
                                 }}
                             >
-                                {className}
+                                {cls.name}
                             </span>
                         ))}
                     </div>

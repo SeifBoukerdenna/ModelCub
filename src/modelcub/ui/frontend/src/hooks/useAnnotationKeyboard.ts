@@ -7,6 +7,7 @@ interface KeyboardHandlers {
   onSave?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
+  onComplete?: () => void;
 }
 
 export const useAnnotationKeyboard = (handlers: KeyboardHandlers) => {
@@ -37,6 +38,11 @@ export const useAnnotationKeyboard = (handlers: KeyboardHandlers) => {
         case "Escape":
           e.preventDefault();
           handlers.onExit();
+          break;
+
+        case " ":
+          e.preventDefault();
+          handlers.onComplete?.();
           break;
 
         case "s":
