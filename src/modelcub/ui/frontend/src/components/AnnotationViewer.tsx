@@ -17,8 +17,11 @@ import './AnnotationViewer.css';
 import { AnnotationHeader } from './datasets/AnnotationHeader';
 import { AnnotationSidebar } from './datasets/AnnotationSidebar';
 import { AnnotationCanvas } from './datasets/AnnotationCanvas';
+import { useApiSync } from '@/hooks/useApiSync';
+import AnnotationExitModal from './AnnotationExitModal';
 
 export const AnnotationView = () => {
+    useApiSync();
     const { name: datasetName } = useParams<{ name: string }>();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -26,6 +29,8 @@ export const AnnotationView = () => {
 
     const [showClassManager, setShowClassManager] = useState(false);
     const [currentClassId, setCurrentClassId] = useState(0);
+
+    const [showExitModal, setExitModal] = useState(false);
 
     // Load job and tasks
     const {
@@ -81,7 +86,11 @@ export const AnnotationView = () => {
     useAnnotationKeyboard({
         onNext: goToNext,
         onPrevious: goToPrevious,
-        onExit: () => navigate(`/datasets/${datasetName}`),
+        onExit: () => {
+            setExitModal(true)
+            // navigate(`/datasets/${datasetName}`)
+
+        },
         onSave: () => console.log('Save triggered'),
         onComplete: handleCompleteTask,
     });
@@ -170,6 +179,16 @@ export const AnnotationView = () => {
                     initialClasses={classes.map(c => c.name)}
                     onUpdate={reloadClasses}
                 />
+            )}
+
+            {/* Exit Modal */}
+            {showExitModal && (
+                <AnnotationExitModal onClose={() => {
+                    setExitModal(false)
+                }} onSuccess={() => {
+                    setExitModal(false)
+                    navigate(`/datasets/${datasetName}`)
+                }} />
             )}
         </div>
     );

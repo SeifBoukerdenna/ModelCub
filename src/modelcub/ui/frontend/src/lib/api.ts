@@ -450,6 +450,10 @@ class ModelCubAPI {
     return this.request("/models");
   }
 
+  async getModel(modelId: string): Promise<[]> {
+    return this.request(`/models/${modelId}`);
+  }
+
   // ==================== ANNOTATION METHODS ====================
 
   async getAnnotation(

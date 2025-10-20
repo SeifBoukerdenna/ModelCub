@@ -3,7 +3,6 @@
  */
 
 // Export API client
-export { api, APIError } from "./client";
 
 // Export all types
 export type {

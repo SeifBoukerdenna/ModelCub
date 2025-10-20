@@ -3,7 +3,7 @@
  * Provides easy-to-use hooks with loading states and error handling
  */
 import { useState, useCallback } from "react";
-import { api } from "./client";
+
 import type {
   Project,
   ProjectConfigFull,
@@ -15,6 +15,8 @@ import type {
   ImageInfo,
   Model,
 } from "./types";
+import { api } from "../api";
+import Models from "@/pages/Models";
 
 type LoadingState = "idle" | "loading" | "success" | "error";
 
@@ -154,7 +156,7 @@ export function useListModels() {
 }
 
 export function useGetModel() {
-  return useAPI<Model, [string]>((modelId) => api.getModel(modelId));
+  return Models;
 }
 
 // ==================== UTILITY HOOKS ====================

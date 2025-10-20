@@ -43,13 +43,15 @@ class DatasetOperations:
         """Get detailed dataset information."""
         dataset = project.get_dataset(dataset_name)
         split_counts = dataset.get_split_counts()
+        size = dataset.size
         base_schema = dataset_to_schema(dataset, project.path)
 
         detail = DatasetDetailSchema(
             **base_schema.model_dump(),
             train_images=split_counts.get("train", 0),
             valid_images=split_counts.get("val", 0),
-            unlabeled_images=split_counts.get("unlabeled", 0)
+            unlabeled_images=split_counts.get("unlabeled", 0),
+            size_formatted=size
         )
 
         if include_images:

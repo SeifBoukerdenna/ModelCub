@@ -2,7 +2,7 @@ import { AlertTriangle, X } from 'lucide-react';
 import { ReactNode } from 'react';
 
 interface DeleteConfirmModalProps {
-    isOpen: boolean;
+
     title: string;
     message: ReactNode;
     onConfirm: () => void;
@@ -11,14 +11,12 @@ interface DeleteConfirmModalProps {
 }
 
 const DeleteConfirmModal = ({
-    isOpen,
     title,
     message,
     onConfirm,
     onCancel,
     isDeleting
 }: DeleteConfirmModalProps) => {
-    if (!isOpen) return null;
 
     return (
         <div className="modal-overlay" onClick={onCancel}>

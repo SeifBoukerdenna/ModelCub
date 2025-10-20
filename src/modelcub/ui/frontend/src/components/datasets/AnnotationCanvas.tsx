@@ -22,7 +22,6 @@ export const AnnotationCanvas = ({
     currentTask,
     imageUrl,
     isLoading,
-    onComplete,
     datasetName,
     classes,
     currentClassId,
@@ -118,7 +117,7 @@ export const AnnotationCanvas = ({
                 e.preventDefault();
                 const classIndex = parseInt(e.key) - 1;
                 if (classIndex < classes.length && classes[classIndex]) {
-                    const newClassId = classes[classIndex].id;
+                    const newClassId = classes[classIndex]?.id ?? 0;
                     setCurrentClassId(newClassId);
                     onClassChange(newClassId);
                 }

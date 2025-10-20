@@ -108,7 +108,7 @@ const JobCard = ({ job, onContinue, onResume, onClick }: JobCardProps) => {
     // Active job card
     if (job.status === 'running' || job.status === 'paused' || job.status === 'pending') {
         return (
-            <div className="job-card active">
+            <div className="job-card active" onClick={() => onClick(job)}>
                 <div className="job-header">
                     <span className={`status-badge status-${job.status}`}>{job.status}</span>
                     <span className='job-id'>{job.job_id}</span>

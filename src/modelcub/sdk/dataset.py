@@ -102,6 +102,28 @@ class Dataset:
         """Dataset status."""
         return self._data.get("status", "ready")
 
+    @property
+    def size(self) -> str:
+        # Calculate size
+        size_bytes = 0
+        try:
+            for item in self._dataset_path.rglob("*"):
+                if item.is_file():
+                    size_bytes += item.stat().st_size
+        except Exception:
+            pass
+
+        # Format size
+        size_display = size_bytes
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size_display < 1024:
+                size_str = f"{size_display:.1f} {unit}"
+                break
+            size_display /= 1024
+        else:
+            size_str = f"{size_display:.1f} TB"
+
+
     def info(self) -> DatasetInfo:
         """
         Get dataset information.

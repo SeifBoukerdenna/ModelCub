@@ -39,7 +39,9 @@ datasets:
     images:
       total: 3
       unlabeled: 3
-    classes: []
+    classes:
+    - sss
+    - lmfaoo
     path: data/datasets/modelcub_upload_6z0tnzl3-20251020-000725
     source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_6z0tnzl3
-    num_classes: 0
+    num_classes: 2

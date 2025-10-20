@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 
 interface ClassManagerModalProps {
-    isOpen: boolean;
+
     onClose: () => void;
     datasetId: string;
     initialClasses: string[];
@@ -12,7 +12,7 @@ interface ClassManagerModalProps {
 }
 
 const ClassManagerModal = ({
-    isOpen,
+
     onClose,
     datasetId,
     initialClasses,
@@ -44,6 +44,7 @@ const ClassManagerModal = ({
             toast.error(message);
         } finally {
             setLoading(false);
+            onClose()
         }
     };
 
@@ -68,6 +69,8 @@ const ClassManagerModal = ({
             toast.error(message);
         } finally {
             setLoading(false);
+            onClose()
+
         }
     };
 
@@ -90,6 +93,8 @@ const ClassManagerModal = ({
             toast.error(message);
         } finally {
             setLoading(false);
+            onClose()
+
         }
     };
 
@@ -102,8 +107,6 @@ const ClassManagerModal = ({
         setEditingIndex(null);
         setEditValue('');
     };
-
-    if (!isOpen) return null;
 
     return (
         <div className="modal-overlay" onClick={onClose}>

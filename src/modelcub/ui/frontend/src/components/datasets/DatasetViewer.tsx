@@ -21,8 +21,10 @@ import ErrorMessage from '@/components/ErrorMessage';
 
 import type { Dataset, Job } from '@/lib/api/types';
 import { useDatasetDetails } from '@/hooks/useDatasetDetail';
+import { useApiSync } from '@/hooks/useApiSync';
 
 const DatasetViewer = () => {
+    useApiSync();
     const { name } = useParams<{ name: string }>();
     const navigate = useNavigate();
     const { showToast } = useToast();
@@ -111,7 +113,6 @@ const DatasetViewer = () => {
             {/* Modals */}
             {classManagerDataset && (
                 <ClassManagerModal
-                    isOpen={true}
                     onClose={() => setClassManagerDataset(null)}
                     datasetId={classManagerDataset.name}
                     initialClasses={classManagerDataset.classes || []}
@@ -121,7 +122,6 @@ const DatasetViewer = () => {
 
             {showDeleteModal && (
                 <DeleteConfirmModal
-                    isOpen={true}
                     title="Delete Dataset"
                     message={
                         <>

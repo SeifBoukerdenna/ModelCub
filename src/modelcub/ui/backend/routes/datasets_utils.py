@@ -2,7 +2,7 @@
 from pathlib import Path
 import logging
 
-from ...shared.api.schemas import Dataset as DatasetSchema
+from ...shared.api.schemas import Dataset as DatasetSchema, DatasetSchemaDetailed
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +25,12 @@ def calculate_directory_size(path: Path) -> tuple[int, str]:
     return total_size, f"{size_display:.1f} TB"
 
 
-def dataset_to_schema(dataset, project_path: str) -> DatasetSchema:
+def dataset_to_schema(dataset, project_path: str) -> DatasetSchemaDetailed:
     """Convert SDK Dataset to API schema."""
     info = dataset.info()
     size_bytes, size_formatted = calculate_directory_size(info.path)
-
-    return DatasetSchema(
+    print(f"size_bytes & size_format are {size_bytes} and {size_formatted}")
+    return DatasetSchemaDetailed(
         name=info.name,
         id=info.id,
         status=info.status,
