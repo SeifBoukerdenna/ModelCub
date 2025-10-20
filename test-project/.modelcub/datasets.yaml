@@ -16,3 +16,30 @@ datasets:
     path: data/datasets/fruits
     source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_6gbe36tq
     num_classes: 4
+  d8273c08:
+    id: d8273c08
+    name: bears
+    created: '2025-10-19T17:14:12.873918Z'
+    status: unlabeled
+    num_images: 27
+    images:
+      total: 27
+      unlabeled: 27
+    classes:
+    - b1
+    path: data/datasets/bears
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_wfa9zvau
+    num_classes: 1
+  d2a84048:
+    id: d2a84048
+    name: modelcub_upload_6z0tnzl3-20251020-000725
+    created: '2025-10-20T00:07:25.867055Z'
+    status: unlabeled
+    num_images: 3
+    images:
+      total: 3
+      unlabeled: 3
+    classes: []
+    path: data/datasets/modelcub_upload_6z0tnzl3-20251020-000725
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_6z0tnzl3
+    num_classes: 0

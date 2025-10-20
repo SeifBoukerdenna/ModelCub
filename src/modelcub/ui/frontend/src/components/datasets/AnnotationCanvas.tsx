@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import type { Task } from '@/lib/api/types';
 import { useAnnotationState } from '@/hooks/useAnnotationState';
 import { useBoxOperations } from '@/hooks/useBoxOperations';
@@ -84,19 +83,16 @@ export const AnnotationCanvas = ({
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Ignore if typing in input/textarea
             const target = e.target as HTMLElement;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
                 return;
             }
 
-            // Delete selected box
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBoxId) {
                 e.preventDefault();
                 deleteBox(selectedBoxId);
             }
 
-            // Undo/Redo
             if (e.ctrlKey || e.metaKey) {
                 if (e.key === 'z' && !e.shiftKey && canUndo) {
                     e.preventDefault();
@@ -109,7 +105,6 @@ export const AnnotationCanvas = ({
                 }
             }
 
-            // Tool shortcuts
             if (e.key === 'r' || e.key === 'R') {
                 e.preventDefault();
                 setDrawMode('draw');
@@ -119,7 +114,6 @@ export const AnnotationCanvas = ({
                 setDrawMode('edit');
             }
 
-            // Number keys for class selection
             if (e.key >= '1' && e.key <= '9') {
                 e.preventDefault();
                 const classIndex = parseInt(e.key) - 1;
@@ -130,7 +124,6 @@ export const AnnotationCanvas = ({
                 }
             }
 
-            // Manual save
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
                 manualSave();
@@ -163,34 +156,128 @@ export const AnnotationCanvas = ({
 
     return (
         <div className="annotation-canvas-full">
+            {/* Minimal Toolbar - OUTSIDE wrapper */}
+            <div style={{
+                position: 'absolute',
+                top: '16px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                display: 'flex',
+                gap: '6px',
+                background: 'rgba(0,0,0,0.85)',
+                padding: '6px',
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                zIndex: 1000,
+            }}>
+                <button
+                    className={`btn btn--sm ${drawMode === 'draw' ? 'btn--primary' : 'btn--secondary'}`}
+                    onClick={() => setDrawMode('draw')}
+                    title="Draw (R)"
+                    style={{ minWidth: '70px' }}
+                >
+                    Draw
+                </button>
+                <button
+                    className={`btn btn--sm ${drawMode === 'edit' ? 'btn--primary' : 'btn--secondary'}`}
+                    onClick={() => setDrawMode('edit')}
+                    title="Edit (E)"
+                    style={{ minWidth: '70px' }}
+                >
+                    Edit
+                </button>
+
+                {selectedBoxId && (
+                    <button
+                        className="btn btn--sm btn--danger"
+                        onClick={() => deleteBox(selectedBoxId)}
+                        title="Delete (Del)"
+                    >
+                        🗑️
+                    </button>
+                )}
+
+                <div style={{ width: '1px', background: 'rgba(255,255,255,0.3)', margin: '0 4px' }} />
+
+                <button
+                    className="btn btn--sm btn--secondary"
+                    onClick={undo}
+                    disabled={!canUndo}
+                    title="Undo (Ctrl+Z)"
+                    style={{ opacity: canUndo ? 1 : 0.5 }}
+                >
+                    ↶
+                </button>
+                <button
+                    className="btn btn--sm btn--secondary"
+                    onClick={redo}
+                    disabled={!canRedo}
+                    title="Redo (Ctrl+Y)"
+                    style={{ opacity: canRedo ? 1 : 0.5 }}
+                >
+                    ↷
+                </button>
+
+                <div style={{ width: '1px', background: 'rgba(255,255,255,0.3)', margin: '0 4px' }} />
+
+                <button
+                    className={`btn btn--sm ${showLabels ? 'btn--primary' : 'btn--secondary'}`}
+                    onClick={() => setShowLabels(!showLabels)}
+                    title="Toggle Labels"
+                >
+                    🏷️
+                </button>
+            </div>
+
+            {/* Box count indicator */}
+            <div style={{
+                position: 'absolute',
+                top: '16px',
+                left: '16px',
+                background: 'rgba(0,0,0,0.7)',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                color: 'white',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                zIndex: 1000,
+            }}>
+                {boxes.length} box{boxes.length !== 1 ? 'es' : ''}
+            </div>
+
+            {/* Save indicator */}
+            {isDirty && (
+                <div style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px',
+                    background: 'rgba(255, 165, 0, 0.9)',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    zIndex: 1000,
+                }}>
+                    <div style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: 'white',
+                        animation: 'pulse 1.5s ease-in-out infinite',
+                    }} />
+                    Saving...
+                </div>
+            )}
+
             <div className="annotation-canvas__wrapper" style={{
                 width: '100%',
                 height: '100%',
                 position: 'relative',
                 overflow: 'hidden'
             }}>
-                {/* Status Indicator */}
-                <div className={`annotation-canvas__status-overlay status-${currentTask.status}`}>
-                    {currentTask.status === 'completed' && (
-                        <>
-                            <CheckCircle size={18} />
-                            <span>COMPLETED</span>
-                        </>
-                    )}
-                    {currentTask.status === 'pending' && (
-                        <>
-                            <Clock size={18} />
-                            <span>IN PROGRESS</span>
-                        </>
-                    )}
-                    {currentTask.status === 'failed' && (
-                        <>
-                            <AlertCircle size={18} />
-                            <span>FAILED</span>
-                        </>
-                    )}
-                </div>
-
                 {/* Canvas */}
                 {!isLoading && (
                     <KonvaAnnotationCanvas
@@ -210,95 +297,6 @@ export const AnnotationCanvas = ({
                 {isLoading && (
                     <div className="annotation-canvas__loading">Loading image...</div>
                 )}
-
-                {/* Tool Toolbar */}
-                <div style={{
-                    position: 'absolute',
-                    top: '20px',
-                    left: '20px',
-                    display: 'flex',
-                    gap: '8px',
-                    background: 'rgba(0,0,0,0.7)',
-                    padding: '8px',
-                    borderRadius: '8px',
-                }}>
-                    <button
-                        className={`btn btn--sm ${drawMode === 'draw' ? 'btn--primary' : 'btn--secondary'}`}
-                        onClick={() => setDrawMode('draw')}
-                        title="Rectangle Tool (R)"
-                    >
-                        🔲 Draw
-                    </button>
-                    <button
-                        className={`btn btn--sm ${drawMode === 'edit' ? 'btn--primary' : 'btn--secondary'}`}
-                        onClick={() => setDrawMode('edit')}
-                        title="Edit Tool (E)"
-                    >
-                        ✏️ Edit
-                    </button>
-                    {selectedBoxId && (
-                        <button
-                            className="btn btn--sm btn--danger"
-                            onClick={() => deleteBox(selectedBoxId)}
-                            title="Delete Selected (Del)"
-                        >
-                            🗑️ Delete
-                        </button>
-                    )}
-                    <button
-                        className="btn btn--sm btn--secondary"
-                        onClick={undo}
-                        disabled={!canUndo}
-                        title="Undo (Ctrl+Z)"
-                    >
-                        ↶
-                    </button>
-                    <button
-                        className="btn btn--sm btn--secondary"
-                        onClick={redo}
-                        disabled={!canRedo}
-                        title="Redo (Ctrl+Y)"
-                    >
-                        ↷
-                    </button>
-                    <div style={{ width: '1px', background: 'rgba(255,255,255,0.3)', margin: '0 4px' }} />
-                    <button
-                        className={`btn btn--sm ${showLabels ? 'btn--primary' : 'btn--secondary'}`}
-                        onClick={() => setShowLabels(!showLabels)}
-                        title="Toggle Labels"
-                    >
-                        🏷️ Labels
-                    </button>
-                </div>
-
-                {/* Complete Button */}
-                <div style={{
-                    position: 'absolute',
-                    bottom: '20px',
-                    right: '20px',
-                }}>
-                    <button
-                        className="btn btn--primary"
-                        onClick={onComplete}
-                    >
-                        ✓ Complete Task (Space)
-                    </button>
-                </div>
-
-                {/* Info Display */}
-                <div style={{
-                    position: 'absolute',
-                    bottom: '20px',
-                    left: '20px',
-                    background: 'rgba(0,0,0,0.7)',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '12px',
-                }}>
-                    <div>Boxes: {boxes.length}</div>
-                    {isDirty && <div style={{ color: '#ffa500' }}>● Saving...</div>}
-                </div>
             </div>
         </div>
     );

@@ -40,6 +40,7 @@ export const KonvaAnnotationCanvas = ({
     const [image] = useImage(imageUrl);
     const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
     const [imageDimensions, setImageDimensions] = useState<ImageDimensions | null>(null);
+    const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 });
     const stageRef = useRef<Konva.Stage>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -49,7 +50,7 @@ export const KonvaAnnotationCanvas = ({
     const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
     const [currentBox, setCurrentBox] = useState<ScreenBox | null>(null);
 
-    // Update canvas size on mount and resize
+    // Update canvas size
     useEffect(() => {
         const updateSize = () => {
             if (containerRef.current) {
@@ -65,7 +66,7 @@ export const KonvaAnnotationCanvas = ({
         return () => window.removeEventListener('resize', updateSize);
     }, []);
 
-    // Calculate scaled image dimensions to fit canvas
+    // Calculate scaled image dimensions and offset to center
     useEffect(() => {
         if (image && containerRef.current) {
             const containerWidth = containerRef.current.offsetWidth;
@@ -77,19 +78,19 @@ export const KonvaAnnotationCanvas = ({
             let displayWidth, displayHeight;
 
             if (imageAspect > containerAspect) {
-                // Image is wider - fit to width
-                displayWidth = containerWidth * 0.95;
+                displayWidth = containerWidth * 0.9;
                 displayHeight = displayWidth / imageAspect;
             } else {
-                // Image is taller - fit to height
-                displayHeight = containerHeight * 0.95;
+                displayHeight = containerHeight * 0.9;
                 displayWidth = displayHeight * imageAspect;
             }
 
-            setImageDimensions({
-                width: displayWidth,
-                height: displayHeight
-            });
+            // Calculate offset to center the image
+            const offsetX = (containerWidth - displayWidth) / 2;
+            const offsetY = (containerHeight - displayHeight) / 2;
+
+            setImageDimensions({ width: displayWidth, height: displayHeight });
+            setImageOffset({ x: offsetX, y: offsetY });
         }
     }, [image, canvasSize]);
 
@@ -120,17 +121,21 @@ export const KonvaAnnotationCanvas = ({
             const point = stage.getPointerPosition();
             if (!point) return;
 
+            // Adjust for image offset
+            const adjustedX = point.x - imageOffset.x;
+            const adjustedY = point.y - imageOffset.y;
+
             setIsDrawing(true);
-            setDrawStart(point);
+            setDrawStart({ x: adjustedX, y: adjustedY });
             setCurrentBox({
-                x: point.x,
-                y: point.y,
+                x: adjustedX,
+                y: adjustedY,
                 width: 0,
                 height: 0,
                 class_id: currentClassId,
             });
         },
-        [drawMode, currentClassId]
+        [drawMode, currentClassId, imageOffset]
     );
 
     const handleMouseMove = useCallback(
@@ -143,18 +148,22 @@ export const KonvaAnnotationCanvas = ({
             const point = stage.getPointerPosition();
             if (!point) return;
 
-            const width = point.x - drawStart.x;
-            const height = point.y - drawStart.y;
+            // Adjust for image offset
+            const adjustedX = point.x - imageOffset.x;
+            const adjustedY = point.y - imageOffset.y;
+
+            const width = adjustedX - drawStart.x;
+            const height = adjustedY - drawStart.y;
 
             setCurrentBox({
-                x: width < 0 ? point.x : drawStart.x,
-                y: height < 0 ? point.y : drawStart.y,
+                x: width < 0 ? adjustedX : drawStart.x,
+                y: height < 0 ? adjustedY : drawStart.y,
                 width: Math.abs(width),
                 height: Math.abs(height),
                 class_id: currentClassId,
             });
         },
-        [isDrawing, drawStart, currentClassId, imageDimensions]
+        [isDrawing, drawStart, currentClassId, imageDimensions, imageOffset]
     );
 
     const handleMouseUp = useCallback(() => {
@@ -165,7 +174,6 @@ export const KonvaAnnotationCanvas = ({
             return;
         }
 
-        // Minimum box size validation
         if (currentBox.width < 10 || currentBox.height < 10) {
             setIsDrawing(false);
             setCurrentBox(null);
@@ -173,13 +181,8 @@ export const KonvaAnnotationCanvas = ({
             return;
         }
 
-        // Clamp to image bounds
         const clampedBox = clampBoxToImage(currentBox, imageDimensions);
-
-        // Convert to YOLO format
         const yoloBox = screenToYolo(clampedBox, imageDimensions);
-
-        // Add box
         onBoxAdd(yoloBox);
 
         setIsDrawing(false);
@@ -202,30 +205,26 @@ export const KonvaAnnotationCanvas = ({
 
             const scaleX = node.scaleX();
             const scaleY = node.scaleY();
-
-            // Reset scale
             node.scaleX(1);
             node.scaleY(1);
 
             const screenBox: ScreenBox = {
-                x: node.x(),
-                y: node.y(),
+                x: node.x() - imageOffset.x,
+                y: node.y() - imageOffset.y,
                 width: node.width() * scaleX,
                 height: node.height() * scaleY,
-                class_id: currentClassId, // This should come from the box, but we'll use current for now
+                class_id: currentClassId,
             };
 
             const clampedBox = clampBoxToImage(screenBox, imageDimensions);
             const yoloBox = screenToYolo(clampedBox, imageDimensions);
-
             onBoxUpdate(id, yoloBox);
         },
-        [imageDimensions, onBoxUpdate, currentClassId]
+        [imageDimensions, onBoxUpdate, currentClassId, imageOffset]
     );
 
     const handleStageClick = useCallback(
         (e: Konva.KonvaEventObject<MouseEvent>) => {
-            // Deselect when clicking on empty space
             if (e.target === e.target.getStage()) {
                 onBoxSelect(null);
             }
@@ -252,16 +251,16 @@ export const KonvaAnnotationCanvas = ({
                 onMouseUp={handleMouseUp}
                 onClick={handleStageClick}
             >
-                {/* Image Layer */}
                 <Layer>
                     <KonvaImage
                         image={image}
+                        x={imageOffset.x}
+                        y={imageOffset.y}
                         width={imageDimensions.width}
                         height={imageDimensions.height}
                     />
                 </Layer>
 
-                {/* Boxes Layer */}
                 <Layer>
                     {boxes.map((box) => {
                         const screenBox = yoloToScreen(box, imageDimensions);
@@ -273,8 +272,8 @@ export const KonvaAnnotationCanvas = ({
                             <React.Fragment key={box.id}>
                                 <Rect
                                     id={box.id}
-                                    x={screenBox.x}
-                                    y={screenBox.y}
+                                    x={screenBox.x + imageOffset.x}
+                                    y={screenBox.y + imageOffset.y}
                                     width={screenBox.width}
                                     height={screenBox.height}
                                     stroke={color}
@@ -290,8 +289,8 @@ export const KonvaAnnotationCanvas = ({
                                         if (!imageDimensions) return;
                                         const node = e.target as Konva.Rect;
                                         const screenBox: ScreenBox = {
-                                            x: node.x(),
-                                            y: node.y(),
+                                            x: node.x() - imageOffset.x,
+                                            y: node.y() - imageOffset.y,
                                             width: node.width(),
                                             height: node.height(),
                                             class_id: box.class_id,
@@ -303,14 +302,13 @@ export const KonvaAnnotationCanvas = ({
                                 />
                                 {showLabels && (
                                     <Text
-                                        x={screenBox.x}
-                                        y={screenBox.y - 20}
+                                        x={screenBox.x + imageOffset.x}
+                                        y={screenBox.y + imageOffset.y - 20}
                                         text={className}
                                         fontSize={14}
                                         fontFamily="sans-serif"
                                         fill={color}
                                         padding={4}
-                                        background={color}
                                         shadowColor="black"
                                         shadowBlur={4}
                                         shadowOpacity={0.8}
@@ -320,11 +318,10 @@ export const KonvaAnnotationCanvas = ({
                         );
                     })}
 
-                    {/* Current drawing box */}
                     {currentBox && (
                         <Rect
-                            x={currentBox.x}
-                            y={currentBox.y}
+                            x={currentBox.x + imageOffset.x}
+                            y={currentBox.y + imageOffset.y}
                             width={currentBox.width}
                             height={currentBox.height}
                             stroke={getClassColor(currentClassId)}
@@ -334,12 +331,10 @@ export const KonvaAnnotationCanvas = ({
                         />
                     )}
 
-                    {/* Transformer for editing */}
                     {drawMode === 'edit' && (
                         <Transformer
                             ref={transformerRef}
                             boundBoxFunc={(oldBox, newBox) => {
-                                // Minimum size constraint
                                 if (newBox.width < 10 || newBox.height < 10) {
                                     return oldBox;
                                 }

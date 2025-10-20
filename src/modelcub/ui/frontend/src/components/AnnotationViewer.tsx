@@ -157,6 +157,7 @@ export const AnnotationView = () => {
                     currentClassId={currentClassId}
                     onClassSelect={setCurrentClassId}
                     onManageClasses={() => setShowClassManager(true)}
+                    onComplete={handleCompleteTask}
                 />
             </div>
 

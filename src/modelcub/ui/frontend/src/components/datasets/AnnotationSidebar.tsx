@@ -1,4 +1,5 @@
-import { Settings } from 'lucide-react';
+import { useState } from 'react';
+import { Settings, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Job, Task } from '@/lib/api/types';
 import { getClassColor } from '@/lib/canvas/coordinates';
 
@@ -10,6 +11,7 @@ interface AnnotationSidebarProps {
     currentClassId: number;
     onClassSelect: (classId: number) => void;
     onManageClasses: () => void;
+    onComplete: () => void;
 }
 
 export const AnnotationSidebar = ({
@@ -20,220 +22,201 @@ export const AnnotationSidebar = ({
     currentClassId,
     onClassSelect,
     onManageClasses,
+    onComplete,
 }: AnnotationSidebarProps) => {
+    const [showTaskInfo, setShowTaskInfo] = useState(false);
+    const [showShortcuts, setShowShortcuts] = useState(false);
+
     return (
         <div className="annotation-sidebar-compact">
-            {/* Class Selector */}
-            <div className="sidebar-section">
+            {/* Class Selector - Always visible */}
+            <div className="sidebar-section" style={{ padding: 'var(--spacing-lg)' }}>
                 <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: 'var(--spacing-sm)'
+                    marginBottom: 'var(--spacing-md)'
                 }}>
-                    <h3>Select Class ({classes.length})</h3>
+                    <h3 style={{ fontSize: '13px', margin: 0, textTransform: 'none', letterSpacing: 0 }}>
+                        Classes
+                    </h3>
                     <button
                         className="btn btn--xs btn--secondary"
                         onClick={onManageClasses}
-                        title="Manage classes"
-                        style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)' }}
+                        style={{ padding: '4px 8px' }}
                     >
-                        <Settings size={12} />
-                        Edit
+                        <Settings size={14} />
                     </button>
                 </div>
+
                 {classes.length > 0 ? (
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 'var(--spacing-xs)'
-                    }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {classes.map((cls, index) => {
-                            const shortcutKey = index + 1;
-                            const showShortcut = shortcutKey <= 9;
                             const color = getClassColor(cls.id);
+                            const isActive = currentClassId === cls.id;
+                            const shortcut = index < 9 ? index + 1 : null;
 
                             return (
-                                <label
+                                <button
                                     key={cls.id}
+                                    onClick={() => onClassSelect(cls.id)}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: 'var(--spacing-sm)',
-                                        padding: 'var(--spacing-sm)',
-                                        background: currentClassId === cls.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                                        border: `2px solid ${currentClassId === cls.id ? color : 'var(--color-border)'}`,
-                                        borderRadius: 'var(--border-radius-sm)',
+                                        gap: '10px',
+                                        padding: '10px 12px',
+                                        background: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                        border: `2px solid ${isActive ? color : 'var(--color-border)'}`,
+                                        borderRadius: '6px',
                                         cursor: 'pointer',
-                                        transition: 'all 0.2s',
+                                        transition: 'all 0.15s',
+                                        textAlign: 'left',
+                                        width: '100%',
                                     }}
                                 >
-                                    <input
-                                        type="radio"
-                                        name="class-selector"
-                                        checked={currentClassId === cls.id}
-                                        onChange={() => onClassSelect(cls.id)}
-                                        style={{ cursor: 'pointer' }}
-                                    />
-                                    {/* Color indicator */}
                                     <div style={{
-                                        width: '16px',
-                                        height: '16px',
-                                        borderRadius: '3px',
+                                        width: '20px',
+                                        height: '20px',
+                                        borderRadius: '4px',
                                         background: color,
                                         flexShrink: 0,
                                     }} />
                                     <span style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        minWidth: '24px',
-                                        height: '24px',
-                                        background: 'var(--color-surface)',
-                                        border: '1px solid var(--color-border)',
-                                        borderRadius: 'var(--border-radius-sm)',
-                                        fontSize: 'var(--font-size-xs)',
-                                        fontWeight: 600,
-                                        flexShrink: 0,
-                                    }}>
-                                        {cls.id}
-                                    </span>
-                                    <span style={{
                                         flex: 1,
-                                        fontSize: 'var(--font-size-sm)',
-                                        fontWeight: currentClassId === cls.id ? 600 : 400,
+                                        fontSize: '14px',
+                                        fontWeight: isActive ? 600 : 400,
+                                        color: 'var(--color-text-primary)',
                                     }}>
                                         {cls.name}
                                     </span>
-                                    {showShortcut && (
+                                    {shortcut && (
                                         <kbd style={{
-                                            padding: '2px 6px',
+                                            padding: '2px 8px',
                                             background: 'var(--color-surface)',
                                             border: '1px solid var(--color-border)',
-                                            borderRadius: '3px',
-                                            fontSize: '11px',
+                                            borderRadius: '4px',
+                                            fontSize: '12px',
                                             fontFamily: 'monospace',
                                             color: 'var(--color-text-secondary)',
                                         }}>
-                                            {shortcutKey}
+                                            {shortcut}
                                         </kbd>
                                     )}
-                                </label>
+                                </button>
                             );
                         })}
                     </div>
                 ) : (
-                    <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                        No classes defined. Click Edit to add.
+                    <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                        No classes. Click <Settings size={12} style={{ display: 'inline' }} /> to add.
                     </p>
                 )}
             </div>
 
-            {/* Current Task */}
-            <div className="sidebar-section">
-                <h3>Current Task</h3>
-                <div className="info-grid">
-                    <div className="info-item">
-                        <span className="label">Image</span>
-                        <span className="value">{currentTask?.image_id || '-'}</span>
-                    </div>
-                    <div className="info-item">
-                        <span className="label">Status</span>
-                        <span className={`value status-badge status-${currentTask?.status || 'pending'}`}>
-                            {currentTask?.status?.replace('_', ' ').toUpperCase() || 'PENDING'}
-                        </span>
-                    </div>
-                    <div className="info-item">
-                        <span className="label">Path</span>
-                        <span className="value mono small" title={currentTask?.image_path || '-'}>
-                            {currentTask?.image_path || '-'}
-                        </span>
-                    </div>
-                </div>
-            </div>
+            {/* Task Info - Collapsible */}
+            <div className="sidebar-section" style={{ padding: 'var(--spacing-md) var(--spacing-lg)', borderTop: '1px solid var(--color-border)' }}>
+                <button
+                    onClick={() => setShowTaskInfo(!showTaskInfo)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        color: 'var(--color-text-secondary)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        width: '100%',
+                    }}
+                >
+                    {showTaskInfo ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    Task Info
+                </button>
 
-            {/* Job Info */}
-            <div className="sidebar-section">
-                <h3>Job Info</h3>
-                {job && (
-                    <div className="info-grid">
-                        <div className="info-item">
-                            <span className="label">Job ID</span>
-                            <span className="value mono small" title={job.job_id}>
-                                {job.job_id}
+                {showTaskInfo && (
+                    <div style={{ marginTop: 'var(--spacing-sm)', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Image</span>
+                            <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                                {currentTask?.image_id || '-'}
                             </span>
                         </div>
-                        <div className="info-item">
-                            <span className="label">Status</span>
-                            <span className={`value status-badge status-${job.status}`}>
-                                {job.status.toUpperCase()}
-                            </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Progress</span>
+                            <span>{completedCount} / {job?.total_tasks || 0}</span>
                         </div>
-                        <div className="info-item">
-                            <span className="label">Progress</span>
-                            <span className="value">
-                                {completedCount} / {job.total_tasks} completed
-                            </span>
-                        </div>
-                        {job.failed_tasks > 0 && (
-                            <div className="info-item">
-                                <span className="label">Failed</span>
-                                <span className="value error">{job.failed_tasks}</span>
-                            </div>
-                        )}
                     </div>
                 )}
             </div>
 
-            {/* Keyboard Shortcuts */}
-            <div className="sidebar-section">
-                <h3>Keyboard Shortcuts</h3>
-                <div className="shortcuts-list">
-                    <div className="shortcut-item">
-                        <kbd>1-9</kbd>
-                        <span>Select class</span>
-                    </div>
-                    <div className="shortcut-item">
-                        <kbd>R</kbd>
-                        <span>Draw tool</span>
-                    </div>
-                    <div className="shortcut-item">
-                        <kbd>E</kbd>
-                        <span>Edit tool</span>
-                    </div>
-                    <div className="shortcut-item">
-                        <kbd>Del</kbd>
-                        <span>Delete selected box</span>
-                    </div>
-                    <div className="shortcut-item">
-                        <div>
-                            <kbd>→</kbd> <kbd>D</kbd>
+            {/* Shortcuts - Collapsible */}
+            <div className="sidebar-section" style={{ padding: 'var(--spacing-md) var(--spacing-lg)', borderTop: '1px solid var(--color-border)' }}>
+                <button
+                    onClick={() => setShowShortcuts(!showShortcuts)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        color: 'var(--color-text-secondary)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        width: '100%',
+                    }}
+                >
+                    {showShortcuts ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    Shortcuts
+                </button>
+
+                {showShortcuts && (
+                    <div style={{ marginTop: 'var(--spacing-sm)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Select class</span>
+                            <kbd style={{ fontSize: '11px' }}>1-9</kbd>
                         </div>
-                        <span>Next image</span>
-                    </div>
-                    <div className="shortcut-item">
-                        <div>
-                            <kbd>←</kbd> <kbd>A</kbd>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Draw / Edit</span>
+                            <span><kbd style={{ fontSize: '11px' }}>R</kbd> / <kbd style={{ fontSize: '11px' }}>E</kbd></span>
                         </div>
-                        <span>Previous image</span>
-                    </div>
-                    <div className="shortcut-item">
-                        <kbd>ESC</kbd>
-                        <span>Exit annotation</span>
-                    </div>
-                    <div className="shortcut-item">
-                        <div>
-                            <kbd>Ctrl</kbd>+<kbd>Z</kbd>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Delete box</span>
+                            <kbd style={{ fontSize: '11px' }}>Del</kbd>
                         </div>
-                        <span>Undo</span>
-                    </div>
-                    <div className="shortcut-item">
-                        <div>
-                            <kbd>Ctrl</kbd>+<kbd>Y</kbd>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Next image</span>
+                            <span><kbd style={{ fontSize: '11px' }}>→</kbd> / <kbd style={{ fontSize: '11px' }}>D</kbd></span>
                         </div>
-                        <span>Redo</span>
                     </div>
-                </div>
+                )}
+            </div>
+
+            {/* Complete Button - Fixed at bottom */}
+            <div style={{
+                marginTop: 'auto',
+                padding: 'var(--spacing-lg)',
+                borderTop: '1px solid var(--color-border)',
+            }}>
+                <button
+                    className="btn btn--primary"
+                    onClick={onComplete}
+                    style={{
+                        width: '100%',
+                        padding: '12px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                    }}
+                >
+                    Complete (Space)
+                </button>
             </div>
         </div>
     );

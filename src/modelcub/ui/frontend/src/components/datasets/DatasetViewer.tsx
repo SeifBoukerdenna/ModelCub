@@ -101,7 +101,11 @@ const DatasetViewer = () => {
                 onContinueJob={continueJob}
                 onResumeJob={resumeJob}
                 onRefresh={reloadJobs}
-                onJobClick={setSelectedJob}
+                onJobClick={(job) => {
+                    setSelectedJob(job)
+                    console.log("clicked the selected JOB")
+                }
+                }
             />
 
             {/* Modals */}
