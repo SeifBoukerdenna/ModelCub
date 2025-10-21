@@ -2,6 +2,7 @@
 import click
 import os
 from modelcub.commands import project, dataset, annotation, job, ui_cmd
+from modelcub.commands.split import split
 
 
 @click.group()
@@ -16,6 +17,7 @@ cli.add_command(dataset.dataset)
 cli.add_command(annotation.annotate)
 cli.add_command(job.job)
 cli.add_command(ui_cmd.ui)
+cli.add_command(split)
 
 
 def main():

@@ -29,6 +29,11 @@ export default function JobReview() {
     const [splitStats, setSplitStats] = useState<SplitStats>({ train: 0, val: 0, test: 0 });
     const [totalBoxes, setTotalBoxes] = useState(0);
 
+    // Custom split percentages
+    const [customTrain, setCustomTrain] = useState(70);
+    const [customVal, setCustomVal] = useState(20);
+    const [customTest, setCustomTest] = useState(10);
+
     useEffect(() => {
         loadReviewData();
     }, [jobId]);
@@ -80,6 +85,31 @@ export default function JobReview() {
         const shuffled = [...items].sort(() => Math.random() - 0.5);
         const trainCount = Math.floor(shuffled.length * 0.7);
         const valCount = Math.floor(shuffled.length * 0.2);
+
+        const newAssignments: Record<string, string> = {};
+        shuffled.forEach((item, idx) => {
+            if (idx < trainCount) {
+                newAssignments[item.image_id] = "train";
+            } else if (idx < trainCount + valCount) {
+                newAssignments[item.image_id] = "val";
+            } else {
+                newAssignments[item.image_id] = "test";
+            }
+        });
+        setAssignments(newAssignments);
+    };
+
+    const handleCustomSplit = () => {
+        // Validate percentages
+        const total = customTrain + customVal + customTest;
+        if (Math.abs(total - 100) > 0.1) {
+            alert(`Percentages must sum to 100% (currently ${total}%)`);
+            return;
+        }
+
+        const shuffled = [...items].sort(() => Math.random() - 0.5);
+        const trainCount = Math.floor(shuffled.length * customTrain / 100);
+        const valCount = Math.floor(shuffled.length * customVal / 100);
 
         const newAssignments: Record<string, string> = {};
         shuffled.forEach((item, idx) => {
@@ -278,6 +308,54 @@ export default function JobReview() {
                     <button className="bulk-btn bulk-btn--auto" onClick={handleAutoSplit}>
                         Auto Split (70/20/10)
                     </button>
+                </div>
+
+                {/* Custom Split */}
+                <div className="custom-split">
+                    <h4 className="custom-split__title">Custom Split</h4>
+                    <div className="custom-split__inputs">
+                        <div className="split-input">
+                            <label>Train %</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={customTrain}
+                                onChange={(e) => setCustomTrain(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                            />
+                        </div>
+                        <div className="split-input">
+                            <label>Val %</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={customVal}
+                                onChange={(e) => setCustomVal(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                            />
+                        </div>
+                        <div className="split-input">
+                            <label>Test %</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={customTest}
+                                onChange={(e) => setCustomTest(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                            />
+                        </div>
+                        <button
+                            className="btn btn--primary custom-split__apply"
+                            onClick={handleCustomSplit}
+                        >
+                            Apply Custom Split
+                        </button>
+                    </div>
+                    {Math.abs(customTrain + customVal + customTest - 100) > 0.1 && (
+                        <p className="custom-split__warning">
+                            ⚠️ Percentages must sum to 100% (currently {customTrain + customVal + customTest}%)
+                        </p>
+                    )}
                 </div>
             </div>
 

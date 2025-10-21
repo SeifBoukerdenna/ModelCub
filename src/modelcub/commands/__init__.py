@@ -1,4 +1,4 @@
 """ModelCub CLI commands."""
-from . import project, dataset, annotation, job, ui_cmd
+from . import project, dataset, annotation, job, ui_cmd, split
 
-__all__ = ["project", "dataset", "annotation", "job", "ui_cmd"]
+__all__ = ["project", "dataset", "annotation", "job", "ui_cmd", "split"]

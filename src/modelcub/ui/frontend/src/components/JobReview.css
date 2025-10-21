@@ -293,6 +293,7 @@
     display: flex;
     gap: var(--spacing-md);
     flex-wrap: wrap;
+    margin-bottom: var(--spacing-lg);
 }
 
 .bulk-btn {
@@ -368,6 +369,90 @@
     background: rgba(16, 185, 129, 0.1);
     border-color: var(--color-success);
     color: var(--color-success);
+}
+
+/* Custom Split Section */
+.custom-split {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    margin-top: var(--spacing-md);
+}
+
+[data-theme='dark'] .custom-split {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.custom-split__title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-md) 0;
+}
+
+.custom-split__inputs {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.split-input {
+    flex: 1;
+    min-width: 100px;
+}
+
+.split-input label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+}
+
+.split-input input {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    background: var(--color-background);
+    border: 2px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    transition: all var(--transition-fast);
+}
+
+.split-input input:hover {
+    border-color: var(--color-primary-400);
+}
+
+.split-input input:focus {
+    outline: none;
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+[data-theme='dark'] .split-input input {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.custom-split__apply {
+    min-width: 180px;
+}
+
+.custom-split__warning {
+    margin: var(--spacing-md) 0 0 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(251, 146, 60, 0.1);
+    border: 1px solid rgba(251, 146, 60, 0.3);
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-sm);
+    color: #f97316;
+}
+
+[data-theme='dark'] .custom-split__warning {
+    color: #fdba74;
 }
 
 /* ============================================
@@ -500,6 +585,18 @@
     }
 
     .bulk-btn {
+        width: 100%;
+    }
+
+    .custom-split__inputs {
+        flex-direction: column;
+    }
+
+    .split-input {
+        width: 100%;
+    }
+
+    .custom-split__apply {
         width: 100%;
     }
 

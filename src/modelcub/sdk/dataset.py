@@ -599,6 +599,132 @@ class Dataset:
         return result.data if result.data else {}
 
 
+    def auto_split(
+        self,
+        train_pct: float = 70.0,
+        val_pct: float = 20.0,
+        test_pct: float = 10.0,
+        source_split: str = "unlabeled",
+        shuffle: bool = True,
+        seed: int = 42
+    ) -> Dict[str, int]:
+        """
+        Automatically split images by percentage.
+
+        Args:
+            train_pct: Training percentage (default 70)
+            val_pct: Validation percentage (default 20)
+            test_pct: Test percentage (default 10)
+            source_split: Source split to redistribute (default "unlabeled")
+            shuffle: Whether to shuffle before splitting (default True)
+            seed: Random seed for reproducibility (default 42)
+
+        Returns:
+            Dict with distribution: {"train": count, "val": count, "test": count}
+
+        Raises:
+            ValueError: If percentages don't sum to 100 or operation fails
+
+        Example:
+            >>> dataset.auto_split(train_pct=80, val_pct=10, test_pct=10)
+            {'train': 800, 'val': 100, 'test': 100}
+
+            >>> dataset.auto_split(
+            ...     train_pct=70, val_pct=20, test_pct=10,
+            ...     source_split="unlabeled", shuffle=True
+            ... )
+        """
+        from ..services.split_service import auto_split_by_percentage
+
+        result = auto_split_by_percentage(
+            project_path=self._project_path,
+            dataset_name=self.name,
+            train_pct=train_pct,
+            val_pct=val_pct,
+            test_pct=test_pct,
+            source_split=source_split,
+            shuffle=shuffle,
+            seed=seed
+        )
+
+        if not result.success:
+            raise ValueError(result.message)
+
+        self.reload()  # Refresh dataset state
+        return result.data.get("distribution", {})
+
+
+    def move_to_split(self, image_id: str, target_split: str) -> Dict[str, Any]:
+        """
+        Move a single image to a different split.
+
+        Args:
+            image_id: Image ID (without extension)
+            target_split: Target split ("train", "val", or "test")
+
+        Returns:
+            Dict with move details
+
+        Raises:
+            ValueError: If image not found or operation fails
+
+        Example:
+            >>> dataset.move_to_split("img_001", "train")
+            {'image_id': 'img_001', 'from_split': 'unlabeled', 'to_split': 'train'}
+        """
+        from ..services.split_service import move_to_split
+
+        result = move_to_split(
+            project_path=self._project_path,
+            dataset_name=self.name,
+            image_id=image_id,
+            target_split=target_split
+        )
+
+        if not result.success:
+            raise ValueError(result.message)
+
+        self.reload()
+        return result.data
+
+
+    def batch_assign_splits(
+        self,
+        assignments: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """
+        Assign multiple images to splits in batch.
+
+        Args:
+            assignments: List of {"image_id": str, "split": str}
+
+        Returns:
+            Dict with {"success": [...], "failed": [...]}
+
+        Example:
+            >>> assignments = [
+            ...     {"image_id": "img_001", "split": "train"},
+            ...     {"image_id": "img_002", "split": "val"},
+            ...     {"image_id": "img_003", "split": "test"}
+            ... ]
+            >>> result = dataset.batch_assign_splits(assignments)
+            >>> print(f"Success: {len(result['success'])}")
+        """
+        from ..services.split_service import batch_move_to_splits
+
+        result = batch_move_to_splits(
+            project_path=self._project_path,
+            dataset_name=self.name,
+            assignments=assignments
+        )
+
+        if not result.success:
+            raise ValueError(result.message)
+
+        self.reload()
+        return result.data
+
+
     # ========== String Representations ==========
 
     def __repr__(self) -> str:

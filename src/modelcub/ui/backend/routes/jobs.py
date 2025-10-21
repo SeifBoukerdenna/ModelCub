@@ -501,76 +501,42 @@ async def get_job_review(
 @router.post("/{job_id}/assign-splits")
 async def assign_splits(
     job_id: str,
-    request: Dict[str, List[Dict[str, str]]],
+    request: AssignSplitsRequest,
     project: ProjectRequired
 ) -> APIResponse[dict]:
-    """Assign splits to completed job images."""
+    """Assign completed annotations to train/val/test splits."""
     try:
-        from ....services.annotation_service import save_annotation, SaveAnnotationRequest, get_annotation, GetAnnotationRequest
+        from ....services.split_service import batch_move_to_splits
 
         manager = _get_job_manager(project.path)
         job = manager.get_job(job_id)
 
         if not job:
-            raise NotFoundError(message="Job not found", code=ErrorCode.DATASET_NOT_FOUND)
+            raise NotFoundError(message=f"Job not found: {job_id}", code=ErrorCode.DATASET_NOT_FOUND)
 
-        assignments = request.get("assignments", [])
-        success_list = []
-        failed_list = []
+        # Use the split service to move files
+        result = batch_move_to_splits(
+            project.path,
+            job.dataset_name,
+            request.assignments
+        )
 
-        for assignment in assignments:
-            image_id = assignment["image_id"]
-            new_split = assignment["split"]
+        if not result.success:
+            raise ValueError(result.message)
 
-            try:
-                # Get current annotation
-                get_req = GetAnnotationRequest(
-                    dataset_name=job.dataset_name,
-                    image_id=image_id,
-                    project_path=project.path
-                )
-                ann_result = get_annotation(get_req)
-
-                if not ann_result.success:
-                    failed_list.append({
-                        "image_id": image_id,
-                        "error": ann_result.message
-                    })
-                    continue
-
-                # Save with new split
-                save_req = SaveAnnotationRequest(
-                    dataset_name=job.dataset_name,
-                    image_id=image_id,
-                    boxes=ann_result.data["boxes"],
-                    split=new_split,
-                    project_path=project.path
-                )
-                save_result = save_annotation(save_req)
-
-                if save_result.success:
-                    success_list.append(image_id)
-                else:
-                    failed_list.append({
-                        "image_id": image_id,
-                        "error": save_result.message
-                    })
-
-            except Exception as e:
-                logger.error(f"Failed to assign split for {image_id}: {e}")
-                failed_list.append({
-                    "image_id": image_id,
-                    "error": str(e)
-                })
+        await broadcast_job_update(
+            job_id,
+            "splits.assigned",
+            result.data
+        )
 
         return APIResponse(
             success=True,
-            data={
-                "success": success_list,
-                "failed": failed_list
-            },
-            message=f"Assigned {len(success_list)} images"
+            data=result.data,
+            message=result.message
         )
+
     except Exception as e:
         logger.error(f"Failed to assign splits: {e}", exc_info=True)
         raise
+
