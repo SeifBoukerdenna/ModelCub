@@ -208,10 +208,10 @@ class DatasetOperations:
         dataset_path = dataset.path
 
         if split:
-            image_dirs = [dataset_path / "images" / split]
+            image_dirs = [dataset_path / split / "images"]
         else:
             image_dirs = [
-                dataset_path / "images" / s
+                dataset_path / s / "images"
                 for s in ["train", "val", "test", "unlabeled"]
             ]
 
@@ -223,7 +223,7 @@ class DatasetOperations:
             split_name = img_dir.name
             for img_file in img_dir.glob("*.*"):
                 if img_file.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
-                    label_dir = dataset_path / "labels" / split_name
+                    label_dir = dataset_path / split_name / "labels"
                     label_file = label_dir / f"{img_file.stem}.txt"
 
                     # Get image dimensions

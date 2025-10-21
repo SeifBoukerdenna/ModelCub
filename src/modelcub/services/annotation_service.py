@@ -72,12 +72,12 @@ def _get_dataset_path(project_path: Path, dataset_name: str) -> Path:
 
 def _get_labels_dir(project_path: Path, dataset_name: str, split: str = "unlabeled") -> Path:
     """Get labels directory for a split."""
-    return _get_dataset_path(project_path, dataset_name) / "labels" / split
+    return _get_dataset_path(project_path, dataset_name) / split / "labels"
 
 
 def _get_images_dir(project_path: Path, dataset_name: str, split: str = "unlabeled") -> Path:
     """Get images directory for a split."""
-    return _get_dataset_path(project_path, dataset_name) / "images" / split
+    return _get_dataset_path(project_path, dataset_name) / split / "images"
 
 
 def _find_image_split(project_path: Path, dataset_name: str, image_id: str) -> Optional[str]:
@@ -87,7 +87,7 @@ def _find_image_split(project_path: Path, dataset_name: str, image_id: str) -> O
         if images_dir.exists():
             # Check for common image extensions
             for ext in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
-                if (images_dir / f"{image_id}{ext}").exists():
+                if (images_dir / f"{image_id}{ext}").exists():  # CHANGE req.image_id to image_id
                     return split
     return None
 
@@ -197,7 +197,7 @@ def get_annotation(req: GetAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
                 candidate = images_dir / f"{req.image_id}{ext}"
                 if candidate.exists():
                     # Return path relative to dataset root
-                    image_path = f"images/{split}/{req.image_id}{ext}"
+                    image_path = f"{split}/images/{req.image_id}{ext}"  # <-- FIX THIS LINE
                     break
 
             data = {
@@ -244,7 +244,7 @@ def get_annotation(req: GetAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
 
                 all_images.append({
                     "image_id": image_id,
-                    "image_path": f"images/{split}/{img_file.name}",
+                    "image_path": f"{split}/images/{img_file.name}",
                     "split": split,
                     "boxes": boxes,
                     "num_boxes": len(boxes)

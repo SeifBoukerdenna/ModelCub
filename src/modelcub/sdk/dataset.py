@@ -206,7 +206,7 @@ class Dataset:
         """
         splits = {}
         for split in ["train", "val", "test", "unlabeled"]:
-            split_dir = self._dataset_path / "images" / split
+            split_dir = self._dataset_path / split / "images"
             if split_dir.exists():
                 splits[split] = sum(1 for _ in split_dir.glob("*.*"))
             else:

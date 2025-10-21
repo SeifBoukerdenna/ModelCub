@@ -27,12 +27,18 @@ class Endpoints:
     DATASET_IMPORT = "/datasets/import"
     DATASET_UPLOAD = "/datasets/upload"
     DATASET_IMAGES = "/datasets/{dataset_id}/images"
+    DATASET_IMAGE = "/datasets/{dataset_id}/image/{image_path}"  # ADD THIS
+
+    # Annotations (ADD THESE)
+    ANNOTATIONS = "/datasets/{dataset_id}/annotations"
+    ANNOTATION_DETAIL = "/datasets/{dataset_id}/annotations/{image_id}"
+    ANNOTATION_DELETE_BOX = "/datasets/{dataset_id}/annotations/{image_id}/boxes/{box_index}"
 
     # Models
     MODELS = "/models"
     MODEL_DETAIL = "/models/{model_id}"
 
-    # Jobs (NEW)
+    # Jobs
     JOBS = "/jobs"
     JOB_DETAIL = "/jobs/{job_id}"
     JOB_START = "/jobs/{job_id}/start"

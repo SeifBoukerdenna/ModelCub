@@ -93,8 +93,8 @@ def import_images(req: ImportImagesRequest) -> ImportImagesResult:
     # Setup paths
     datasets_dir = req.project_path / "data" / "datasets"
     dataset_dir = datasets_dir / dataset_name
-    images_dir = dataset_dir / "images"
-    unlabeled_dir = images_dir / "unlabeled"
+    unlabeled_dir = dataset_dir / "unlabeled"
+    images_dir = unlabeled_dir / "images"
 
     # Check if dataset exists
     if dataset_dir.exists() and not req.force:
@@ -105,7 +105,7 @@ def import_images(req: ImportImagesRequest) -> ImportImagesResult:
         )
 
     # Create directory structure
-    unlabeled_dir.mkdir(parents=True, exist_ok=True)
+    images_dir.mkdir(parents=True, exist_ok=True)
 
     # Import images
     imported_count = 0
@@ -120,14 +120,14 @@ def import_images(req: ImportImagesRequest) -> ImportImagesResult:
         else:
             img_path = img_info
 
-        dest_path = unlabeled_dir / img_path.name
+        dest_path = images_dir / img_path.name
 
         # Handle duplicate filenames
         counter = 1
         while dest_path.exists():
             stem = img_path.stem
             suffix = img_path.suffix
-            dest_path = unlabeled_dir / f"{stem}_{counter}{suffix}"
+            dest_path = images_dir / f"{stem}_{counter}{suffix}"
             counter += 1
 
         try:
