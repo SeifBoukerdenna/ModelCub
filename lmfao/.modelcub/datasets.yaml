@@ -1,0 +1,17 @@
+datasets:
+  3a2bd5c6:
+    id: 3a2bd5c6
+    name: panda
+    created: '2025-10-21T13:36:47.837804Z'
+    status: unlabeled
+    num_images: 10
+    images:
+      total: 10
+      unlabeled: 10
+    classes:
+    - a
+    - b
+    - c
+    path: data/datasets/panda
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_uo_1gtxw
+    num_classes: 3

@@ -124,6 +124,29 @@ class Dataset:
             size_str = f"{size_display:.1f} TB"
 
 
+    @classmethod
+    def load(cls, name: str, project_path: Optional[str | Path] = None) -> Dataset:
+        """
+        Load a dataset by name.
+
+        Args:
+            name: Dataset name
+            project_path: Project directory (searches upward if not provided)
+
+        Returns:
+            Dataset instance
+
+        Raises:
+            ValueError: If dataset not found or not in a valid project
+
+        Example:
+            >>> dataset = Dataset.load("pills-v1")
+            >>> dataset = Dataset.load("pills-v1", project_path="/path/to/project")
+            >>> info = dataset.info()
+        """
+        return cls(name, project_path)
+
+
     def info(self) -> DatasetInfo:
         """
         Get dataset information.
