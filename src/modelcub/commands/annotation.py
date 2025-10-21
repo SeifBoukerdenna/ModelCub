@@ -143,3 +143,67 @@ def list_annotations(dataset: str):
     except Exception as e:
         click.echo(f"❌ {e}")
         raise SystemExit(2)
+
+
+@annotate.command()
+@click.argument('job_id')
+def review(job_id: str):
+    """Review completed job and assign images to splits."""
+    from modelcub.sdk import Project
+    from modelcub.services.annotation_job_manager import AnnotationJobManager
+    from modelcub.services.split_service import batch_move_to_splits
+
+    try:
+        project = Project.load()
+        manager = AnnotationJobManager(project.path)
+
+        # Get review data
+        review_data = manager.get_job_review_data(job_id)
+
+        click.echo(f"\n📋 Job Review: {job_id}")
+        click.echo(f"   Dataset: {review_data['dataset_name']}")
+        click.echo(f"   Completed: {review_data['total_completed']} images\n")
+
+        if not review_data['items']:
+            click.echo("No completed annotations to review")
+            return
+
+        # Interactive assignment
+        assignments = []
+
+        for item in review_data['items']:
+            click.echo(f"Image: {item['image_id']} ({item['num_boxes']} boxes)")
+            split = click.prompt(
+                "  Assign to split",
+                type=click.Choice(['train', 'val', 'test', 'skip']),
+                default='train'
+            )
+
+            if split != 'skip':
+                assignments.append({
+                    "image_id": item['image_id'],
+                    "split": split
+                })
+
+        if not assignments:
+            click.echo("\n❌ No assignments made")
+            return
+
+        # Batch move
+        click.echo(f"\n🔄 Moving {len(assignments)} images...")
+        result = batch_move_to_splits(
+            project.path,
+            review_data['dataset_name'],
+            assignments
+        )
+
+        if result.success:
+            click.echo(f"✅ {result.message}")
+            if result.data['failed']:
+                click.echo(f"⚠️  Failed: {len(result.data['failed'])}")
+        else:
+            click.echo(f"❌ {result.message}")
+
+    except Exception as e:
+        click.echo(f"❌ {e}")
+        raise SystemExit(2)

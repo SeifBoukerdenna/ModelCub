@@ -46,6 +46,8 @@ class Endpoints:
     JOB_CANCEL = "/jobs/{job_id}/cancel"
     JOB_TASKS = "/jobs/{job_id}/tasks"
     JOB_NEXT_TASK = "/jobs/{job_id}/next-task"
+    JOB_REVIEW = "/jobs/{job_id}/review"  # ADD
+    JOB_ASSIGN_SPLITS = "/jobs/{job_id}/assign-splits"  # ADD
 
     # WebSocket
     WS = "/ws"

@@ -100,6 +100,25 @@ class Job:
         """Get tasks for this job."""
         return self._manager.get_tasks(self.id, status)
 
+    def review_data(self) -> Dict[str, Any]:
+        """Get review data for split assignment."""
+        return self._manager.get_job_review_data(self.id)
+
+    def assign_splits(self, assignments: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Assign completed annotations to splits."""
+        from ..services.split_service import batch_move_to_splits
+
+        result = batch_move_to_splits(
+            self._manager.project_path,
+            self._data.dataset_name,
+            assignments
+        )
+
+        if not result.success:
+            raise ValueError(result.message)
+
+        return result.data
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {

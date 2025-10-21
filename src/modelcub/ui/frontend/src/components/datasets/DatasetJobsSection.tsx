@@ -1,5 +1,6 @@
 import { Play, Eye } from 'lucide-react';
 import type { Job } from '@/lib/api/types';
+import { useNavigate } from 'react-router-dom';
 
 interface DatasetJobsSectionProps {
     activeJobs: Job[];
@@ -22,6 +23,7 @@ export const DatasetJobsSection = ({
     onRefresh,
     onJobClick,
 }: DatasetJobsSectionProps) => {
+
     return (
         <div className="dataset-section">
             <div className="section-header">
@@ -146,6 +148,8 @@ const JobCard = ({ job, onContinue, onResume, onClick }: JobCardProps) => {
     }
 
     // Completed/Failed job card
+    const navigate = useNavigate();
+
     return (
         <div className="job-card history" onClick={() => onClick(job)}>
             <div className="job-header">
@@ -156,6 +160,13 @@ const JobCard = ({ job, onContinue, onResume, onClick }: JobCardProps) => {
                         {new Date(job.created_at).toLocaleDateString()}
                     </span>
                 </div>
+                <button
+                    className="button-secondary"
+                    style={{ fontSize: "0.875rem", padding: "0.375rem 0.75rem" }}
+                    onClick={() => navigate(`/jobs/${job.job_id}/review`)}
+                >
+                    Review & Assign
+                </button>
             </div>
             <div className="job-summary">
                 {job.completed_tasks} / {job.total_tasks} completed

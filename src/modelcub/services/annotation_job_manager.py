@@ -439,6 +439,42 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
         return job
 
 
+    def get_job_review_data(self, job_id: str) -> Dict[str, Any]:
+        """Get job data for split assignment review."""
+        job = self.store.load_job(job_id)
+        if not job:
+            raise ValueError(f"Job not found: {job_id}")
+
+        tasks = self.store.load_tasks(job_id, TaskStatus.COMPLETED)
+
+        review_items = []
+        for task in tasks:
+            from .annotation_service import get_annotation, GetAnnotationRequest
+
+            req = GetAnnotationRequest(
+                dataset_name=job.dataset_name,
+                image_id=task.image_id,
+                project_path=self.project_path
+            )
+
+            ann_result = get_annotation(req)
+
+            if ann_result.success:
+                review_items.append({
+                    "image_id": task.image_id,
+                    "image_path": ann_result.data["image_path"],
+                    "num_boxes": ann_result.data["num_boxes"],
+                    "current_split": ann_result.data["split"]
+                })
+
+        return {
+            "job_id": job_id,
+            "dataset_name": job.dataset_name,
+            "total_completed": len(tasks),
+            "items": review_items
+        }
+
+
     def start_job(self, job_id: str) -> AnnotationJob:
         """Start or resume a job"""
         job = self.store.load_job(job_id)

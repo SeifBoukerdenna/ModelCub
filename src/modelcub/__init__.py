@@ -7,6 +7,6 @@ except PackageNotFoundError:
     __version__ = "0.0.0+dev"
 
 # Expose SDK
-from .sdk import Project, Dataset, DatasetInfo, Box
+from .sdk import Project, Dataset, DatasetInfo, Box, Job
 
-__all__ = ["Project", "Dataset", "DatasetInfo", "Box", "__version__"]
+__all__ = ["Project", "Dataset", "DatasetInfo", "Box", "Job", "__version__"]

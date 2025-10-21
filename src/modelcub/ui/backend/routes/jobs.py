@@ -1,5 +1,5 @@
 """Annotation job management API routes with WebSocket events."""
-from typing import List, Optional
+from typing import List, Optional, Dict
 import logging
 from pathlib import Path
 import asyncio
@@ -468,4 +468,73 @@ async def get_next_task(
         )
     except Exception as e:
         logger.error(f"Failed to get next task: {e}", exc_info=True)
+        raise
+
+
+@router.get("/{job_id}/review")
+async def get_job_review(
+    job_id: str,
+    project: ProjectRequired
+) -> APIResponse[dict]:
+    """Get job data for split assignment review."""
+    try:
+        manager = _get_job_manager(project.path)
+        review_data = manager.get_job_review_data(job_id)
+
+        return APIResponse(
+            success=True,
+            data=review_data,
+            message="Job review data retrieved"
+        )
+    except ValueError as e:
+        raise NotFoundError(message=str(e), code=ErrorCode.DATASET_NOT_FOUND)
+    except Exception as e:
+        logger.error(f"Failed to get job review: {e}", exc_info=True)
+        raise
+
+
+class AssignSplitsRequest(BaseModel):
+    """Request to assign images to splits"""
+    assignments: List[Dict[str, str]]
+
+
+@router.post("/{job_id}/assign-splits")
+async def assign_splits(
+    job_id: str,
+    request: AssignSplitsRequest,
+    project: ProjectRequired
+) -> APIResponse[dict]:
+    """Assign completed annotations to train/val/test splits."""
+    try:
+        from ....services.split_service import batch_move_to_splits
+
+        manager = _get_job_manager(project.path)
+        job = manager.get_job(job_id)
+
+        if not job:
+            raise NotFoundError(message=f"Job not found: {job_id}", code=ErrorCode.DATASET_NOT_FOUND)
+
+        result = batch_move_to_splits(
+            project.path,
+            job.dataset_name,
+            request.assignments
+        )
+
+        if not result.success:
+            raise ValueError(result.message)
+
+        await broadcast_job_update(
+            job_id,
+            "splits.assigned",
+            result.data
+        )
+
+        return APIResponse(
+            success=True,
+            data=result.data,
+            message=result.message
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to assign splits: {e}", exc_info=True)
         raise

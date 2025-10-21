@@ -444,6 +444,30 @@ class ModelCubAPI {
     );
   }
 
+  async getJobReview(jobId: string): Promise<{
+    job_id: string;
+    dataset_name: string;
+    total_completed: number;
+    items: Array<{
+      image_id: string;
+      image_path: string;
+      num_boxes: number;
+      current_split: string;
+    }>;
+  }> {
+    return this.request(`/jobs/${jobId}/review`);
+  }
+
+  async assignSplits(
+    jobId: string,
+    assignments: Array<{ image_id: string; split: string }>
+  ): Promise<{ success: string[]; failed: any[] }> {
+    return this.request(`/jobs/${jobId}/assign-splits`, {
+      method: "POST",
+      body: JSON.stringify({ assignments }),
+    });
+  }
+
   // ==================== MODEL METHODS ====================
 
   async listModels(): Promise<any[]> {
