@@ -54,6 +54,11 @@ class CreateJobRequest(BaseModel):
     config: Optional[dict] = None
 
 
+class AssignSplitsRequest(BaseModel):
+    """Request to assign images to train/val/test splits"""
+    assignments: List[Dict[str, str]]
+
+
 class JobResponse(BaseModel):
     """Job status response"""
     job_id: str
@@ -320,7 +325,7 @@ async def complete_task(
         if not task:
             raise NotFoundError(message="Task not found", code=ErrorCode.DATASET_NOT_FOUND)
 
-        # Store old status before updating - THIS IS THE FIX!
+        # Store old status before updating
         old_status = task.status
 
         # Mark as completed
@@ -328,7 +333,7 @@ async def complete_task(
         task.completed_at = datetime.now()
         manager.store.save_task(task)
 
-        # Update job counters - ONLY increment if not already completed
+        # Update job counters - only increment if not already completed
         job = manager.get_job(job_id)
         if job:
             # Only increment if this task wasn't already completed
@@ -539,4 +544,3 @@ async def assign_splits(
     except Exception as e:
         logger.error(f"Failed to assign splits: {e}", exc_info=True)
         raise
-
