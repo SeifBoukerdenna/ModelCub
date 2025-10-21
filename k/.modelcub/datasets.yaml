@@ -1,0 +1,16 @@
+datasets:
+  f73c2b31:
+    id: f73c2b31
+    name: lm
+    created: '2025-10-21T16:04:54.123444Z'
+    status: unlabeled
+    num_images: 8
+    images:
+      total: 8
+      unlabeled: 8
+    classes:
+    - j
+    - k
+    path: data/datasets/lm
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_8c5o8t7y
+    num_classes: 2

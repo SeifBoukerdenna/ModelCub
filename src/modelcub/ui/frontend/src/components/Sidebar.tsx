@@ -75,7 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                 <ul className="sidebar__nav-list">
                     {navigation.map((item) => {
                         const Icon = item.icon
-                        const isActive = location.pathname.startsWith(item.href)
+                        const isActive = location.pathname.startsWith(item.href || "job")
 
                         return (
                             <li key={item.name} className="sidebar__nav-item">

@@ -1,0 +1,10 @@
+# ModelCub
+.modelcub/cache/
+runs/
+reports/
+*.pt
+*.onnx
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store

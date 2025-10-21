@@ -1,0 +1,568 @@
+/* ============================================
+   Job Review & Split Assignment Styles
+   ============================================ */
+
+.review-container {
+    padding: var(--spacing-xl);
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: 100vh;
+}
+
+/* Header Section */
+.review-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.review-header__title {
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.review-header__subtitle {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.review-header__separator {
+    color: var(--color-text-tertiary);
+}
+
+/* ============================================
+   Metrics Overview
+   ============================================ */
+
+.metrics-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.metric-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+[data-theme='dark'] .metric-card {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.metric-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--border-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.metric-card--primary .metric-card__icon {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--color-primary-600);
+}
+
+.metric-card--success .metric-card__icon {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--color-success);
+}
+
+.metric-card--info .metric-card__icon {
+    background: rgba(168, 85, 247, 0.1);
+    color: #a855f7;
+}
+
+.metric-card--accent .metric-card__icon {
+    background: rgba(251, 146, 60, 0.1);
+    color: #fb923c;
+}
+
+.metric-card__content {
+    flex: 1;
+}
+
+.metric-card__value {
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.metric-card__label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ============================================
+   Split Distribution Section
+   ============================================ */
+
+.split-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.split-section__title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-lg) 0;
+}
+
+.split-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.split-card {
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--border-radius-xl);
+    padding: var(--spacing-xl);
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.split-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+[data-theme='dark'] .split-card {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.split-card--train {
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.split-card--train:hover {
+    border-color: var(--color-primary-500);
+    background: rgba(59, 130, 246, 0.03);
+}
+
+.split-card--val {
+    border-color: rgba(168, 85, 247, 0.3);
+}
+
+.split-card--val:hover {
+    border-color: #a855f7;
+    background: rgba(168, 85, 247, 0.03);
+}
+
+.split-card--test {
+    border-color: rgba(251, 146, 60, 0.3);
+}
+
+.split-card--test:hover {
+    border-color: #fb923c;
+    background: rgba(251, 146, 60, 0.03);
+}
+
+.split-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.split-card__header h3 {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.split-card__badge {
+    padding: 4px 12px;
+    border-radius: var(--border-radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+.split-card--train .split-card__badge {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--color-primary-700);
+}
+
+.split-card--val .split-card__badge {
+    background: rgba(168, 85, 247, 0.1);
+    color: #a855f7;
+}
+
+.split-card--test .split-card__badge {
+    background: rgba(251, 146, 60, 0.1);
+    color: #fb923c;
+}
+
+[data-theme='dark'] .split-card--train .split-card__badge {
+    color: var(--color-primary-400);
+}
+
+[data-theme='dark'] .split-card--val .split-card__badge {
+    color: #c084fc;
+}
+
+[data-theme='dark'] .split-card--test .split-card__badge {
+    color: #fdba74;
+}
+
+.split-card__value {
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.split-card__label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-md);
+}
+
+.split-card__bar {
+    width: 100%;
+    height: 8px;
+    background: var(--color-gray-200);
+    border-radius: var(--border-radius-full);
+    overflow: hidden;
+}
+
+[data-theme='dark'] .split-card__bar {
+    background: var(--color-gray-700);
+}
+
+.split-card__progress {
+    height: 100%;
+    border-radius: var(--border-radius-full);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.split-card__progress--train {
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.split-card__progress--val {
+    background: linear-gradient(90deg, #a855f7 0%, #9333ea 100%);
+}
+
+.split-card__progress--test {
+    background: linear-gradient(90deg, #fb923c 0%, #f97316 100%);
+}
+
+/* ============================================
+   Bulk Actions
+   ============================================ */
+
+.bulk-actions-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.bulk-actions-section__title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-md) 0;
+}
+
+.bulk-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.bulk-btn {
+    flex: 1;
+    min-width: 160px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    border: 2px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.bulk-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.bulk-btn:active {
+    transform: translateY(0);
+}
+
+.bulk-btn--train {
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.bulk-btn--train:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: var(--color-primary-500);
+    color: var(--color-primary-700);
+}
+
+[data-theme='dark'] .bulk-btn--train:hover {
+    color: var(--color-primary-400);
+}
+
+.bulk-btn--val {
+    border-color: rgba(168, 85, 247, 0.3);
+}
+
+.bulk-btn--val:hover {
+    background: rgba(168, 85, 247, 0.1);
+    border-color: #a855f7;
+    color: #9333ea;
+}
+
+[data-theme='dark'] .bulk-btn--val:hover {
+    color: #c084fc;
+}
+
+.bulk-btn--test {
+    border-color: rgba(251, 146, 60, 0.3);
+}
+
+.bulk-btn--test:hover {
+    background: rgba(251, 146, 60, 0.1);
+    border-color: #fb923c;
+    color: #f97316;
+}
+
+[data-theme='dark'] .bulk-btn--test:hover {
+    color: #fdba74;
+}
+
+.bulk-btn--auto {
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.bulk-btn--auto:hover {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--color-success);
+    color: var(--color-success);
+}
+
+/* ============================================
+   Action Bar
+   ============================================ */
+
+.review-actions {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+[data-theme='dark'] .review-actions {
+    background: var(--color-background);
+    border-color: var(--color-gray-300);
+}
+
+.review-actions__info {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.review-actions__buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.review-actions .btn {
+    min-width: 140px;
+}
+
+/* ============================================
+   Loading & Empty States
+   ============================================ */
+
+.review-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    gap: var(--spacing-md);
+}
+
+.review-loading__spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--color-gray-200);
+    border-top-color: var(--color-primary-500);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.review-loading__text {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+}
+
+.review-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    padding: var(--spacing-2xl);
+    background: var(--color-surface);
+    border: 2px dashed var(--color-border);
+    border-radius: var(--border-radius-lg);
+    text-align: center;
+}
+
+.review-empty svg {
+    width: 64px;
+    height: 64px;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--spacing-md);
+}
+
+.review-empty__title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.review-empty__description {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+@media (max-width: 768px) {
+    .review-container {
+        padding: var(--spacing-md);
+    }
+
+    .review-header__title {
+        font-size: var(--font-size-2xl);
+    }
+
+    .metrics-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .split-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .bulk-actions {
+        flex-direction: column;
+    }
+
+    .bulk-btn {
+        width: 100%;
+    }
+
+    .review-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .review-actions__buttons {
+        flex-direction: column;
+    }
+
+    .review-actions .btn {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+.metric-card,
+.split-card {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Stagger effect */
+.metric-card:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.metric-card:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.metric-card:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.metric-card:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+.split-card:nth-child(1) {
+    animation-delay: 0.4s;
+}
+
+.split-card:nth-child(2) {
+    animation-delay: 0.5s;
+}
+
+.split-card:nth-child(3) {
+    animation-delay: 0.6s;
+}
