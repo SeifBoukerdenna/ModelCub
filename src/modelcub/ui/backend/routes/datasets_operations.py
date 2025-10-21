@@ -51,7 +51,6 @@ class DatasetOperations:
             train_images=split_counts.get("train", 0),
             valid_images=split_counts.get("val", 0),
             unlabeled_images=split_counts.get("unlabeled", 0),
-            size_formatted=size
         )
 
         if include_images:

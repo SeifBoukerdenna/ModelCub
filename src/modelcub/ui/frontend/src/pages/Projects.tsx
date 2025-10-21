@@ -218,8 +218,7 @@ const Projects = () => {
             />
 
             {/* Delete Confirmation Modal */}
-            <DeleteConfirmModal
-                isOpen={!!projectToDelete}
+            {projectToDelete && <DeleteConfirmModal
                 title="Delete Project"
                 message={
                     <>
@@ -233,7 +232,7 @@ const Projects = () => {
                 onConfirm={handleDeleteProject}
                 onCancel={() => setProjectToDelete(null)}
                 isDeleting={deleting}
-            />
+            />}
         </div>
     );
 };

@@ -18,7 +18,7 @@ export const DatasetStats = ({ dataset, totalJobs }: DatasetStatsProps) => {
             </div>
             <div className="stat-card">
                 <div className="stat-label">Size</div>
-                <div className="stat-value">{dataset.size_bytes}</div>
+                <div className="stat-value">{dataset.size_formatted}</div>
             </div>
             <div className="stat-card">
                 <div className="stat-label">Number of jobs</div>

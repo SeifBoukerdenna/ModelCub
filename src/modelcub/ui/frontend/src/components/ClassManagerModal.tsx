@@ -12,7 +12,6 @@ interface ClassManagerModalProps {
 }
 
 const ClassManagerModal = ({
-
     onClose,
     datasetId,
     initialClasses,

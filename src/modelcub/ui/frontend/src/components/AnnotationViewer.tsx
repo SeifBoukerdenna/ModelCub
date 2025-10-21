@@ -173,7 +173,6 @@ export const AnnotationView = () => {
             {/* Class Manager Modal */}
             {showClassManager && (
                 <ClassManagerModal
-                    isOpen={showClassManager}
                     onClose={() => setShowClassManager(false)}
                     datasetId={datasetName || ''}
                     initialClasses={classes.map(c => c.name)}

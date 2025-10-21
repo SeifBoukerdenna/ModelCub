@@ -80,6 +80,8 @@ class Dataset(BaseModel):
     status: str
     classes: List[str]
     images: int
+    size_bytes: int  # Add this
+    size_formatted: str  # Add this
     created: Optional[str] = None
 
 class ImageInfo(BaseModel):

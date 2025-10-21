@@ -78,7 +78,6 @@ const DatasetViewer = () => {
             <DatasetHeader
                 datasetName={dataset.name}
                 onBack={() => navigate('/datasets')}
-                onManageClasses={() => setClassManagerDataset(dataset)}
                 onDelete={() => setShowDeleteModal(true)}
             />
 
