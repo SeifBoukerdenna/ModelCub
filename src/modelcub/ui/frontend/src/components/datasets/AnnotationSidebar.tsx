@@ -10,7 +10,6 @@ interface AnnotationSidebarProps {
     completedCount: number;
     currentClassId: number;
     onClassSelect: (classId: number) => void;
-    onManageClasses: () => void;
     onComplete: () => void;
 }
 
@@ -21,7 +20,6 @@ export const AnnotationSidebar = ({
     completedCount,
     currentClassId,
     onClassSelect,
-    onManageClasses,
     onComplete,
 }: AnnotationSidebarProps) => {
     const [showTaskInfo, setShowTaskInfo] = useState(false);
@@ -40,13 +38,6 @@ export const AnnotationSidebar = ({
                     <h3 style={{ fontSize: '13px', margin: 0, textTransform: 'none', letterSpacing: 0 }}>
                         Classes
                     </h3>
-                    <button
-                        className="btn btn--xs btn--secondary"
-                        onClick={onManageClasses}
-                        style={{ padding: '4px 8px' }}
-                    >
-                        <Settings size={14} />
-                    </button>
                 </div>
 
                 {classes.length > 0 ? (

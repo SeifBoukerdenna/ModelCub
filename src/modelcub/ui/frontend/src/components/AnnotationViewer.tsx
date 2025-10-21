@@ -10,8 +10,6 @@ import { useAnnotationKeyboard } from '@/hooks/useAnnotationKeyboard';
 import { useDatasetClasses } from '@/hooks/useDatasetClasses';
 import { useImageLoader } from '@/hooks/useImageLoader';
 
-// Components
-import ClassManagerModal from '@/components/ClassManagerModal';
 
 import './AnnotationViewer.css';
 import { AnnotationHeader } from './datasets/AnnotationHeader';
@@ -27,7 +25,6 @@ export const AnnotationView = () => {
     const navigate = useNavigate();
     const jobId = searchParams.get('job_id');
 
-    const [showClassManager, setShowClassManager] = useState(false);
     const [currentClassId, setCurrentClassId] = useState(0);
 
     const [showExitModal, setExitModal] = useState(false);
@@ -54,7 +51,7 @@ export const AnnotationView = () => {
     } = useAnnotationNavigation(tasks, () => navigate(`/datasets/${datasetName}`));
 
     // Dataset classes
-    const { classes, reload: reloadClasses } = useDatasetClasses(datasetName);
+    const { classes, } = useDatasetClasses(datasetName);
 
     // Image loading
     const {
@@ -165,20 +162,10 @@ export const AnnotationView = () => {
                     completedCount={completedCount}
                     currentClassId={currentClassId}
                     onClassSelect={setCurrentClassId}
-                    onManageClasses={() => setShowClassManager(true)}
                     onComplete={handleCompleteTask}
                 />
             </div>
 
-            {/* Class Manager Modal */}
-            {showClassManager && (
-                <ClassManagerModal
-                    onClose={() => setShowClassManager(false)}
-                    datasetId={datasetName || ''}
-                    initialClasses={classes.map(c => c.name)}
-                    onUpdate={reloadClasses}
-                />
-            )}
 
             {/* Exit Modal */}
             {showExitModal && (
