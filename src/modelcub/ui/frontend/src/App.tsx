@@ -77,7 +77,7 @@ const App: React.FC = () => {
                         <Route path="/jobs/:jobId/review" element={
                             <ProjectGuard>
                                 <JobReview />
-                                /</ProjectGuard>}
+                            </ProjectGuard>}
                         />
                         <Route
                             path="models"

@@ -160,13 +160,6 @@ const JobCard = ({ job, onContinue, onResume, onClick }: JobCardProps) => {
                         {new Date(job.created_at).toLocaleDateString()}
                     </span>
                 </div>
-                <button
-                    className="button-secondary"
-                    style={{ fontSize: "0.875rem", padding: "0.375rem 0.75rem" }}
-                    onClick={() => navigate(`/jobs/${job.job_id}/review`)}
-                >
-                    Review & Assign
-                </button>
             </div>
             <div className="job-summary">
                 {job.completed_tasks} / {job.total_tasks} completed
@@ -174,6 +167,13 @@ const JobCard = ({ job, onContinue, onResume, onClick }: JobCardProps) => {
             </div>
             {onContinue && (
                 <div className="job-actions" style={{ marginTop: 'var(--spacing-sm)' }}>
+                    <button
+                        className="btn btn--secondary"
+                        style={{ fontSize: "0.875rem", padding: "0.375rem 0.75rem" }}
+                        onClick={() => navigate(`/jobs/${job.job_id}/review`)}
+                    >
+                        Review & Assign
+                    </button>
                     <button
                         className="btn btn--xs btn--secondary"
                         onClick={(e) => {
