@@ -12,7 +12,7 @@ export const useDatasetClasses = (datasetName: string | undefined) => {
 
     setIsLoading(true);
     try {
-      const dataset = await api.getDataset(datasetName);
+      const dataset = await api.getDataset(datasetName, false);
       const classNames = dataset.classes || [];
       // Convert string[] to {id, name}[]
       const classesWithIds = classNames.map((name, index) => ({

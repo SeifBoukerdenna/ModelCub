@@ -1,13 +1,12 @@
 /**
  * React hooks for API calls
- * Provides easy-to-use hooks with loading states and error handling
  */
 import { useState, useCallback } from "react";
-
+import { api } from "./index";
 import type {
   Project,
-  ProjectConfigFull,
   CreateProjectRequest,
+  ProjectConfigFull,
   SetConfigRequest,
   Dataset,
   DatasetDetail,
@@ -15,8 +14,6 @@ import type {
   ImageInfo,
   Model,
 } from "./types";
-import { api } from "../api";
-import Models from "@/pages/Models";
 
 type LoadingState = "idle" | "loading" | "success" | "error";
 
@@ -27,14 +24,12 @@ interface UseAPIState<T> {
   state: LoadingState;
 }
 
-interface UseAPIResult<T, TArgs extends any[] = []> extends UseAPIState<T> {
+export interface UseAPIResult<T, TArgs extends any[] = []>
+  extends UseAPIState<T> {
   execute: (...args: TArgs) => Promise<T | null>;
   reset: () => void;
 }
 
-/**
- * Base hook for API calls with loading state
- */
 function useAPI<T, TArgs extends any[] = []>(
   apiCall: (...args: TArgs) => Promise<T>
 ): UseAPIResult<T, TArgs> {
@@ -125,8 +120,9 @@ export function useListDatasets() {
 }
 
 export function useGetDataset() {
-  return useAPI<DatasetDetail, [string]>((datasetId) =>
-    api.getDataset(datasetId)
+  return useAPI<DatasetDetail, [string, boolean?, string?, number?, number?]>(
+    (datasetName, includeImages, split, limit, offset) =>
+      api.getDataset(datasetName, includeImages, split, limit, offset)
   );
 }
 
@@ -156,7 +152,7 @@ export function useListModels() {
 }
 
 export function useGetModel() {
-  return Models;
+  return useAPI<Model, [string]>((modelId) => api.getModel(modelId));
 }
 
 // ==================== UTILITY HOOKS ====================

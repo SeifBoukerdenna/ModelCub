@@ -1,14 +1,14 @@
 /**
- * Main API module exports
+ * ModelCub API Module
+ * Main entry point for API interactions
  */
 
-// Export API client
+// Export the API client instance
+export { ModelCubAPI } from "./client";
+export { ModelCubAPIError } from "./errors";
 
 // Export all types
 export type {
-  APIResponse,
-  ErrorDetail,
-  ResponseMeta,
   Project,
   ProjectConfig,
   ProjectInfo,
@@ -23,6 +23,11 @@ export type {
   ImageInfo,
   Model,
   TrainingRun,
+  Job,
+  Task,
+  CreateJobRequest,
+  Annotation,
+  Box,
   ErrorCodeType,
 } from "./types";
 
@@ -45,3 +50,9 @@ export {
   useGetModel,
   useHealthCheck,
 } from "./hooks";
+
+export type { UseAPIResult } from "./hooks";
+
+// Create and export singleton instance
+import { ModelCubAPI } from "./client";
+export const api = new ModelCubAPI();

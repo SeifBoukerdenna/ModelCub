@@ -1,6 +1,5 @@
 /**
  * API types - mirrors backend schemas
- * Generated/synced from backend Pydantic models
  */
 
 // ==================== BASE API TYPES ====================
@@ -76,15 +75,12 @@ export interface DeleteProjectRequest {
   confirm: boolean;
 }
 
-export type LoadingState = "idle" | "loading" | "success" | "error";
-
 // ==================== DATASET TYPES ====================
 
 export interface Dataset {
   name: string;
   id: string;
   status: string;
-
   classes: string[];
   path: string;
   created?: string;
@@ -98,8 +94,8 @@ export interface DatasetDetail extends Dataset {
   train_images: number;
   valid_images: number;
   unlabeled_images: number;
-  image_list?: ImageInfo[]; // Add this
-  total_images?: number; // Add this
+  image_list?: ImageInfo[];
+  total_images?: number;
 }
 
 export interface ImportDatasetRequest {
@@ -139,29 +135,7 @@ export interface TrainingRun {
   metrics?: Record<string, number>;
 }
 
-// ==================== ERROR CODES ====================
-
-export const ErrorCode = {
-  INTERNAL_ERROR: "INTERNAL_ERROR",
-  VALIDATION_ERROR: "VALIDATION_ERROR",
-  NOT_FOUND: "NOT_FOUND",
-  BAD_REQUEST: "BAD_REQUEST",
-  PROJECT_NOT_FOUND: "PROJECT_NOT_FOUND",
-  PROJECT_ALREADY_EXISTS: "PROJECT_ALREADY_EXISTS",
-  PROJECT_INVALID: "PROJECT_INVALID",
-  PROJECT_LOAD_FAILED: "PROJECT_LOAD_FAILED",
-  DATASET_NOT_FOUND: "DATASET_NOT_FOUND",
-  DATASET_ALREADY_EXISTS: "DATASET_ALREADY_EXISTS",
-  DATASET_IMPORT_FAILED: "DATASET_IMPORT_FAILED",
-  DATASET_INVALID: "DATASET_INVALID",
-  MODEL_NOT_FOUND: "MODEL_NOT_FOUND",
-  TRAINING_FAILED: "TRAINING_FAILED",
-  FILE_NOT_FOUND: "FILE_NOT_FOUND",
-  FILE_UPLOAD_FAILED: "FILE_UPLOAD_FAILED",
-  INVALID_FILE_TYPE: "INVALID_FILE_TYPE",
-} as const;
-
-export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+// ==================== JOB TYPES ====================
 
 export interface Job {
   job_id: string;
@@ -203,6 +177,8 @@ export interface CreateJobRequest {
   config?: Record<string, any>;
 }
 
+// ==================== ANNOTATION TYPES ====================
+
 export interface Box {
   class_id: number;
   x: number;
@@ -218,3 +194,27 @@ export interface Annotation {
   boxes: Box[];
   num_boxes: number;
 }
+
+// ==================== ERROR CODES ====================
+
+export const ErrorCode = {
+  INTERNAL_ERROR: "INTERNAL_ERROR",
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  NOT_FOUND: "NOT_FOUND",
+  BAD_REQUEST: "BAD_REQUEST",
+  PROJECT_NOT_FOUND: "PROJECT_NOT_FOUND",
+  PROJECT_ALREADY_EXISTS: "PROJECT_ALREADY_EXISTS",
+  PROJECT_INVALID: "PROJECT_INVALID",
+  PROJECT_LOAD_FAILED: "PROJECT_LOAD_FAILED",
+  DATASET_NOT_FOUND: "DATASET_NOT_FOUND",
+  DATASET_ALREADY_EXISTS: "DATASET_ALREADY_EXISTS",
+  DATASET_IMPORT_FAILED: "DATASET_IMPORT_FAILED",
+  DATASET_INVALID: "DATASET_INVALID",
+  MODEL_NOT_FOUND: "MODEL_NOT_FOUND",
+  TRAINING_FAILED: "TRAINING_FAILED",
+  FILE_NOT_FOUND: "FILE_NOT_FOUND",
+  FILE_UPLOAD_FAILED: "FILE_UPLOAD_FAILED",
+  INVALID_FILE_TYPE: "INVALID_FILE_TYPE",
+} as const;
+
+export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];

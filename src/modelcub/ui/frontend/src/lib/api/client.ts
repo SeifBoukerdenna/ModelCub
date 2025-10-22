@@ -1,57 +1,29 @@
 /**
- * API client for ModelCub backend
- * Path: frontend/src/lib/api.ts
+ * ModelCub API Client
  */
-import { useState, useCallback } from "react";
-import type { LoadingState, Project } from "@/types";
-import {
-  Annotation,
-  Box,
-  CreateJobRequest,
-  CreateProjectRequest,
-  Dataset,
-  DatasetDetail,
-  ImageInfo,
-  ImportDatasetRequest,
-  Job,
-  ProjectConfigFull,
-  SetConfigRequest,
-  Task,
-} from "./api/types";
 import { ENDPOINTS } from "@/config/api.config";
 
-interface UseAPIState<T> {
-  data: T | null;
-  loading: boolean;
-  error: string | null;
-  state: LoadingState;
-}
+import type {
+  Project,
+  CreateProjectRequest,
+  SetConfigRequest,
+  ProjectConfigFull,
+  Dataset,
+  DatasetDetail,
+  ImportDatasetRequest,
+  ImageInfo,
+  Job,
+  Task,
+  CreateJobRequest,
+  Annotation,
+  Box,
+} from "./types";
+import { ModelCubAPIError } from "./errors";
 
-interface UseAPIResult<T, TArgs extends any[] = []> extends UseAPIState<T> {
-  execute: (...args: TArgs) => Promise<T | null>;
-  reset: () => void;
-}
-
-// ==================== ERROR CLASS ====================
-
-class ModelCubAPIError extends Error {
-  constructor(
-    message: string,
-    public statusCode?: number,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = "ModelCubAPIError";
-  }
-}
-
-// ==================== API CLIENT ====================
-
-class ModelCubAPI {
+export class ModelCubAPI {
   private readonly baseURL = "/api/v1";
   private currentProjectPath: string | null = null;
 
-  // Alias for backwards compatibility
   setCurrentProject(projectPath: string | null) {
     this.setProjectPath(projectPath);
   }
@@ -268,7 +240,6 @@ class ModelCubAPI {
 
     if (name) formData.append("name", name);
     if (classes && classes.length > 0) {
-      // Send as comma-separated string
       formData.append("classes", classes.join(","));
     }
     formData.append("recursive", String(recursive));
@@ -381,6 +352,8 @@ class ModelCubAPI {
       method: "DELETE",
     });
   }
+
+  // ==================== JOB METHODS ====================
 
   async createJob(data: CreateJobRequest): Promise<Job> {
     return this.request<Job>("/jobs/create", {
@@ -517,120 +490,3 @@ class ModelCubAPI {
     );
   }
 }
-
-// ==================== HOOKS ====================
-
-function useAPI<T, TArgs extends any[] = []>(
-  apiCall: (...args: TArgs) => Promise<T>
-): UseAPIResult<T, TArgs> {
-  const [state, setState] = useState<UseAPIState<T>>({
-    data: null,
-    loading: false,
-    error: null,
-    state: "idle",
-  });
-
-  const execute = useCallback(
-    async (...args: TArgs): Promise<T | null> => {
-      setState({ data: null, loading: true, error: null, state: "loading" });
-
-      try {
-        const result = await apiCall(...args);
-        setState({
-          data: result,
-          loading: false,
-          error: null,
-          state: "success",
-        });
-        return result;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        setState({
-          data: null,
-          loading: false,
-          error: errorMessage,
-          state: "error",
-        });
-        return null;
-      }
-    },
-    [apiCall]
-  );
-
-  const reset = useCallback(() => {
-    setState({ data: null, loading: false, error: null, state: "idle" });
-  }, []);
-
-  return {
-    ...state,
-    execute,
-    reset,
-  };
-}
-
-// Project Hooks
-export function useListProjects() {
-  return useAPI<Project[]>(() => api.listProjects());
-}
-
-export function useCreateProject() {
-  return useAPI<Project, [CreateProjectRequest]>((data) =>
-    api.createProject(data)
-  );
-}
-
-export function useGetProjectByPath() {
-  return useAPI<Project, [string]>((path) => api.getProjectByPath(path));
-}
-
-export function useGetProjectConfig() {
-  return useAPI<any, [string]>((path) => api.getProjectConfig(path));
-}
-
-export function useSetProjectConfig() {
-  return useAPI<any, [string, SetConfigRequest]>((path, data) =>
-    api.setProjectConfig(path, data)
-  );
-}
-
-export function useDeleteProject() {
-  return useAPI<void, [string, boolean]>((path, confirm) =>
-    api.deleteProject(path, confirm)
-  );
-}
-
-// Dataset Hooks
-export function useListDatasets() {
-  return useAPI<Dataset[]>(() => api.listDatasets());
-}
-
-export function useGetDataset() {
-  return useAPI<DatasetDetail, [string, boolean?, string?, number?, number?]>(
-    (datasetName, includeImages, split, limit, offset) =>
-      api.getDataset(datasetName, includeImages, split, limit, offset)
-  );
-}
-
-export function useImportDataset() {
-  return useAPI<Dataset, [ImportDatasetRequest]>((data) =>
-    api.importDataset(data)
-  );
-}
-
-export function useUploadDataset() {
-  return useAPI<Dataset, [File, string?]>((file, datasetName) =>
-    api.uploadDataset(file, datasetName)
-  );
-}
-
-// Model Hooks
-export function useListModels() {
-  return useAPI<any[]>(() => api.listModels());
-}
-
-// ==================== EXPORTS ====================
-
-export const api = new ModelCubAPI();
-export { ModelCubAPIError };
-export type { UseAPIResult, LoadingState, Project };

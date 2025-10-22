@@ -1,0 +1,15 @@
+datasets:
+  c4361709:
+    id: c4361709
+    name: aaaa
+    created: '2025-10-22T00:02:15.051839Z'
+    status: unlabeled
+    num_images: 5
+    images:
+      total: 5
+      unlabeled: 5
+    classes:
+    - lolol
+    path: data/datasets/aaaa
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_9uj1_03z
+    num_classes: 1
