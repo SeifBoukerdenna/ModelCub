@@ -67,20 +67,20 @@ class AnnotationJob:
 
     @property
     def progress(self) -> float:
-        """Progress percentage"""
+        """Calculate completion progress (0-100)"""
         if self.total_tasks == 0:
             return 0.0
         return (self.completed_tasks / self.total_tasks) * 100
 
     @property
-    def is_terminal(self) -> bool:
-        """Check if job is in terminal state"""
-        return self.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]
-
-    @property
     def can_resume(self) -> bool:
         """Check if job can be resumed"""
-        return self.status in [JobStatus.PAUSED, JobStatus.FAILED]
+        return self.status in [JobStatus.PENDING, JobStatus.PAUSED]
+
+    @property
+    def is_terminal(self) -> bool:
+        """Check if job is in a terminal state"""
+        return self.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]
 
 
 class JobStore:
@@ -88,10 +88,10 @@ class JobStore:
 
     def __init__(self, db_path: Path):
         self.db_path = db_path
-        self._init_db()
+        self._initialize_db()
 
-    def _init_db(self):
-        """Initialize database schema"""
+    def _initialize_db(self):
+        """Create tables if they don't exist"""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS jobs (
@@ -123,12 +123,9 @@ class JobStore:
                     started_at TEXT,
                     completed_at TEXT,
                     result TEXT,
-                    FOREIGN KEY (job_id) REFERENCES jobs (job_id)
+                    FOREIGN KEY (job_id) REFERENCES jobs(job_id)
                 )
             """)
-
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_job_id ON tasks(job_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON tasks(status)")
             conn.commit()
 
     def save_job(self, job: AnnotationJob):
@@ -333,14 +330,6 @@ class JobWorker(threading.Thread):
 class AnnotationJobManager:
     """
     Central manager for annotation jobs with resume/pause/cancel capabilities.
-
-    Features:
-    - Create jobs from datasets
-    - Start, pause, resume, cancel jobs
-    - Automatic checkpointing and recovery
-    - Multi-threaded task execution
-    - Progress tracking
-    - Event notifications
     """
 
     def __init__(
@@ -365,10 +354,6 @@ class AnnotationJobManager:
         self._lock = threading.Lock()
         self._monitor_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
-
-    """
-Replace the create_job method in annotation_job_manager.py (around line 443-491)
-"""
 
     def create_job(
         self,
@@ -423,11 +408,27 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
         # Create tasks
         tasks = []
         for img in images:
+            # Ensure image_path is properly formatted
+            image_path = img.get("image_path", "")
+            if not image_path:
+                # Fallback to constructing path
+                split = img.get("split", "unlabeled")
+                image_id = img["image_id"]
+                # Find actual file extension
+                from .annotation_service import _find_image_split
+                actual_split = _find_image_split(self.project_path, dataset_name, image_id)
+                if actual_split:
+                    images_dir = self.project_path / "data" / "datasets" / dataset_name / actual_split / "images"
+                    for ext in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
+                        if (images_dir / f"{image_id}{ext}").exists():
+                            image_path = f"{actual_split}/images/{image_id}{ext}"
+                            break
+
             task = AnnotationTask(
                 task_id=f"{job_id}_{img['image_id']}",
                 job_id=job_id,
                 image_id=img["image_id"],
-                image_path=img["image_path"]
+                image_path=image_path
             )
             tasks.append(task)
 
@@ -438,9 +439,13 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
 
         return job
 
-
     def get_job_review_data(self, job_id: str) -> Dict[str, Any]:
-        """Get job data for split assignment review."""
+        """
+        Get job data for split assignment review.
+
+        FIX: Updates image_path to current location dynamically, since images
+        may have moved to different splits after annotation completion.
+        """
         job = self.store.load_job(job_id)
         if not job:
             raise ValueError(f"Job not found: {job_id}")
@@ -449,6 +454,19 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
 
         review_items = []
         for task in tasks:
+            # FIX: Dynamically find current image location
+            from .annotation_service import _find_image_split
+            current_split = _find_image_split(self.project_path, job.dataset_name, task.image_id)
+
+            if current_split:
+                # Update task image_path to current location
+                images_dir = self.project_path / "data" / "datasets" / job.dataset_name / current_split / "images"
+                for ext in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
+                    if (images_dir / f"{task.image_id}{ext}").exists():
+                        task.image_path = f"{current_split}/images/{task.image_id}{ext}"
+                        break
+
+            # Get annotation data
             from .annotation_service import get_annotation, GetAnnotationRequest
 
             req = GetAnnotationRequest(
@@ -474,7 +492,6 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
             "items": review_items
         }
 
-
     def start_job(self, job_id: str) -> AnnotationJob:
         """Start or resume a job"""
         job = self.store.load_job(job_id)
@@ -496,14 +513,14 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
         # Load pending tasks
         pending_tasks = self.store.load_tasks(job_id, TaskStatus.PENDING)
 
-        # Enqueue tasks
+        # Add tasks to queue
         for task in pending_tasks:
             self.task_queue.put(task)
 
-        # Start workers if not already running
+        # Start workers
         self._ensure_workers_running()
 
-        # Start monitoring thread
+        # Start monitor thread if not running
         if not self._monitor_thread or not self._monitor_thread.is_alive():
             self._monitor_thread = threading.Thread(
                 target=self._monitor_jobs,
@@ -525,7 +542,6 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
         if job.status != JobStatus.RUNNING:
             raise ValueError(f"Cannot pause job in status: {job.status}")
 
-        # Update status
         job.status = JobStatus.PAUSED
         job.paused_at = datetime.now()
         self.store.save_job(job)
@@ -543,9 +559,8 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
             raise ValueError(f"Job not found: {job_id}")
 
         if job.is_terminal:
-            return job  # Already in terminal state
+            raise ValueError(f"Cannot cancel job in terminal status: {job.status}")
 
-        # Update status
         job.status = JobStatus.CANCELLED
         job.completed_at = datetime.now()
         self.store.save_job(job)
@@ -594,16 +609,9 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
     def _handle_task(self, task: AnnotationTask) -> Dict[str, Any]:
         """
         Handle a single annotation task.
-        This should be customized based on your annotation logic.
+        Tasks are completed manually via UI, so this just waits.
         """
-        # DISABLED: Auto-completion for testing manual annotation
-        # time.sleep(0.1)
-        # return {
-        #     "processed": True,
-        #     "timestamp": datetime.now().isoformat()
-        # }
-
-        # Just wait indefinitely - tasks will be completed manually via UI
+        # Manual annotation - wait indefinitely
         time.sleep(999999)
         return {}
 
@@ -659,75 +667,3 @@ Replace the create_job method in annotation_job_manager.py (around line 443-491)
         # Stop monitor
         if self._monitor_thread:
             self._monitor_thread.join(timeout=5)
-
-
-# ============= CLI Integration =============
-
-def cli_create_job(dataset_name: str, project_path: Path, image_ids: Optional[List[str]] = None):
-    """CLI: Create annotation job"""
-    manager = AnnotationJobManager(project_path)
-    job = manager.create_job(dataset_name, image_ids)
-
-    print(f"✓ Created job {job.job_id}")
-    print(f"  Dataset: {job.dataset_name}")
-    print(f"  Tasks: {job.total_tasks}")
-    print(f"\nRun: modelcub job start {job.job_id}")
-
-
-def cli_start_job(job_id: str, project_path: Path):
-    """CLI: Start job"""
-    manager = AnnotationJobManager(project_path)
-    job = manager.start_job(job_id)
-
-    print(f"▶ Started job {job.job_id}")
-    print(f"  Status: {job.status.value}")
-    print(f"  Progress: {job.progress:.1f}%")
-
-
-def cli_pause_job(job_id: str, project_path: Path):
-    """CLI: Pause job"""
-    manager = AnnotationJobManager(project_path)
-    job = manager.pause_job(job_id)
-
-    print(f"⏸ Paused job {job.job_id}")
-    print(f"  Progress: {job.progress:.1f}%")
-
-
-def cli_cancel_job(job_id: str, project_path: Path):
-    """CLI: Cancel job"""
-    manager = AnnotationJobManager(project_path)
-    job = manager.cancel_job(job_id)
-
-    print(f"✖ Cancelled job {job.job_id}")
-
-
-def cli_list_jobs(project_path: Path):
-    """CLI: List all jobs"""
-    manager = AnnotationJobManager(project_path)
-    jobs = manager.list_jobs()
-
-    if not jobs:
-        print("No jobs found")
-        return
-
-    print("\nAnnotation Jobs:")
-    print("=" * 80)
-
-    for job in jobs:
-        status_icon = {
-            JobStatus.PENDING: "⏳",
-            JobStatus.RUNNING: "▶",
-            JobStatus.PAUSED: "⏸",
-            JobStatus.COMPLETED: "✓",
-            JobStatus.FAILED: "✖",
-            JobStatus.CANCELLED: "⊗"
-        }.get(job.status, "?")
-
-        print(f"\n{status_icon} {job.job_id} - {job.dataset_name}")
-        print(f"   Status: {job.status.value}")
-        print(f"   Progress: {job.completed_tasks}/{job.total_tasks} ({job.progress:.1f}%)")
-
-        if job.failed_tasks > 0:
-            print(f"   Failed: {job.failed_tasks}")
-
-        print(f"   Created: {job.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
