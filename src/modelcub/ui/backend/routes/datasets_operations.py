@@ -82,6 +82,7 @@ class DatasetOperations:
         )
         return dataset_to_schema(dataset, project.path)
 
+
     @staticmethod
     def import_from_files(
         project: Project,
@@ -91,8 +92,47 @@ class DatasetOperations:
         recursive: bool
     ) -> DatasetSchema:
         """Import dataset from uploaded files."""
-        # Implementation for file uploads
-        raise NotImplementedError("File upload import not yet implemented")
+        temp_dir = Path(tempfile.mkdtemp(prefix="modelcub_upload_"))
+
+        try:
+            # Save uploaded files
+            for file in files:
+                if not file.filename:
+                    continue
+                filename = Path(file.filename).name
+                if not filename:
+                    continue
+
+                file_path = temp_dir / filename
+                with open(file_path, "wb") as f:
+                    shutil.copyfileobj(file.file, f)
+
+            logger.info(f"Saved {len(files)} files to {temp_dir}")
+
+            # Parse classes
+            classes_list = None
+            if classes:
+                classes_list = [c.strip() for c in classes.split(",") if c.strip()]
+
+            # Import via SDK
+            dataset = project.import_dataset(
+                source=str(temp_dir),
+                name=name,
+                classes=classes_list,
+                recursive=recursive,
+                copy=True,
+                validate=True,
+                force=False
+            )
+
+            return dataset_to_schema(dataset, project.path)
+
+        finally:
+            if temp_dir.exists():
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception as e:
+                    logger.warning(f"Failed to cleanup temp dir: {e}")
 
     @staticmethod
     def import_from_archive(
