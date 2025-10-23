@@ -265,7 +265,7 @@ export const KonvaAnnotationCanvas = ({
                     {boxes.map((box) => {
                         const screenBox = yoloToScreen(box, imageDimensions);
                         const isSelected = box.id === selectedBoxId;
-                        const color = getClassColor(box.class_id);
+                        const color = getClassColor(box.class_id, classes);
                         const className = classes.find(c => c.id === box.class_id)?.name || `Class ${box.class_id}`;
 
                         return (
@@ -324,7 +324,7 @@ export const KonvaAnnotationCanvas = ({
                             y={currentBox.y + imageOffset.y}
                             width={currentBox.width}
                             height={currentBox.height}
-                            stroke={getClassColor(currentClassId)}
+                            stroke={getClassColor(currentClassId, classes)}
                             strokeWidth={2}
                             fill="transparent"
                             dash={[4, 4]}

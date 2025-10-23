@@ -124,26 +124,16 @@ export function clampBoxToImage(
 /**
  * Get class color with consistent hashing.
  */
-export function getClassColor(classId: number): string {
-  const colors = [
-    "#FF6B6B",
-    "#4ECDC4",
-    "#45B7D1",
-    "#FFA07A",
-    "#98D8C8",
-    "#F7DC6F",
-    "#BB8FCE",
-    "#85C1E2",
-    "#F8B739",
-    "#52B788",
-    "#FF6F91",
-    "#C9ADA7",
-    "#9D84B7",
-    "#FFB4A2",
-    "#B5E7E7",
-  ];
-  return colors[classId % colors.length] ?? "";
-}
+export const getClassColor = (
+  classId: number,
+  classes?: Array<{ id: number; name: string; color?: string }>
+): string => {
+  if (classes) {
+    const cls = classes.find((c) => c.id === classId);
+    if (cls?.color) return cls.color;
+  }
+  return `hsl(${classId * 137.5}, 70%, 60%)`;
+};
 
 /**
  * Check if point is inside box (for hit detection).

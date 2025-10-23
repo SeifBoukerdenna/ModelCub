@@ -113,31 +113,38 @@ export const AnnotationSidebar = ({
                                     alignItems: 'center',
                                     gap: '8px',
                                     padding: '8px 12px',
-                                    background: currentClassId === cls.id ? 'var(--color-primary-alpha)' : 'var(--color-background)',
-                                    border: `2px solid ${currentClassId === cls.id ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                    borderRadius: '4px',
+                                    background: currentClassId === cls.id
+                                        ? 'rgba(59, 130, 246, 0.1)'
+                                        : 'transparent',
+                                    border: `2px solid ${currentClassId === cls.id
+                                        ? 'rgb(59, 130, 246)'
+                                        : 'var(--color-border)'}`,
+                                    borderRadius: '6px',
                                     cursor: 'pointer',
                                     fontSize: '13px',
                                     textAlign: 'left',
                                     transition: 'all 0.15s ease',
+                                    color: 'var(--color-text)',
                                 }}
                             >
                                 <div
                                     style={{
-                                        width: '12px',
-                                        height: '12px',
-                                        borderRadius: '2px',
+                                        width: '16px',
+                                        height: '16px',
+                                        borderRadius: '3px',
                                         background: cls.color || `hsl(${cls.id * 137.5}, 70%, 60%)`,
+                                        flexShrink: 0,
                                     }}
                                 />
                                 <span style={{ flex: 1 }}>{cls.name}</span>
                                 <kbd style={{
                                     padding: '2px 6px',
-                                    background: 'var(--color-background)',
+                                    background: 'var(--color-background-secondary)',
                                     border: '1px solid var(--color-border)',
                                     borderRadius: '3px',
                                     fontSize: '11px',
                                     fontFamily: 'var(--font-mono)',
+                                    color: 'var(--color-text-secondary)',
                                 }}>
                                     {cls.id}
                                 </kbd>
