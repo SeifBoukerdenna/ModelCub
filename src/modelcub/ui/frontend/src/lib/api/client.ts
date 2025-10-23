@@ -465,11 +465,17 @@ export class ModelCubAPI {
   async saveAnnotation(
     datasetName: string,
     imageId: string,
-    boxes: Box[]
-  ): Promise<{ image_id: string; num_boxes: number; label_path: string }> {
+    boxes: Box[],
+    isNull: boolean = false // NEW: null marking parameter
+  ): Promise<{
+    image_id: string;
+    num_boxes: number;
+    label_path: string;
+    is_null: boolean;
+  }> {
     return this.request(`/datasets/${datasetName}/annotations/${imageId}`, {
       method: "POST",
-      body: JSON.stringify({ boxes }),
+      body: JSON.stringify({ boxes, is_null: isNull }), // NEW: include is_null
     });
   }
 

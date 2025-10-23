@@ -1,7 +1,8 @@
 """
-Annotation service with ServiceResult pattern.
+Annotation service with ServiceResult pattern and null annotation support.
 
 Handles YOLO format annotations (text files in labels/ directory).
+Supports marking images as null (intentionally empty/negative examples).
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -11,6 +12,10 @@ import json
 
 from ..core.service_result import ServiceResult
 from ..core.service_logging import log_service_call
+
+
+# Special marker to indicate null annotation (intentionally empty)
+NULL_MARKER = "# NULL"
 
 
 @dataclass
@@ -46,6 +51,7 @@ class SaveAnnotationRequest:
     image_id: str
     boxes: List[BoundingBox]
     project_path: Path
+    is_null: bool = False  # Mark as null (intentionally empty)
 
 
 @dataclass
@@ -87,7 +93,7 @@ def _find_image_split(project_path: Path, dataset_name: str, image_id: str) -> O
         if images_dir.exists():
             # Check for common image extensions
             for ext in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
-                if (images_dir / f"{image_id}{ext}").exists():  # CHANGE req.image_id to image_id
+                if (images_dir / f"{image_id}{ext}").exists():
                     return split
     return None
 
@@ -103,6 +109,34 @@ def _get_label_path(project_path: Path, dataset_name: str, image_id: str) -> Opt
     return labels_dir / f"{image_id}.txt"
 
 
+def _is_null_annotation(label_path: Path) -> bool:
+    """Check if annotation is marked as null."""
+    if not label_path.exists():
+        return False
+
+    content = label_path.read_text(encoding="utf-8").strip()
+    return content == NULL_MARKER
+
+
+def _has_annotation(label_path: Path) -> bool:
+    """Check if image has any annotation (boxes or null marker)."""
+    if not label_path.exists():
+        return False
+
+    content = label_path.read_text(encoding="utf-8").strip()
+
+    # Empty file = not annotated
+    if not content:
+        return False
+
+    # Has null marker = annotated as null
+    if content == NULL_MARKER:
+        return True
+
+    # Has boxes = annotated
+    return True
+
+
 @log_service_call("save_annotation")
 def save_annotation(req: SaveAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
     """
@@ -110,6 +144,8 @@ def save_annotation(req: SaveAnnotationRequest) -> ServiceResult[Dict[str, Any]]
 
     Args:
         req: Save annotation request
+            - boxes: List of bounding boxes (empty list allowed)
+            - is_null: If True, marks image as null (intentionally empty/negative example)
 
     Returns:
         ServiceResult with saved annotation data
@@ -123,14 +159,29 @@ def save_annotation(req: SaveAnnotationRequest) -> ServiceResult[Dict[str, Any]]
                 code=2
             )
 
-        # Write boxes to YOLO format
+        # Handle null annotation (intentionally empty)
+        if req.is_null:
+            label_path.write_text(NULL_MARKER, encoding="utf-8")
+            data = {
+                "image_id": req.image_id,
+                "num_boxes": 0,
+                "label_path": str(label_path),
+                "is_null": True
+            }
+            return ServiceResult.ok(
+                data=data,
+                message=f"Marked {req.image_id} as null (negative example)"
+            )
+
+        # Handle normal annotation with boxes
         lines = [box.to_yolo_line() for box in req.boxes]
         label_path.write_text("\n".join(lines) + "\n" if lines else "", encoding="utf-8")
 
         data = {
             "image_id": req.image_id,
             "num_boxes": len(req.boxes),
-            "label_path": str(label_path)
+            "label_path": str(label_path),
+            "is_null": False
         }
 
         return ServiceResult.ok(
@@ -154,7 +205,7 @@ def get_annotation(req: GetAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
         req: Get annotation request
 
     Returns:
-        ServiceResult with annotation data
+        ServiceResult with annotation data including is_null status
     """
     try:
         dataset_path = _get_dataset_path(req.project_path, req.dataset_name)
@@ -176,18 +227,26 @@ def get_annotation(req: GetAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
 
             label_path = _get_label_path(req.project_path, req.dataset_name, req.image_id)
             boxes = []
+            is_null = False
 
             if label_path and label_path.exists():
-                for line in label_path.read_text(encoding="utf-8").strip().split("\n"):
-                    if line.strip():
-                        box = BoundingBox.from_yolo_line(line)
-                        boxes.append({
-                            "class_id": box.class_id,
-                            "x": box.x,
-                            "y": box.y,
-                            "w": box.w,
-                            "h": box.h
-                        })
+                content = label_path.read_text(encoding="utf-8").strip()
+
+                # Check for null marker
+                if content == NULL_MARKER:
+                    is_null = True
+                else:
+                    # Parse boxes
+                    for line in content.split("\n"):
+                        if line.strip() and not line.startswith("#"):
+                            box = BoundingBox.from_yolo_line(line)
+                            boxes.append({
+                                "class_id": box.class_id,
+                                "x": box.x,
+                                "y": box.y,
+                                "w": box.w,
+                                "h": box.h
+                            })
 
             images_dir = _get_images_dir(req.project_path, req.dataset_name, split)
 
@@ -196,8 +255,7 @@ def get_annotation(req: GetAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
             for ext in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
                 candidate = images_dir / f"{req.image_id}{ext}"
                 if candidate.exists():
-                    # Return path relative to dataset root
-                    image_path = f"{split}/images/{req.image_id}{ext}"  # <-- FIX THIS LINE
+                    image_path = f"{split}/images/{req.image_id}{ext}"
                     break
 
             data = {
@@ -205,7 +263,9 @@ def get_annotation(req: GetAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
                 "image_path": image_path,
                 "split": split,
                 "boxes": boxes,
-                "num_boxes": len(boxes)
+                "num_boxes": len(boxes),
+                "is_null": is_null,
+                "is_annotated": _has_annotation(label_path) if label_path else False
             }
 
             return ServiceResult.ok(
@@ -229,25 +289,27 @@ def get_annotation(req: GetAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
                 image_id = img_file.stem
                 label_path = labels_dir / f"{image_id}.txt"
 
-                boxes = []
+                # Count boxes
+                num_boxes = 0
+                is_null = False
+                is_annotated = False
+
                 if label_path.exists():
-                    for line in label_path.read_text(encoding="utf-8").strip().split("\n"):
-                        if line.strip():
-                            box = BoundingBox.from_yolo_line(line)
-                            boxes.append({
-                                "class_id": box.class_id,
-                                "x": box.x,
-                                "y": box.y,
-                                "w": box.w,
-                                "h": box.h
-                            })
+                    content = label_path.read_text(encoding="utf-8").strip()
+                    if content == NULL_MARKER:
+                        is_null = True
+                        is_annotated = True
+                    elif content:
+                        num_boxes = len([l for l in content.split("\n") if l.strip() and not l.startswith("#")])
+                        is_annotated = True
 
                 all_images.append({
                     "image_id": image_id,
                     "image_path": f"{split}/images/{img_file.name}",
                     "split": split,
-                    "boxes": boxes,
-                    "num_boxes": len(boxes)
+                    "num_boxes": num_boxes,
+                    "is_null": is_null,
+                    "is_annotated": is_annotated
                 })
 
         data = {
@@ -262,55 +324,54 @@ def get_annotation(req: GetAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
 
     except Exception as e:
         return ServiceResult.error(
-            f"Failed to get annotation: {str(e)}",
+            f"Failed to get annotations: {str(e)}",
             code=2
         )
 
 
 @log_service_call("delete_annotation")
 def delete_annotation(req: DeleteAnnotationRequest) -> ServiceResult[Dict[str, Any]]:
-    """
-    Delete a specific bounding box from an annotation.
-
-    Args:
-        req: Delete annotation request
-
-    Returns:
-        ServiceResult with result data
-    """
+    """Delete a specific bounding box from an annotation."""
     try:
         label_path = _get_label_path(req.project_path, req.dataset_name, req.image_id)
 
         if not label_path or not label_path.exists():
             return ServiceResult.error(
-                f"No annotation found for: {req.image_id}",
+                f"No annotations found for: {req.image_id}",
                 code=2
             )
 
         # Read existing boxes
-        lines = label_path.read_text(encoding="utf-8").strip().split("\n")
-        boxes = [line for line in lines if line.strip()]
+        lines = []
+        content = label_path.read_text(encoding="utf-8").strip()
 
-        if req.box_index < 0 or req.box_index >= len(boxes):
+        # Don't delete from null annotations
+        if content == NULL_MARKER:
             return ServiceResult.error(
-                f"Invalid box index: {req.box_index} (0-{len(boxes)-1})",
+                f"Cannot delete box from null annotation",
                 code=2
             )
 
-        # Remove box
-        del boxes[req.box_index]
+        for line in content.split("\n"):
+            if line.strip() and not line.startswith("#"):
+                lines.append(line)
+
+        if req.box_index < 0 or req.box_index >= len(lines):
+            return ServiceResult.error(
+                f"Invalid box index: {req.box_index}",
+                code=2
+            )
+
+        # Remove the box
+        del lines[req.box_index]
 
         # Write back
-        if boxes:
-            label_path.write_text("\n".join(boxes) + "\n", encoding="utf-8")
-        else:
-            # Delete empty label file
-            label_path.unlink()
+        label_path.write_text("\n".join(lines) + "\n" if lines else "", encoding="utf-8")
 
         data = {
             "image_id": req.image_id,
             "deleted_index": req.box_index,
-            "remaining_boxes": len(boxes)
+            "remaining_boxes": len(lines)
         }
 
         return ServiceResult.ok(
@@ -320,74 +381,6 @@ def delete_annotation(req: DeleteAnnotationRequest) -> ServiceResult[Dict[str, A
 
     except Exception as e:
         return ServiceResult.error(
-            f"Failed to delete box: {str(e)}",
-            code=2
-        )
-
-
-@log_service_call("get_annotation_stats")
-def get_annotation_stats(dataset_name: str, project_path: Path) -> ServiceResult[Dict[str, Any]]:
-    """
-    Get annotation statistics for a dataset.
-
-    Args:
-        dataset_name: Dataset name
-        project_path: Project root path
-
-    Returns:
-        ServiceResult with statistics
-    """
-    try:
-        dataset_path = _get_dataset_path(project_path, dataset_name)
-
-        if not dataset_path.exists():
-            return ServiceResult.error(
-                f"Dataset not found: {dataset_name}",
-                code=2
-            )
-
-        total_images = 0
-        labeled_images = 0
-        total_boxes = 0
-
-        for split in ["train", "val", "test", "unlabeled"]:
-            images_dir = _get_images_dir(project_path, dataset_name, split)
-            labels_dir = _get_labels_dir(project_path, dataset_name, split)
-
-            if not images_dir.exists():
-                continue
-
-            for img_file in images_dir.iterdir():
-                if img_file.suffix.lower() not in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
-                    continue
-
-                total_images += 1
-
-                label_path = labels_dir / f"{img_file.stem}.txt"
-                if label_path.exists():
-                    content = label_path.read_text(encoding="utf-8").strip()
-                    if content:
-                        labeled_images += 1
-                        boxes = [line for line in content.split("\n") if line.strip()]
-                        total_boxes += len(boxes)
-
-        progress = labeled_images / total_images if total_images > 0 else 0.0
-
-        data = {
-            "total_images": total_images,
-            "labeled": labeled_images,
-            "unlabeled": total_images - labeled_images,
-            "progress": progress,
-            "total_boxes": total_boxes
-        }
-
-        return ServiceResult.ok(
-            data=data,
-            message=f"{labeled_images}/{total_images} labeled ({progress:.1%})"
-        )
-
-    except Exception as e:
-        return ServiceResult.error(
-            f"Failed to get stats: {str(e)}",
+            f"Failed to delete annotation: {str(e)}",
             code=2
         )

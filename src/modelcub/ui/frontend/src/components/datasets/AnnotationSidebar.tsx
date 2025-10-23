@@ -1,111 +1,154 @@
 import { useState } from 'react';
-import { Settings, ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { Job, Task } from '@/lib/api/types';
-import { getClassColor } from '@/lib/canvas/coordinates';
 
 interface AnnotationSidebarProps {
-    classes: Array<{ id: number; name: string }>;
-    currentTask: Task | null;
     job: Job | null;
+    currentTask: Task | null;
     completedCount: number;
+    classes: Array<{ id: number; name: string; color?: string }>;
     currentClassId: number;
-    onClassSelect: (classId: number) => void;
+    onClassChange: (classId: number) => void;
+    onNext: () => void;
+    onPrevious: () => void;
     onComplete: () => void;
+    onMarkNull?: () => void;  // NEW: Null marking handler
 }
 
 export const AnnotationSidebar = ({
-    classes,
-    currentTask,
     job,
+    currentTask,
     completedCount,
+    classes,
     currentClassId,
-    onClassSelect,
+    onClassChange,
+    onNext,
+    onPrevious,
     onComplete,
+    onMarkNull,
 }: AnnotationSidebarProps) => {
-    const [showTaskInfo, setShowTaskInfo] = useState(false);
-    const [showShortcuts, setShowShortcuts] = useState(false);
+    const [showClasses, setShowClasses] = useState(true);
+    const [showTaskInfo, setShowTaskInfo] = useState(true);
+    const [showShortcuts, setShowShortcuts] = useState(true);
 
     return (
         <div className="annotation-sidebar-compact">
-            {/* Class Selector - Always visible */}
-            <div className="sidebar-section" style={{ padding: 'var(--spacing-lg)' }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 'var(--spacing-md)'
-                }}>
-                    <h3 style={{ fontSize: '13px', margin: 0, textTransform: 'none', letterSpacing: 0 }}>
-                        Classes
-                    </h3>
+            {/* Navigation controls */}
+            <div style={{ padding: 'var(--spacing-md) var(--spacing-lg)', borderBottom: '1px solid var(--color-border)' }}>
+                <div className="nav-controls" style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                    <button
+                        onClick={onPrevious}
+                        className="btn btn--secondary"
+                        style={{ flex: 1 }}
+                    >
+                        ← Previous
+                    </button>
+                    <button
+                        onClick={onNext}
+                        className="btn btn--secondary"
+                        style={{ flex: 1 }}
+                    >
+                        Next →
+                    </button>
                 </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                        onClick={onComplete}
+                        className="btn btn--primary"
+                        style={{ flex: 1 }}
+                    >
+                        ✓ Complete
+                    </button>
+                    {onMarkNull && (
+                        <button
+                            onClick={onMarkNull}
+                            className="btn"
+                            style={{
+                                flex: 1,
+                                background: 'var(--color-warning)',
+                                border: 'none',
+                                color: 'white',
+                            }}
+                            title="Mark as null (negative example)"
+                        >
+                            ⚠️ Null
+                        </button>
+                    )}
+                </div>
+            </div>
 
-                {classes.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {classes.map((cls, index) => {
-                            const color = getClassColor(cls.id);
-                            const isActive = currentClassId === cls.id;
-                            const shortcut = index < 9 ? index + 1 : null;
+            {/* Classes - Collapsible */}
+            <div className="sidebar-section" style={{ padding: 'var(--spacing-md) var(--spacing-lg)', borderBottom: '1px solid var(--color-border)' }}>
+                <button
+                    onClick={() => setShowClasses(!showClasses)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        color: 'var(--color-text-secondary)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        marginBottom: showClasses ? '12px' : 0,
+                        width: '100%',
+                    }}
+                >
+                    {showClasses ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    Classes ({classes.length})
+                </button>
 
-                            return (
-                                <button
-                                    key={cls.id}
-                                    onClick={() => onClassSelect(cls.id)}
+                {showClasses && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {classes.map((cls) => (
+                            <button
+                                key={cls.id}
+                                onClick={() => onClassChange(cls.id)}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px 12px',
+                                    background: currentClassId === cls.id ? 'var(--color-primary-alpha)' : 'var(--color-background)',
+                                    border: `2px solid ${currentClassId === cls.id ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    textAlign: 'left',
+                                    transition: 'all 0.15s ease',
+                                }}
+                            >
+                                <div
                                     style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        padding: '10px 12px',
-                                        background: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                                        border: `2px solid ${isActive ? color : 'var(--color-border)'}`,
-                                        borderRadius: '6px',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.15s',
-                                        textAlign: 'left',
-                                        width: '100%',
+                                        width: '12px',
+                                        height: '12px',
+                                        borderRadius: '2px',
+                                        background: cls.color || `hsl(${cls.id * 137.5}, 70%, 60%)`,
                                     }}
-                                >
-                                    <div style={{
-                                        width: '20px',
-                                        height: '20px',
-                                        borderRadius: '4px',
-                                        background: color,
-                                        flexShrink: 0,
-                                    }} />
-                                    <span style={{
-                                        flex: 1,
-                                        fontSize: '14px',
-                                        fontWeight: isActive ? 600 : 400,
-                                        color: 'var(--color-text-primary)',
-                                    }}>
-                                        {cls.name}
-                                    </span>
-                                    {shortcut && (
-                                        <kbd style={{
-                                            padding: '2px 8px',
-                                            background: 'var(--color-surface)',
-                                            border: '1px solid var(--color-border)',
-                                            borderRadius: '4px',
-                                            fontSize: '12px',
-                                            fontFamily: 'monospace',
-                                            color: 'var(--color-text-secondary)',
-                                        }}>
-                                            {shortcut}
-                                        </kbd>
-                                    )}
-                                </button>
-                            );
-                        })}
+                                />
+                                <span style={{ flex: 1 }}>{cls.name}</span>
+                                <kbd style={{
+                                    padding: '2px 6px',
+                                    background: 'var(--color-background)',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '3px',
+                                    fontSize: '11px',
+                                    fontFamily: 'var(--font-mono)',
+                                }}>
+                                    {cls.id}
+                                </kbd>
+                            </button>
+                        ))}
                     </div>
-                ) : (
-                    <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
-                        No classes. Click <Settings size={12} style={{ display: 'inline' }} /> to add.
-                    </p>
                 )}
             </div>
 
             {/* Task Info - Collapsible */}
-            <div className="sidebar-section" style={{ padding: 'var(--spacing-md) var(--spacing-lg)', borderTop: '1px solid var(--color-border)' }}>
+            <div className="sidebar-section" style={{ padding: 'var(--spacing-md) var(--spacing-lg)', borderBottom: '1px solid var(--color-border)' }}>
                 <button
                     onClick={() => setShowTaskInfo(!showTaskInfo)}
                     style={{
@@ -169,45 +212,47 @@ export const AnnotationSidebar = ({
                 </button>
 
                 {showShortcuts && (
-                    <div style={{ marginTop: 'var(--spacing-sm)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Select class</span>
-                            <kbd style={{ fontSize: '11px' }}>1-9</kbd>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Draw / Edit</span>
-                            <span><kbd style={{ fontSize: '11px' }}>R</kbd> / <kbd style={{ fontSize: '11px' }}>E</kbd></span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Delete box</span>
-                            <kbd style={{ fontSize: '11px' }}>Del</kbd>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Next image</span>
-                            <span><kbd style={{ fontSize: '11px' }}>→</kbd> / <kbd style={{ fontSize: '11px' }}>D</kbd></span>
+                    <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                        <div className="shortcuts-list">
+                            <div className="shortcut-item">
+                                <span>Next image</span>
+                                <kbd>D / →</kbd>
+                            </div>
+                            <div className="shortcut-item">
+                                <span>Previous image</span>
+                                <kbd>A / ←</kbd>
+                            </div>
+                            <div className="shortcut-item">
+                                <span>Complete task</span>
+                                <kbd>Space</kbd>
+                            </div>
+                            <div className="shortcut-item">
+                                <span style={{ fontWeight: 600, color: 'var(--color-warning)' }}>Mark as null</span>
+                                <kbd>N</kbd>
+                            </div>
+                            <div className="shortcut-item">
+                                <span>Delete box</span>
+                                <kbd>Del</kbd>
+                            </div>
+                            <div className="shortcut-item">
+                                <span>Save</span>
+                                <kbd>Ctrl+S</kbd>
+                            </div>
+                            <div className="shortcut-item">
+                                <span>Undo</span>
+                                <kbd>Ctrl+Z</kbd>
+                            </div>
+                            <div className="shortcut-item">
+                                <span>Redo</span>
+                                <kbd>Ctrl+Y</kbd>
+                            </div>
+                            <div className="shortcut-item">
+                                <span>Exit</span>
+                                <kbd>Esc</kbd>
+                            </div>
                         </div>
                     </div>
                 )}
-            </div>
-
-            {/* Complete Button - Fixed at bottom */}
-            <div style={{
-                marginTop: 'auto',
-                padding: 'var(--spacing-lg)',
-                borderTop: '1px solid var(--color-border)',
-            }}>
-                <button
-                    className="btn btn--primary"
-                    onClick={onComplete}
-                    style={{
-                        width: '100%',
-                        padding: '12px',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                    }}
-                >
-                    Complete (Space)
-                </button>
             </div>
         </div>
     );

@@ -1,4 +1,4 @@
-"""Annotation management API routes."""
+"""Annotation management API routes with null annotation support."""
 from typing import List
 import logging
 
@@ -37,6 +37,7 @@ class BoxModel(BaseModel):
 class SaveAnnotationsRequest(BaseModel):
     """Request to save annotations"""
     boxes: List[BoxModel]
+    is_null: bool = False  # Mark as null (intentionally empty)
 
 
 class AnnotationResponse(BaseModel):
@@ -46,6 +47,8 @@ class AnnotationResponse(BaseModel):
     split: str
     boxes: List[BoxModel]
     num_boxes: int
+    is_null: bool  # Whether marked as null
+    is_annotated: bool  # Whether has any annotation (boxes or null marker)
 
 
 # ==================== ENDPOINTS ====================
@@ -79,7 +82,7 @@ async def get_annotations(
         return APIResponse(
             success=True,
             data=AnnotationResponse(**data),
-            message=f"Retrieved {data['num_boxes']} annotation(s)"
+            message=f"Retrieved annotation (boxes={data['num_boxes']}, null={data['is_null']})"
         )
 
     except Exception as e:
@@ -96,7 +99,7 @@ async def save_annotations(
 ) -> APIResponse[dict]:
     """Save annotations for an image."""
     try:
-        logger.info(f"Saving {len(request.boxes)} annotation(s) for {dataset_name}/{image_id}")
+        logger.info(f"Saving annotation for {dataset_name}/{image_id} (boxes={len(request.boxes)}, null={request.is_null})")
 
         # Convert to BoundingBox objects
         boxes = [
@@ -114,7 +117,8 @@ async def save_annotations(
             dataset_name=dataset_name,
             image_id=image_id,
             boxes=boxes,
-            project_path=project.path
+            project_path=project.path,
+            is_null=request.is_null
         )
 
         result = save_annotation(req)

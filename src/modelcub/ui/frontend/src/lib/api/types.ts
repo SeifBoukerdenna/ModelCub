@@ -193,6 +193,8 @@ export interface Annotation {
   split: string;
   boxes: Box[];
   num_boxes: number;
+  is_null: boolean; // NEW: Whether marked as null (intentionally empty)
+  is_annotated: boolean; // NEW: Whether has any annotation (boxes or null marker)
 }
 
 // ==================== ERROR CODES ====================

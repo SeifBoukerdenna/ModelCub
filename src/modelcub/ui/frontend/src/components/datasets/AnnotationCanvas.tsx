@@ -16,6 +16,7 @@ interface AnnotationCanvasProps {
     classes: Array<{ id: number; name: string }>;
     currentClassId: number;
     onClassChange: (classId: number) => void;
+    onMarkNull?: () => void;
 }
 
 export const AnnotationCanvas = ({
@@ -26,8 +27,10 @@ export const AnnotationCanvas = ({
     classes,
     currentClassId,
     onClassChange,
+    onMarkNull,
 }: AnnotationCanvasProps) => {
     const [showLabels, setShowLabels] = useState(true);
+    const [isNull, setIsNull] = useState(false);
 
     const {
         boxes,
@@ -61,9 +64,11 @@ export const AnnotationCanvas = ({
             try {
                 const annotation = await api.getAnnotation(datasetName, currentTask.image_id);
                 setBoxes(annotation.boxes);
+                setIsNull(annotation.is_null);
             } catch (error) {
                 console.error('Failed to load annotations:', error);
                 setBoxes([]);
+                setIsNull(false);
             }
         };
 
@@ -71,13 +76,21 @@ export const AnnotationCanvas = ({
     }, [currentTask?.image_id, datasetName, setBoxes]);
 
     // Auto-save
-    const { manualSave } = useBoxOperations({
+    const { manualSave, markAsNull } = useBoxOperations({
         datasetName,
         imageId: currentTask?.image_id,
         boxes,
         isDirty,
         onSaveComplete: markClean,
+        isNull,
     });
+
+    const handleMarkNull = async () => {
+        await markAsNull();
+        setIsNull(true);
+        setBoxes([]);
+        onMarkNull?.();
+    };
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -155,7 +168,26 @@ export const AnnotationCanvas = ({
 
     return (
         <div className="annotation-canvas-full">
-            {/* Minimal Toolbar - OUTSIDE wrapper */}
+            {/* Null indicator */}
+            {isNull && (
+                <div style={{
+                    position: 'absolute',
+                    top: '80px',
+                    left: '16px',
+                    zIndex: 1000,
+                    background: 'rgba(255, 165, 0, 0.95)',
+                    color: 'white',
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                }}>
+                    ⚠️ NULL (negative example)
+                </div>
+            )}
+
+            {/* Minimal Toolbar */}
             <div style={{
                 position: 'absolute',
                 top: '16px',
@@ -226,6 +258,19 @@ export const AnnotationCanvas = ({
                 >
                     🏷️
                 </button>
+
+                <button
+                    className="btn btn--sm"
+                    onClick={handleMarkNull}
+                    title="Mark as NULL (N)"
+                    style={{
+                        background: 'rgba(255, 165, 0, 0.9)',
+                        color: 'white',
+                        border: 'none',
+                    }}
+                >
+                    ⚠️ NULL
+                </button>
             </div>
 
             {/* Box count indicator */}
@@ -277,7 +322,6 @@ export const AnnotationCanvas = ({
                 position: 'relative',
                 overflow: 'hidden'
             }}>
-                {/* Canvas */}
                 {!isLoading && (
                     <KonvaAnnotationCanvas
                         imageUrl={imageUrl}

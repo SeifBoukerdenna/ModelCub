@@ -8,6 +8,7 @@ interface KeyboardHandlers {
   onUndo?: () => void;
   onRedo?: () => void;
   onComplete?: () => void;
+  onMarkNull?: () => void; // NEW: Mark as null
 }
 
 export const useAnnotationKeyboard = (handlers: KeyboardHandlers) => {
@@ -43,6 +44,12 @@ export const useAnnotationKeyboard = (handlers: KeyboardHandlers) => {
         case " ":
           e.preventDefault();
           handlers.onComplete?.();
+          break;
+
+        case "n":
+        case "N":
+          e.preventDefault();
+          handlers.onMarkNull?.();
           break;
 
         case "s":

@@ -26,7 +26,6 @@ export const AnnotationView = () => {
     const jobId = searchParams.get('job_id');
 
     const [currentClassId, setCurrentClassId] = useState(0);
-
     const [showExitModal, setExitModal] = useState(false);
 
     // Load job and tasks
@@ -51,7 +50,7 @@ export const AnnotationView = () => {
     } = useAnnotationNavigation(tasks, () => navigate(`/datasets/${datasetName}`));
 
     // Dataset classes
-    const { classes, } = useDatasetClasses(datasetName);
+    const { classes } = useDatasetClasses(datasetName);
 
     // Image loading
     const {
@@ -68,10 +67,18 @@ export const AnnotationView = () => {
         }
     }, [currentTask?.task_id, markTaskInProgress]);
 
-    // Handle task completion
+    // Handle task completion - only if annotated
     const handleCompleteTask = async () => {
-        if (!currentTask) return;
+        if (!currentTask || !datasetName) return;
         try {
+            // Check if image is annotated before completing
+            const annotation = await api.getAnnotation(datasetName, currentTask.image_id);
+
+            if (!annotation.is_annotated) {
+                console.log('Cannot complete: image not annotated');
+                return;
+            }
+
             await completeTask(currentTask.task_id);
             goToNext();
         } catch (err) {
@@ -79,17 +86,29 @@ export const AnnotationView = () => {
         }
     };
 
+    // Handle marking as null
+    const handleMarkNull = async () => {
+        if (!currentTask || !datasetName) return;
+        try {
+            // Save null annotation first
+            await api.saveAnnotation(datasetName, currentTask.image_id, [], true);
+
+            // Then complete the task
+            await completeTask(currentTask.task_id);
+            goToNext();
+        } catch (err) {
+            console.error('Failed to mark as null:', err);
+        }
+    };
+
     // Keyboard shortcuts
     useAnnotationKeyboard({
         onNext: goToNext,
         onPrevious: goToPrevious,
-        onExit: () => {
-            setExitModal(true)
-            // navigate(`/datasets/${datasetName}`)
-
-        },
+        onExit: () => setExitModal(true),
         onSave: () => console.log('Save triggered'),
         onComplete: handleCompleteTask,
+        onMarkNull: handleMarkNull,
     });
 
     // Error state
@@ -152,6 +171,7 @@ export const AnnotationView = () => {
                     classes={classes}
                     currentClassId={currentClassId}
                     onClassChange={setCurrentClassId}
+                    onMarkNull={handleMarkNull}
                 />
 
                 {/* Sidebar */}
@@ -161,20 +181,23 @@ export const AnnotationView = () => {
                     classes={classes}
                     completedCount={completedCount}
                     currentClassId={currentClassId}
-                    onClassSelect={setCurrentClassId}
+                    onClassChange={setCurrentClassId}
                     onComplete={handleCompleteTask}
+                    onMarkNull={handleMarkNull}
+                    onNext={goToNext}
+                    onPrevious={goToPrevious}
                 />
             </div>
 
-
             {/* Exit Modal */}
             {showExitModal && (
-                <AnnotationExitModal onClose={() => {
-                    setExitModal(false)
-                }} onSuccess={() => {
-                    setExitModal(false)
-                    navigate(`/datasets/${datasetName}`)
-                }} />
+                <AnnotationExitModal
+                    onClose={() => setExitModal(false)}
+                    onSuccess={() => {
+                        setExitModal(false);
+                        navigate(`/datasets/${datasetName}`);
+                    }}
+                />
             )}
         </div>
     );

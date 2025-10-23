@@ -10,6 +10,7 @@ interface UseBoxOperationsProps {
   boxes: AnnotationBox[];
   isDirty: boolean;
   onSaveComplete: () => void;
+  isNull?: boolean;
 }
 
 export function useBoxOperations({
@@ -18,6 +19,7 @@ export function useBoxOperations({
   boxes,
   isDirty,
   onSaveComplete,
+  isNull = false,
 }: UseBoxOperationsProps) {
   const { showToast } = useToast();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -29,12 +31,10 @@ export function useBoxOperations({
       return;
     }
 
-    // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
-    // Set new timeout for auto-save (300ms debounce)
     saveTimeoutRef.current = setTimeout(async () => {
       if (isSavingRef.current) return;
 
@@ -54,18 +54,16 @@ export function useBoxOperations({
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [boxes, isDirty, datasetName, imageId]);
+  }, [boxes, isDirty, datasetName, imageId, isNull]);
 
   const saveBoxes = useCallback(async () => {
     if (!datasetName || !imageId) {
       throw new Error("Dataset name or image ID missing");
     }
 
-    // Convert AnnotationBox to Box (remove id field)
     const boxesToSave: Box[] = boxes.map(({ id, ...box }) => box);
-
-    await api.saveAnnotation(datasetName, imageId, boxesToSave);
-  }, [datasetName, imageId, boxes]);
+    await api.saveAnnotation(datasetName, imageId, boxesToSave, isNull);
+  }, [datasetName, imageId, boxes, isNull]);
 
   const manualSave = useCallback(async () => {
     if (!datasetName || !imageId) {
@@ -82,7 +80,23 @@ export function useBoxOperations({
     }
   }, [saveBoxes, onSaveComplete, showToast, datasetName, imageId]);
 
+  const markAsNull = useCallback(async () => {
+    if (!datasetName || !imageId) {
+      showToast("Cannot mark as null: missing dataset or image", "error");
+      return;
+    }
+
+    try {
+      await api.saveAnnotation(datasetName, imageId, [], true);
+      onSaveComplete();
+      showToast("Marked as null (negative example)", "success");
+    } catch (error: any) {
+      showToast(error.message || "Failed to mark as null", "error");
+    }
+  }, [datasetName, imageId, onSaveComplete, showToast]);
+
   return {
     manualSave,
+    markAsNull,
   };
 }
