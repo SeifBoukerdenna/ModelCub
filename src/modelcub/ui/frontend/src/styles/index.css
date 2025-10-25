@@ -6,6 +6,7 @@
 @import '../components/toast.css';
 @import '../components/layout.css';
 @import '../components/sidebar.css';
+@import '../components/dragAndDrop.css';
 @import '../components/card.css';
 @import '../components/button.css';
 @import '../components/loading.css';

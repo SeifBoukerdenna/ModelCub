@@ -15,11 +15,12 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
     const [classes, setClasses] = useState('');
     const [recursive, setRecursive] = useState(true);
     const [copyFiles, setCopyFiles] = useState(true);
-    const [importType, setImportType] = useState<'path' | 'files'>('path');
+    const [importType, setImportType] = useState<'path' | 'files'>('files');
     const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -101,12 +102,119 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
         input.click();
     };
 
+    // Drag and drop handlers
+    const handleDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (importType === 'files' && !uploading) {
+            setIsDragging(true);
+        }
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Only set dragging to false if we're leaving the drop zone entirely
+        if (e.currentTarget === e.target) {
+            setIsDragging(false);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        if (importType !== 'files' || uploading) return;
+
+        const items = e.dataTransfer.items;
+        const files = e.dataTransfer.files;
+
+        if (files && files.length > 0) {
+            // Check if it's a folder or files
+            // If we have DataTransferItemList, we can check for directories
+            if (items && items.length > 0) {
+                const hasDirectory = Array.from(items).some(item => {
+                    // @ts-ignore - webkitGetAsEntry is not in types
+                    const entry = item.webkitGetAsEntry?.();
+                    return entry && entry.isDirectory;
+                });
+
+                // If directory is detected, collect all files recursively
+                if (hasDirectory) {
+                    collectFilesFromItems(items);
+                } else {
+                    setSelectedFiles(files);
+                }
+            } else {
+                setSelectedFiles(files);
+            }
+        }
+    };
+
+    const collectFilesFromItems = async (items: DataTransferItemList) => {
+        const allFiles: File[] = [];
+
+        const traverseDirectory = async (entry: any): Promise<void> => {
+            if (entry.isFile) {
+                return new Promise((resolve) => {
+                    entry.file((file: File) => {
+                        // Only include image files
+                        if (file.type.startsWith('image/')) {
+                            allFiles.push(file);
+                        }
+                        resolve();
+                    });
+                });
+            } else if (entry.isDirectory) {
+                const dirReader = entry.createReader();
+                return new Promise<void>((resolve) => {
+                    const readEntries = () => {
+                        dirReader.readEntries(async (entries: any[]) => {
+                            if (entries.length === 0) {
+                                resolve();
+                                return;
+                            }
+                            await Promise.all(entries.map(e => traverseDirectory(e)));
+                            readEntries(); // Continue reading if there are more entries
+                        });
+                    };
+                    readEntries();
+                });
+            }
+        };
+
+        const promises: Promise<void>[] = [];
+        for (let i = 0; i < items.length; i++) {
+            // @ts-ignore - webkitGetAsEntry is not in types
+            const entry = items[i].webkitGetAsEntry?.();
+            if (entry) {
+                promises.push(traverseDirectory(entry));
+            }
+        }
+
+        await Promise.all(promises);
+
+        if (allFiles.length > 0) {
+            // Convert array to FileList-like object
+            const dataTransfer = new DataTransfer();
+            allFiles.forEach(file => dataTransfer.items.add(file));
+            setSelectedFiles(dataTransfer.files);
+        }
+    };
+
     const handleClose = () => {
         if (!uploading) {
             setImportSource('');
             setDatasetName('');
             setSelectedFiles(null);
             setError(null);
+            setIsDragging(false);
             onClose();
         }
     };
@@ -134,8 +242,8 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit}>
-                    <div className="modal__body">
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: 'calc(90vh - 120px)' }}>
+                    <div className="modal__body" style={{ overflowY: 'auto', flex: 1 }}>
                         {/* Import Type Tabs */}
                         <div className="tab-group">
                             <button
@@ -177,19 +285,19 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                                         autoFocus
                                     />
                                     <p className="form-help">
-                                        Local directory path, Roboflow URL, or remote archive
+                                        Enter a local path or URL to import images from
                                     </p>
                                 </div>
 
                                 <div className="form-group">
-                                    <label htmlFor="name" className="form-label">
+                                    <label htmlFor="path-name" className="form-label">
                                         Dataset Name (Optional)
                                     </label>
                                     <input
-                                        id="name"
+                                        id="path-name"
                                         type="text"
                                         className="form-input"
-                                        placeholder="Leave empty to use source name"
+                                        placeholder="Leave empty to use folder name"
                                         value={datasetName}
                                         onChange={(e) => setDatasetName(e.target.value)}
                                         disabled={uploading}
@@ -227,7 +335,7 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                             </>
                         )}
 
-                        {/* Upload Files/Folders */}
+                        {/* Upload Files/Folders with Drag & Drop */}
                         {importType === 'files' && (
                             <>
                                 <div className="form-group">
@@ -246,21 +354,38 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                                         style={{ display: 'none' }}
                                     />
 
-                                    {/* File Selection UI */}
-                                    <div className="file-upload-area">
-                                        <label htmlFor="files" className="file-upload-button">
-                                            <FileIcon size={20} />
-                                            Choose Files
-                                        </label>
-                                        <button
-                                            type="button"
-                                            className="file-upload-button file-upload-button--secondary"
-                                            onClick={handleFolderSelect}
-                                            disabled={uploading}
-                                        >
-                                            <FolderOpen size={20} />
-                                            Or Select Folder
-                                        </button>
+                                    {/* Drag & Drop Zone */}
+                                    <div
+                                        className={`drag-drop-zone ${isDragging ? 'drag-drop-zone--active' : ''} ${uploading ? 'drag-drop-zone--disabled' : ''}`}
+                                        onDragEnter={handleDragEnter}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
+                                    >
+                                        <div className="drag-drop-zone__content">
+                                            <Upload size={48} className="drag-drop-zone__icon" />
+                                            <p className="drag-drop-zone__text">
+                                                {isDragging ? 'Drop files or folder here' : 'Drag & drop images or folder here'}
+                                            </p>
+                                            <p className="drag-drop-zone__subtext">or</p>
+
+                                            {/* File Selection Buttons */}
+                                            <div className="file-upload-area">
+                                                <label htmlFor="files" className="file-upload-button">
+                                                    <FileIcon size={20} />
+                                                    Choose Files
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    className="file-upload-button file-upload-button--secondary"
+                                                    onClick={handleFolderSelect}
+                                                    disabled={uploading}
+                                                >
+                                                    <FolderOpen size={20} />
+                                                    Select Folder
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {selectedFiles && selectedFiles.length > 0 && (
@@ -273,7 +398,7 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                                     )}
 
                                     <p className="form-help">
-                                        Select multiple images or use folder button below
+                                        Supports drag & drop for images and entire folders
                                     </p>
                                 </div>
 

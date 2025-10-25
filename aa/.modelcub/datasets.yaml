@@ -1,0 +1,17 @@
+datasets:
+  888b205a:
+    id: 888b205a
+    name: dogs
+    created: '2025-10-25T00:41:45.661780Z'
+    status: unlabeled
+    num_images: 13
+    images:
+      total: 13
+      unlabeled: 13
+    classes:
+    - d
+    - e
+    - f
+    path: data/datasets/dogs
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_5d48dgo8
+    num_classes: 3

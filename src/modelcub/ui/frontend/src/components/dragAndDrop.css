@@ -1,0 +1,376 @@
+/* ============================================
+   DRAG & DROP MODAL STYLES
+   Supports both light and dark modes
+   ============================================ */
+
+/* Modal Scrollability */
+.modal {
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal__body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 24px;
+}
+
+/* Custom Scrollbar for Dark Mode */
+.modal__body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal__body::-webkit-scrollbar-track {
+    background: rgba(71, 85, 105, 0.2);
+    border-radius: 4px;
+}
+
+.modal__body::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 4px;
+}
+
+.modal__body::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.6);
+}
+
+.modal__footer {
+    border-top: 1px solid rgba(71, 85, 105, 0.3);
+    margin-top: auto;
+}
+
+/* ============================================
+   DRAG & DROP ZONE - DARK MODE (DEFAULT)
+   ============================================ */
+
+.drag-drop-zone {
+    border: 2px dashed rgba(156, 163, 175, 0.4);
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.02);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    margin-bottom: 16px;
+}
+
+.drag-drop-zone:hover:not(.drag-drop-zone--disabled) {
+    border-color: #3b82f6;
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+.drag-drop-zone--active {
+    border-color: #3b82f6;
+    background-color: rgba(59, 130, 246, 0.08);
+    border-style: solid;
+    transform: scale(1.01);
+}
+
+.drag-drop-zone--disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.drag-drop-zone__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.drag-drop-zone__icon {
+    color: rgba(156, 163, 175, 0.6);
+    transition: color 0.3s ease;
+}
+
+.drag-drop-zone--active .drag-drop-zone__icon,
+.drag-drop-zone:hover:not(.drag-drop-zone--disabled) .drag-drop-zone__icon {
+    color: #3b82f6;
+}
+
+.drag-drop-zone__text {
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+}
+
+.drag-drop-zone__subtext {
+    font-size: 14px;
+    color: rgba(156, 163, 175, 0.8);
+    margin: 0;
+}
+
+/* ============================================
+   FILE UPLOAD BUTTONS - DARK MODE
+   ============================================ */
+
+.file-upload-area {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.file-upload-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    border-radius: 6px;
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #60a5fa;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.file-upload-button:hover:not(:disabled) {
+    background-color: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+    color: #60a5fa;
+    transform: translateY(-1px);
+}
+
+.file-upload-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.file-upload-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.file-upload-button--secondary {
+    background-color: rgba(100, 116, 139, 0.1);
+    border-color: rgba(148, 163, 184, 0.3);
+    color: rgba(203, 213, 225, 0.9);
+}
+
+.file-upload-button--secondary:hover:not(:disabled) {
+    background-color: rgba(100, 116, 139, 0.2);
+    border-color: rgba(148, 163, 184, 0.5);
+}
+
+/* ============================================
+   FILE SELECTION INFO - DARK MODE
+   ============================================ */
+
+.file-selection-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background-color: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 6px;
+    color: rgba(134, 239, 172, 0.95);
+    font-size: 14px;
+    margin-top: 12px;
+}
+
+.file-selection-info svg {
+    color: rgba(74, 222, 128, 0.9);
+    flex-shrink: 0;
+}
+
+/* ============================================
+   UPLOAD PROGRESS - DARK MODE
+   ============================================ */
+
+.upload-progress {
+    margin-top: 16px;
+}
+
+.upload-progress__bar {
+    width: 100%;
+    height: 8px;
+    background-color: rgba(71, 85, 105, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.upload-progress__fill {
+    height: 100%;
+    background-color: #3b82f6;
+    background-image: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.1) 50%,
+            transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+    transition: width 0.3s ease;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.upload-progress__text {
+    margin-top: 8px;
+    font-size: 14px;
+    color: rgba(203, 213, 225, 0.8);
+    text-align: center;
+}
+
+/* ============================================
+   LIGHT MODE OVERRIDES
+   ============================================ */
+
+@media (prefers-color-scheme: light) {
+    .modal__body::-webkit-scrollbar-track {
+        background: rgba(241, 245, 249, 1);
+    }
+
+    .modal__body::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.6);
+    }
+
+    .modal__body::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 116, 139, 0.8);
+    }
+
+    .modal__footer {
+        border-top: 1px solid rgba(226, 232, 240, 1);
+    }
+
+    .drag-drop-zone {
+        border-color: rgba(203, 213, 225, 0.6);
+        background-color: rgba(248, 250, 252, 1);
+    }
+
+    .drag-drop-zone:hover:not(.drag-drop-zone--disabled) {
+        background-color: rgba(239, 246, 255, 1);
+    }
+
+    .drag-drop-zone--active {
+        background-color: rgba(239, 246, 255, 1);
+    }
+
+    .drag-drop-zone__icon {
+        color: rgba(100, 116, 139, 0.6);
+    }
+
+    .drag-drop-zone__text {
+        color: rgba(15, 23, 42, 0.9);
+    }
+
+    .drag-drop-zone__subtext {
+        color: rgba(100, 116, 139, 0.8);
+    }
+
+    .file-upload-button {
+        background-color: rgba(59, 130, 246, 0.05);
+        border-color: rgba(59, 130, 246, 0.3);
+        color: #2563eb;
+    }
+
+    .file-upload-button:hover:not(:disabled) {
+        background-color: rgba(59, 130, 246, 0.1);
+        color: #1d4ed8;
+    }
+
+    .file-upload-button--secondary {
+        background-color: rgba(241, 245, 249, 1);
+        border-color: rgba(203, 213, 225, 0.6);
+        color: rgba(51, 65, 85, 1);
+    }
+
+    .file-upload-button--secondary:hover:not(:disabled) {
+        background-color: rgba(226, 232, 240, 1);
+    }
+
+    .file-selection-info {
+        background-color: rgba(236, 253, 245, 1);
+        border-color: rgba(167, 243, 208, 1);
+        color: rgba(5, 150, 105, 1);
+    }
+
+    .file-selection-info svg {
+        color: rgba(16, 185, 129, 1);
+    }
+
+    .upload-progress__bar {
+        background-color: rgba(226, 232, 240, 1);
+    }
+
+    .upload-progress__text {
+        color: rgba(100, 116, 139, 1);
+    }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 640px) {
+    .drag-drop-zone {
+        padding: 30px 15px;
+    }
+
+    .drag-drop-zone__icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .drag-drop-zone__text {
+        font-size: 14px;
+    }
+
+    .file-upload-area {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .file-upload-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .modal__body {
+        padding: 16px 20px;
+    }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+.drag-drop-zone:focus-within {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+.file-upload-button:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+
+    .drag-drop-zone,
+    .drag-drop-zone__icon,
+    .file-upload-button {
+        transition: none;
+    }
+
+    .drag-drop-zone--active {
+        transform: none;
+    }
+
+    .upload-progress__fill {
+        animation: none;
+    }
+}
