@@ -222,48 +222,72 @@ export class ModelCubAPI {
 
     return data.data as Dataset;
   }
-
   async importDatasetFiles(
     files: FileList,
     name?: string,
     classes?: string[],
-    recursive: boolean = true
+    recursive: boolean = true,
+    onProgress?: (current: number, total: number, percentage: number) => void
   ): Promise<Dataset> {
-    const formData = new FormData();
+    const BATCH_SIZE = 100;
+    const fileArray = Array.from(files);
+    const batches = Math.ceil(fileArray.length / BATCH_SIZE);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file) {
+    let datasetName = name;
+    let finalDataset: Dataset | null = null;
+
+    for (let i = 0; i < batches; i++) {
+      const start = i * BATCH_SIZE;
+      const end = Math.min(start + BATCH_SIZE, fileArray.length);
+      const batch = fileArray.slice(start, end);
+
+      const formData = new FormData();
+
+      batch.forEach((file) => {
         formData.append("files", file, file.webkitRelativePath || file.name);
+      });
+
+      if (datasetName) {
+        formData.append("name", datasetName);
       }
+
+      if (i === 0 && classes && classes.length > 0) {
+        formData.append("classes", classes.join(","));
+      }
+
+      formData.append("recursive", String(recursive));
+
+      const headers: Record<string, string> = {};
+      if (this.currentProjectPath) {
+        headers["X-Project-Path"] = this.currentProjectPath;
+      }
+
+      const response = await fetch(`${this.baseURL}/datasets/import-files`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new ModelCubAPIError(
+          data.error?.message ||
+            `HTTP ${response.status} (batch ${i + 1}/${batches})`,
+          response.status
+        );
+      }
+
+      finalDataset = data.data as Dataset;
+
+      if (i === 0 && !datasetName) {
+        datasetName = finalDataset.name;
+      }
+
+      const percentage = Math.round(((i + 1) / batches) * 100);
+      onProgress?.(i + 1, batches, percentage);
     }
 
-    if (name) formData.append("name", name);
-    if (classes && classes.length > 0) {
-      formData.append("classes", classes.join(","));
-    }
-    formData.append("recursive", String(recursive));
-
-    const headers: Record<string, string> = {};
-    if (this.currentProjectPath) {
-      headers["X-Project-Path"] = this.currentProjectPath;
-    }
-
-    const response = await fetch(`${this.baseURL}/datasets/import-files`, {
-      method: "POST",
-      headers,
-      body: formData,
-    });
-
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new ModelCubAPIError(
-        data.error?.message || `HTTP ${response.status}`,
-        response.status
-      );
-    }
-
-    return data.data as Dataset;
+    return finalDataset!;
   }
 
   async addClassToDataset(

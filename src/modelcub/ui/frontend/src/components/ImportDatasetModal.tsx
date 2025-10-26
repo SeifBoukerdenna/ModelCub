@@ -25,8 +25,8 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
         e.preventDefault();
         setError(null);
 
-        const classes_to_send = classes.split(',').map(s => s.trim()).filter(s => s.length > 0)
-        console.log(`The classe to send are ${classes_to_send}`)
+        const classes_to_send = classes.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
         if (importType === 'path') {
             if (!importSource.trim()) {
                 toast.error('Please enter a source path');
@@ -41,7 +41,6 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
                     recursive,
                     copy_files: copyFiles,
                     classes: classes_to_send.length > 0 ? classes_to_send : undefined,
-
                 });
                 handleSuccess();
             } catch (err) {
@@ -57,12 +56,18 @@ const ImportDatasetModal = ({ isOpen, onClose, onSuccess }: ImportDatasetModalPr
 
             try {
                 setUploading(true);
+                setUploadProgress(0);
+
                 await api.importDatasetFiles(
                     selectedFiles,
                     datasetName || undefined,
                     classes_to_send.length > 0 ? classes_to_send : undefined,
-                    recursive
+                    recursive,
+                    (current, total, percentage) => {
+                        setUploadProgress(percentage);
+                    }
                 );
+
                 handleSuccess();
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to upload files');

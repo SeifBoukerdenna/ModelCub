@@ -10,7 +10,7 @@ import tarfile
 from fastapi import UploadFile
 
 from modelcub.sdk import Project, Dataset
-
+from ....core.registries import DatasetRegistry
 from .datasets_utils import dataset_to_schema
 from ...shared.api.schemas import (
     Dataset as DatasetSchema,
@@ -92,47 +92,99 @@ class DatasetOperations:
         recursive: bool
     ) -> DatasetSchema:
         """Import dataset from uploaded files."""
+        import tempfile
+        import shutil
+        import json
+        from pathlib import Path
+
         temp_dir = Path(tempfile.mkdtemp(prefix="modelcub_upload_"))
 
         try:
-            # Save uploaded files
-            for file in files:
-                if not file.filename:
-                    continue
-                filename = Path(file.filename).name
-                if not filename:
-                    continue
-
-                file_path = temp_dir / filename
-                with open(file_path, "wb") as f:
-                    shutil.copyfileobj(file.file, f)
-
             logger.info(f"Saved {len(files)} files to {temp_dir}")
 
-            # Parse classes
-            classes_list = None
+            for upload_file in files:
+                file_path = temp_dir / upload_file.filename
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+
+                with open(file_path, 'wb') as f:
+                    shutil.copyfileobj(upload_file.file, f)
+
+            class_list = None
             if classes:
-                classes_list = [c.strip() for c in classes.split(",") if c.strip()]
+                class_list = [c.strip() for c in classes.split(',') if c.strip()]
 
-            # Import via SDK
-            dataset = project.import_dataset(
-                source=str(temp_dir),
-                name=name,
-                classes=classes_list,
-                recursive=recursive,
-                copy=True,
-                validate=True,
-                force=False
-            )
+            # Check if dataset exists
+            dataset_exists = False
+            if name:
+                try:
+                    existing_dataset = project.get_dataset(name)
+                    dataset_exists = True
+                    logger.info(f"Appending to existing dataset: {name}")
+                except:
+                    pass
 
-            return dataset_to_schema(dataset, project.path)
+            if dataset_exists:
+                # Append to existing dataset
+                dataset = project.get_dataset(name)
+                dataset_dir = dataset.path / "unlabeled" / "images"
+                dataset_dir.mkdir(parents=True, exist_ok=True)
+
+                imported_count = 0
+                for img_file in temp_dir.rglob("*"):
+                    if img_file.is_file() and img_file.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.gif']:
+                        dest_path = dataset_dir / img_file.name
+                        counter = 1
+                        while dest_path.exists():
+                            dest_path = dataset_dir / f"{img_file.stem}_{counter}{img_file.suffix}"
+                            counter += 1
+                        shutil.copy2(img_file, dest_path)
+                        imported_count += 1
+
+                # Update manifest.json
+                manifest_path = dataset.path / "manifest.json"
+                if manifest_path.exists():
+                    with open(manifest_path, 'r') as f:
+                        manifest = json.load(f)
+                    manifest['images']['total'] += imported_count
+                    manifest['images']['unlabeled'] += imported_count
+                    with open(manifest_path, 'w') as f:
+                        json.dump(manifest, f, indent=2)
+
+                # Update registry
+                from ....core.registries import DatasetRegistry
+                registry = DatasetRegistry(project.path)
+                registry_data = registry._load_registry()
+                datasets = registry_data.get('datasets', {})
+
+                for ds_id, ds_info in datasets.items():
+                    if ds_info.get('name') == name:
+                        ds_info['num_images'] = ds_info.get('num_images', 0) + imported_count
+                        ds_info['images']['total'] = ds_info['images'].get('total', 0) + imported_count
+                        ds_info['images']['unlabeled'] = ds_info['images'].get('unlabeled', 0) + imported_count
+                        break
+
+                registry._save_registry(registry_data)
+
+                # Reload to get updated counts
+                dataset = project.get_dataset(name)
+                return dataset_to_schema(dataset, project.path)
+            else:
+                # Create new dataset
+                dataset = project.import_dataset(
+                    source=str(temp_dir),
+                    name=name,
+                    classes=class_list,
+                    recursive=recursive,
+                    copy=True,
+                    validate=True,
+                    force=False
+                )
+                return dataset_to_schema(dataset, project.path)
 
         finally:
             if temp_dir.exists():
-                try:
-                    shutil.rmtree(temp_dir)
-                except Exception as e:
-                    logger.warning(f"Failed to cleanup temp dir: {e}")
+                shutil.rmtree(temp_dir)
+
 
     @staticmethod
     def import_from_archive(
