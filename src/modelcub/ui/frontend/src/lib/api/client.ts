@@ -476,6 +476,12 @@ export class ModelCubAPI {
     return this.request<PromotedModel>(ENDPOINTS.modelDetail(name));
   }
 
+  async deleteModel(name: string): Promise<void> {
+    return this.request<void>(ENDPOINTS.modelDetail(name), {
+      method: "DELETE",
+    });
+  }
+
   // ==================== ANNOTATION METHODS ====================
 
   async getAnnotation(

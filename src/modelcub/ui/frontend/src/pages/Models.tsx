@@ -6,8 +6,8 @@ import ErrorMessage from '@/components/ErrorMessage';
 import { toast } from '@/lib/toast';
 import { useApiSync } from '@/hooks/useApiSync';
 import { PromotedModel } from '@/lib/api/types';
-import ModelCard from '@/components/ModelCard';
 import { api } from '@/lib/api';
+import ModelCard from '@/components/ModelCard';
 
 
 
@@ -127,6 +127,10 @@ const Models: React.FC = () => {
                                 key={model.name}
                                 model={model}
                                 onClick={() => handleModelClick(model)}
+                                onDelete={() => {
+                                    api.deleteModel(model.name)
+                                    handleRefresh()
+                                }}
                             />
                         ))}
                     </div>

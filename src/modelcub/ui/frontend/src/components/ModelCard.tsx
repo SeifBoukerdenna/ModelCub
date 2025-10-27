@@ -1,13 +1,15 @@
 import React from 'react';
-import { Brain, Calendar, TrendingUp, Tag } from 'lucide-react';
+import { Brain, Calendar, TrendingUp, Tag, Trash2 } from 'lucide-react';
 import { PromotedModel } from '@/lib/api/types';
+
 
 interface ModelCardProps {
     model: PromotedModel;
     onClick?: () => void;
+    onDelete: () => void;
 }
 
-const ModelCard: React.FC<ModelCardProps> = ({ model, onClick }) => {
+const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onDelete }) => {
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -185,6 +187,17 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick }) => {
                         ))}
                     </div>
                 )}
+            </div>
+
+            {/* Card Footer - Delete Button */}
+            <div className="card__footer" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                    className="btn btn--text btn--sm"
+                    style={{ color: 'var(--color-error)' }}
+                    onClick={onDelete}
+                >
+                    <Trash2 size={16} />
+                </button>
             </div>
         </div>
     );

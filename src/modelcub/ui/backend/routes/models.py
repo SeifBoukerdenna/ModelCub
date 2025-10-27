@@ -96,3 +96,43 @@ async def get_model(
             data=None,
             message=f"Failed to get model: {str(e)}"
         )
+
+
+@router.delete("/{name}")
+async def delete_model(
+    name: str,
+    project: ProjectRequired
+) -> APIResponse[None]:
+    """Delete a promoted model."""
+    logger.info(f"Deleting model: {name}")
+
+    try:
+        model_registry = ModelRegistry(project.path)
+
+        # Check if model exists
+        model_data = model_registry.get_model(name)
+        if not model_data:
+            return APIResponse(
+                success=False,
+                data=None,
+                message=f"Model not found: {name}"
+            )
+
+        # Delete model
+        model_registry.remove_model(name)
+
+        logger.info(f"Successfully deleted model: {name}")
+
+        return APIResponse(
+            success=True,
+            data=None,
+            message=f"Model '{name}' deleted successfully"
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to delete model {name}: {e}")
+        return APIResponse(
+            success=False,
+            data=None,
+            message=f"Failed to delete model: {str(e)}"
+        )
