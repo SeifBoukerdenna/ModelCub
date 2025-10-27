@@ -120,6 +120,14 @@ class EventBus:
             self._handlers[event_type] = []
         self._handlers[event_type].append(handler)
 
+    def unsubscribe(self, event_type: type, handler: Callable) -> None:
+        """Unsubscribe from an event type."""
+        if event_type in self._handlers:
+            try:
+                self._handlers[event_type].remove(handler)
+            except ValueError:
+                pass  # Handler not found
+
     def publish(self, event: Any) -> None:
         """Publish an event to all subscribers."""
         event_type = type(event)

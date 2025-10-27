@@ -367,7 +367,7 @@ class RunRegistry:
 
     # State transition validation
     VALID_TRANSITIONS = {
-        'pending': ['running', 'cancelled'],
+        'pending': ['running', 'cancelled', 'failed'],
         'running': ['completed', 'failed', 'cancelled'],
         'completed': [],
         'failed': [],

@@ -8,7 +8,7 @@ from ..core.config import Config, create_default_config, save_config, load_confi
 from ..core.registries import initialize_registries
 from ..core.service_result import ServiceResult
 from ..core.service_logging import log_service_call
-from ..events import ProjectInitialized, ProjectDeleted, bus
+from ..events.events import ProjectInitialized, ProjectDeleted, bus
 
 
 SIMPLE_PROJECT_MARKER = """# ModelCub Project

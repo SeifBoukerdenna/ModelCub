@@ -1,0 +1,16 @@
+datasets:
+  8bef6c7f:
+    id: 8bef6c7f
+    name: lolol
+    created: '2025-10-27T11:56:13.381339Z'
+    status: unlabeled
+    num_images: 8
+    images:
+      total: 8
+      unlabeled: 8
+    classes:
+    - a
+    - b
+    path: data/datasets/lolol
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload__iv6hyx8
+    num_classes: 2

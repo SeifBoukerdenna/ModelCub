@@ -16,7 +16,7 @@ from ..core.generate import gen_shapes_dataset
 from ..core.registry import AVAILABLE_SOURCES
 from ..core.service_result import ServiceResult
 from ..core.service_logging import log_service_call
-from ..events import DatasetAdded, DatasetEdited, DatasetDeleted, bus
+from ..events.events import DatasetAdded, DatasetEdited, DatasetDeleted, bus
 
 
 @dataclass
