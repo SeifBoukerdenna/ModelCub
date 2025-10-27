@@ -425,6 +425,127 @@ def delete(run_id: str, yes: bool, keep_artifacts: bool):
         raise SystemExit(2)
 
 
+
+
+@train.command()
+@click.argument('run_id')
+@click.option('--yes', '-y', is_flag=True, help='Confirm deletion without prompting')
+@click.option('--keep-artifacts', is_flag=True, help='Keep artifacts directory (only remove from registry)')
+def delete(run_id: str, yes: bool, keep_artifacts: bool):
+    """
+    Delete a training run.
+
+    Removes run from registry and optionally deletes artifacts.
+
+    Examples:
+        modelcub train delete run-20251027-143022
+        modelcub train delete run-20251027-143022 --yes
+        modelcub train delete run-20251027-143022 --keep-artifacts
+    """
+    from modelcub.services.training.training_service import TrainingService
+    from modelcub.core.paths import project_root
+    import shutil
+
+    try:
+        root = project_root()
+        service = TrainingService(root)
+
+        # Get run info
+        run = service.get_status(run_id)
+
+        # Don't delete running runs
+        if run['status'] == 'running':
+            click.echo(f"❌ Cannot delete running run. Stop it first:")
+            click.echo(f"   modelcub train stop {run_id}")
+            raise SystemExit(2)
+
+        # Confirm deletion
+        if not yes:
+            click.echo(f"⚠️  About to delete run: {run_id}")
+            click.echo(f"   Status:  {run['status']}")
+            click.echo(f"   Dataset: {run['dataset_name']}")
+            click.echo(f"   Model:   {run['config']['model']}")
+
+            if not keep_artifacts:
+                click.echo(f"   ⚠️  Will also delete artifacts: {run['artifacts_path']}")
+
+            click.echo()
+            if not click.confirm("Are you sure?"):
+                click.echo("Cancelled.")
+                return
+
+        # Delete artifacts if requested
+        if not keep_artifacts:
+            artifacts_path = root / run['artifacts_path']
+            if artifacts_path.exists():
+                shutil.rmtree(artifacts_path)
+                click.echo(f"🗑️  Deleted artifacts: {run['artifacts_path']}")
+
+        # Remove from registry
+        service.run_registry.remove_run(run_id)
+
+        click.echo(f"✅ Run deleted: {run_id}")
+
+    except ValueError as e:
+        click.echo(f"❌ {e}")
+        raise SystemExit(2)
+    except Exception as e:
+        click.echo(f"❌ Failed to delete run: {e}")
+        raise SystemExit(2)
+
+
+@train.command("purge")
+@click.option('--yes', '-y', is_flag=True, help="Confirm deletion of all runs")
+def purge(yes: bool):
+    """Delete all training runs."""
+    from modelcub.services.training.training_service import TrainingService
+    from modelcub.core.paths import project_root
+    import shutil
+
+    try:
+        root = project_root()
+        service = TrainingService(root)
+        runs = service.list_runs()
+
+        if not runs:
+            click.echo("No runs to delete.")
+            return
+
+        # Check for running runs
+        running = [r for r in runs if r["status"] == "running"]
+        if running:
+            click.echo(f"❌ Cannot delete {len(running)} running run(s). Stop them first:")
+            for r in running:
+                click.echo(f"   modelcub train stop {r['id']}")
+            raise SystemExit(2)
+
+        # Confirm deletion
+        if not yes:
+            click.echo(f"⚠️  About to delete all runs: {len(runs)}")
+            click.echo()
+            if not click.confirm("Are you sure?"):
+                click.echo("Cancelled.")
+                return
+
+        # Delete all runs
+        deleted = 0
+        for run in runs:
+            # Delete artifacts folder
+            artifacts_path = root / run['artifacts_path']
+            if artifacts_path.exists():
+                shutil.rmtree(artifacts_path)
+
+            # Remove from registry
+            service.run_registry.remove_run(run["id"])
+            deleted += 1
+
+        click.echo(f"✅ Deleted {deleted} runs and their artifacts")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to delete runs: {e}")
+        raise SystemExit(2)
+
+
 @train.command()
 @click.argument('run_id')
 @click.option('--force', '-f', is_flag=True, help='Force restart even if not failed/cancelled')
