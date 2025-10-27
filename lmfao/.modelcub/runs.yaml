@@ -1,1 +1,25 @@
-runs: {}
+runs:
+  run-20251027-170042:
+    id: run-20251027-170042
+    created: '2025-10-27T17:00:44.440289Z'
+    status: running
+    dataset_name: lolol
+    dataset_snapshot_id: snapshot-20251027-170044
+    task: detect
+    config:
+      model: yolov8n
+      epochs: 5
+      imgsz: 640
+      batch: 16
+      device: cpu
+      patience: 50
+      save_period: 10
+      workers: 8
+      task: detect
+    artifacts_path: runs/run-20251027-170042
+    metrics: {}
+    pid: 29695
+    duration_ms: null
+    exit_code: null
+    error: null
+    started: '2025-10-27T17:03:50.517686Z'

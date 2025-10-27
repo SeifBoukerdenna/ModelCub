@@ -97,10 +97,10 @@ def validate_dataset_structure(dataset_path: Path) -> None:
         )
 
     # Check val split exists
-    val_images = dataset_path / "valid" / "images"
+    val_images = dataset_path / "val" / "images"
     if not val_images.exists():
         raise ValidationError(
-            "Dataset missing valid/images directory",
+            "Dataset missing val/images directory",
             "TRAIN_DATASET_NO_SPLITS"
         )
 
@@ -120,7 +120,7 @@ def validate_dataset_has_images(dataset_path: Path) -> Dict[str, int]:
     """
     counts = {}
 
-    for split in ["train", "valid", "test"]:
+    for split in ["train", "val", "test"]:
         images_dir = dataset_path / split / "images"
         if images_dir.exists():
             count = sum(1 for f in images_dir.glob("*.*")
@@ -133,7 +133,7 @@ def validate_dataset_has_images(dataset_path: Path) -> Dict[str, int]:
             "TRAIN_DATASET_NO_LABELS"
         )
 
-    if counts.get("valid", 0) == 0:
+    if counts.get("val", 0) == 0:
         raise ValidationError(
             "No images found in validation set",
             "TRAIN_DATASET_NO_LABELS"

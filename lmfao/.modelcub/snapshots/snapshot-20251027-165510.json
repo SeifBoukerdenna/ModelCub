@@ -1,0 +1,28 @@
+{
+  "id": "snapshot-20251027-165510",
+  "dataset_name": "lolol",
+  "created": "2025-10-27T16:55:10.155541Z",
+  "files": {
+    "train": [
+      "train/images/fruit_0000.jpg",
+      "train/images/fruit_0001.jpg",
+      "train/images/fruit_0002.jpg",
+      "train/images/fruit_0003.jpg",
+      "train/images/fruit_0004.jpg"
+    ],
+    "test": [
+      "test/images/fruit_0005.jpg",
+      "test/images/fruit_0006.jpg"
+    ],
+    "unlabeled": []
+  },
+  "classes": {
+    "0": "a",
+    "1": "b"
+  },
+  "stats": {
+    "train_images": 5,
+    "test_images": 2,
+    "unlabeled_images": 0
+  }
+}
