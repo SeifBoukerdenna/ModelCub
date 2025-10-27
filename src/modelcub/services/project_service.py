@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..core.io import delete_tree
+from ..core.io_utils import delete_tree
 from ..core.config import Config, create_default_config, save_config, load_config
 from ..core.registries import initialize_registries
 from ..core.service_result import ServiceResult

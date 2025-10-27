@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from ..core.paths import project_root, CACHE_DIR
-from ..core.io import (
+from ..core.io_utils import (
     download_with_progress, extract_archive, sha256_file,
     copy_tree, delete_tree
 )

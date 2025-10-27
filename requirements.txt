@@ -1,0 +1,3 @@
+psutil>=5.9.0  # Process management
+pyyaml>=6.0    # Already exists
+ultralytics>=8.0.0  # YOLO training

@@ -1,9 +1,12 @@
 """
-ModelCub registries for datasets and training runs.
+ModelCub registries for datasets, training runs, and models.
 """
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 import yaml
+import json
+from datetime import datetime
+
 from modelcub.core.exceptions import (
     DatasetNotFoundError,
     ClassExistsError,
@@ -31,6 +34,12 @@ def initialize_registries(project_root: Path) -> None:
     if not runs_yaml.exists():
         with open(runs_yaml, 'w') as f:
             yaml.safe_dump({"runs": {}}, f)
+
+    # Initialize models.yaml
+    models_yaml = modelcub_dir / "models.yaml"
+    if not models_yaml.exists():
+        with open(models_yaml, 'w') as f:
+            yaml.safe_dump({"models": {}}, f)
 
 
 class DatasetRegistry:
@@ -69,12 +78,12 @@ class DatasetRegistry:
         return False
 
     def get_images(
-    self,
-    dataset_name: str,
-    split: Optional[str] = None,
-    limit: int = 100,
-    offset: int = 0
-) -> tuple[List[Dict], int]:
+        self,
+        dataset_name: str,
+        split: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> tuple[List[Dict], int]:
         """Get list of all images in the dataset."""
         dataset_path = self.datasets_dir / dataset_name
 
@@ -126,31 +135,41 @@ class DatasetRegistry:
 
     def add_dataset(self, dataset_info: Dict[str, Any]) -> None:
         """Add a new dataset to registry."""
-        registry = self._load_registry()
-        if "datasets" not in registry:
-            registry["datasets"] = {}
+        from .io import FileLock
 
-        dataset_id = dataset_info.get("id")
-        registry["datasets"][dataset_id] = dataset_info
-        self._save_registry(registry)
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
+            if "datasets" not in registry:
+                registry["datasets"] = {}
+
+            dataset_id = dataset_info.get("id")
+            registry["datasets"][dataset_id] = dataset_info
+
+            # Save without additional lock
+            self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.registry_path, 'w') as f:
+                yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
 
     def remove_dataset(self, dataset_name: str) -> None:
         """Remove dataset from registry."""
-        registry = self._load_registry()
-        dataset_id = None
+        from .io import FileLock
 
-        for ds_id, ds_info in registry.get("datasets", {}).items():
-            if ds_info.get("name") == dataset_name:
-                dataset_id = ds_id
-                break
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
+            dataset_id = None
 
-        if dataset_id:
-            del registry["datasets"][dataset_id]
-            self._save_registry(registry)
+            for ds_id, ds_info in registry.get("datasets", {}).items():
+                if ds_info.get("name") == dataset_name:
+                    dataset_id = ds_id
+                    break
 
-    # ========================================================================
-    # CLASS MANAGEMENT METHODS
-    # ========================================================================
+            if dataset_id:
+                del registry["datasets"][dataset_id]
+
+                # Save without additional lock
+                self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(self.registry_path, 'w') as f:
+                    yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
 
     def list_images(
         self,
@@ -164,7 +183,6 @@ class DatasetRegistry:
             raise DatasetNotFoundError(f"Dataset not found: {dataset_name}")
 
         return self.get_images(dataset_name, split, limit, offset)
-
 
     # ========================================================================
     # CLASS MANAGEMENT METHODS
@@ -198,16 +216,15 @@ class DatasetRegistry:
 
         Args:
             dataset_name: Name of the dataset
-            class_name: Name of the class to add
-            class_id: Optional specific ID for the class (auto-assigned if None)
+            class_name: Name of the new class
+            class_id: Optional class ID (appends to end if not provided)
 
         Returns:
-            Assigned class ID
+            The class ID of the added class
 
         Raises:
             DatasetNotFoundError: If dataset doesn't exist
             ClassExistsError: If class already exists
-            ValueError: If class_id is already taken
         """
         if not self.exists(dataset_name):
             raise DatasetNotFoundError(f"Dataset not found: {dataset_name}")
@@ -217,31 +234,20 @@ class DatasetRegistry:
         if class_name in classes:
             raise ClassExistsError(f"Class already exists: {class_name}")
 
-        # Determine class ID
         if class_id is None:
-            assigned_id = len(classes)
-        else:
-            if class_id < 0:
-                raise ValueError("Class ID must be non-negative")
-            if class_id < len(classes):
-                raise ValueError(f"Class ID {class_id} already taken")
-            while len(classes) < class_id:
-                classes.append(None)
-            assigned_id = class_id
-
-        # Add class
-        if assigned_id >= len(classes):
+            class_id = len(classes)
             classes.append(class_name)
         else:
-            classes[assigned_id] = class_name
+            # Insert at specific position, fill with None if needed
+            while len(classes) <= class_id:
+                classes.append(None)
+            classes[class_id] = class_name
 
         self._update_classes(dataset_name, classes)
-        return assigned_id
+        return class_id
 
     def remove_class(self, dataset_name: str, class_name: str) -> None:
         """Remove a class from a dataset.
-
-        Note: This does not delete existing labels. Use with caution.
 
         Args:
             dataset_name: Name of the dataset
@@ -259,17 +265,17 @@ class DatasetRegistry:
         if class_name not in classes:
             raise ClassNotFoundError(f"Class not found: {class_name}")
 
-        # Replace with None to preserve IDs
         class_idx = classes.index(class_name)
         classes[class_idx] = None
 
-        # Clean trailing Nones
-        while classes and classes[-1] is None:
-            classes.pop()
-
         self._update_classes(dataset_name, classes)
 
-    def rename_class(self, dataset_name: str, old_name: str, new_name: str) -> None:
+    def rename_class(
+        self,
+        dataset_name: str,
+        old_name: str,
+        new_name: str
+    ) -> None:
         """Rename a class in a dataset.
 
         Args:
@@ -300,28 +306,34 @@ class DatasetRegistry:
 
     def _update_classes(self, dataset_name: str, classes: List[Optional[str]]) -> None:
         """Update classes in registry, dataset.yaml, and manifest.json."""
-        import json
+        from .io import FileLock
 
-        registry = self._load_registry()
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
 
-        # Find dataset ID
-        dataset_id = None
-        for ds_id, ds_info in registry.get("datasets", {}).items():
-            if ds_info.get("name") == dataset_name:
-                dataset_id = ds_id
-                break
+            # Find dataset ID
+            dataset_id = None
+            for ds_id, ds_info in registry.get("datasets", {}).items():
+                if ds_info.get("name") == dataset_name:
+                    dataset_id = ds_id
+                    break
 
-        if not dataset_id:
-            raise DatasetNotFoundError(f"Dataset not found: {dataset_name}")
+            if not dataset_id:
+                raise DatasetNotFoundError(f"Dataset not found: {dataset_name}")
 
-        # Filter out None values
-        clean_classes = [c for c in classes if c is not None]
+            # Filter out None values
+            clean_classes = [c for c in classes if c is not None]
 
-        # Update registry
-        registry["datasets"][dataset_id]["classes"] = clean_classes
-        registry["datasets"][dataset_id]["num_classes"] = len(clean_classes)
-        self._save_registry(registry)
+            # Update registry
+            registry["datasets"][dataset_id]["classes"] = clean_classes
+            registry["datasets"][dataset_id]["num_classes"] = len(clean_classes)
 
+            # Save without additional lock
+            self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.registry_path, 'w') as f:
+                yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
+
+        # Update dataset files (outside the lock)
         dataset_path = self.datasets_dir / dataset_name
 
         # Update/create dataset.yaml (YOLO format)
@@ -330,7 +342,7 @@ class DatasetRegistry:
             with open(dataset_yaml, 'r') as f:
                 ds_config = yaml.safe_load(f) or {}
         else:
-            ds_config = {"path": str(dataset_path)}  # Create new
+            ds_config = {"path": str(dataset_path)}
 
         ds_config["names"] = clean_classes
         ds_config["nc"] = len(clean_classes)
@@ -350,9 +362,17 @@ class DatasetRegistry:
                 json.dump(manifest, f, indent=2)
 
 
-
 class RunRegistry:
     """Registry for managing training runs."""
+
+    # State transition validation
+    VALID_TRANSITIONS = {
+        'pending': ['running', 'cancelled'],
+        'running': ['completed', 'failed', 'cancelled'],
+        'completed': [],
+        'failed': [],
+        'cancelled': []
+    }
 
     def __init__(self, project_root: Path):
         self.project_root = Path(project_root)
@@ -366,46 +386,251 @@ class RunRegistry:
             return yaml.safe_load(f) or {"runs": {}}
 
     def _save_registry(self, registry: Dict) -> None:
-        """Save runs registry to YAML."""
-        self.registry_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.registry_path, 'w') as f:
-            yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
+        """Save registry with atomic write and file lock."""
+        from .io import atomic_write, FileLock
+
+        with FileLock(self.registry_path):
+            content = yaml.safe_dump(
+                registry,
+                default_flow_style=False,
+                sort_keys=False
+            )
+            atomic_write(self.registry_path, content)
+
+    def _validate_transition(self, current_status: str, new_status: str) -> None:
+        """
+        Validate state transition is allowed.
+
+        Raises:
+            ValueError: If transition is invalid
+        """
+        if new_status not in self.VALID_TRANSITIONS.get(current_status, []):
+            raise ValueError(
+                f"Invalid status transition: {current_status} → {new_status}"
+            )
 
     def list_runs(self) -> List[Dict[str, Any]]:
         """List all training runs."""
         registry = self._load_registry()
         return list(registry.get("runs", {}).values())
 
-    def get_run(self, run_id: str) -> Dict[str, Any]:
+    def get_run(self, run_id: str) -> Optional[Dict[str, Any]]:
         """Get run info by ID."""
         registry = self._load_registry()
-        runs = registry.get("runs", {})
-        if run_id not in runs:
-            raise ValueError(f"Run not found: {run_id}")
-        return runs[run_id]
+        return registry.get("runs", {}).get(run_id)
 
     def add_run(self, run_info: Dict[str, Any]) -> None:
         """Add a new run to registry."""
-        registry = self._load_registry()
-        if "runs" not in registry:
-            registry["runs"] = {}
+        from .io import FileLock
 
-        run_id = run_info.get("id")
-        registry["runs"][run_id] = run_info
-        self._save_registry(registry)
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
+            if "runs" not in registry:
+                registry["runs"] = {}
+
+            run_id = run_info.get("id")
+            registry["runs"][run_id] = run_info
+
+            # Save without additional lock (we already hold it)
+            self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.registry_path, 'w') as f:
+                yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
 
     def update_run(self, run_id: str, updates: Dict[str, Any]) -> None:
-        """Update run information."""
-        registry = self._load_registry()
-        if run_id not in registry.get("runs", {}):
-            raise ValueError(f"Run not found: {run_id}")
+        """
+        Update run information with state validation.
 
-        registry["runs"][run_id].update(updates)
-        self._save_registry(registry)
+        Args:
+            run_id: Run identifier
+            updates: Dictionary of fields to update
+
+        Raises:
+            ValueError: If run not found or invalid state transition
+        """
+        from .io import FileLock
+
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
+            if run_id not in registry.get("runs", {}):
+                raise ValueError(f"Run not found: {run_id}")
+
+            # Validate state transitions
+            if "status" in updates:
+                current_status = registry["runs"][run_id].get("status")
+                new_status = updates["status"]
+                if current_status:
+                    self._validate_transition(current_status, new_status)
+
+            registry["runs"][run_id].update(updates)
+
+            # Save without additional lock
+            self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.registry_path, 'w') as f:
+                yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
 
     def remove_run(self, run_id: str) -> None:
         """Remove run from registry."""
+        from .io import FileLock
+
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
+            if run_id in registry.get("runs", {}):
+                del registry["runs"][run_id]
+
+                # Save without additional lock
+                self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(self.registry_path, 'w') as f:
+                    yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
+
+
+class ModelRegistry:
+    """
+    Registry for managing promoted models.
+
+    Tracks models that have been promoted from training runs
+    for production use.
+    """
+
+    def __init__(self, project_root: Path):
+        self.project_root = Path(project_root)
+        self.registry_path = self.project_root / ".modelcub" / "models.yaml"
+        self.models_dir = self.project_root / "models"
+
+    def _load_registry(self) -> Dict:
+        """Load models registry from YAML."""
+        if not self.registry_path.exists():
+            return {"models": {}}
+
+        with open(self.registry_path, 'r') as f:
+            return yaml.safe_load(f) or {"models": {}}
+
+    def _save_registry(self, registry: Dict) -> None:
+        """Save registry with atomic write and file lock."""
+        from .io import atomic_write, FileLock
+
+        with FileLock(self.registry_path):
+            content = yaml.safe_dump(
+                registry,
+                default_flow_style=False,
+                sort_keys=False
+            )
+            atomic_write(self.registry_path, content)
+
+    def promote_model(
+        self,
+        name: str,
+        run_id: str,
+        model_path: Path,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Promote a trained model to production.
+
+        Args:
+            name: Model name (e.g., "detector-v1")
+            run_id: Training run that produced this model
+            model_path: Path to model weights (e.g., best.pt)
+            metadata: Optional metadata (metrics, description, etc.)
+
+        Returns:
+            Version identifier for the promoted model
+
+        Raises:
+            FileNotFoundError: If model_path doesn't exist
+            ValueError: If model already exists with this name
+        """
+        from .io import FileLock
+        import shutil
+
+        if not model_path.exists():
+            raise FileNotFoundError(f"Model file not found: {model_path}")
+
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
+
+            if name in registry["models"]:
+                raise ValueError(
+                    f"Model '{name}' already exists. "
+                    "Use a different name or remove the existing model."
+                )
+
+            # Create model directory
+            model_dir = self.models_dir / name
+            model_dir.mkdir(parents=True, exist_ok=True)
+
+            # Copy model file
+            dest_path = model_dir / model_path.name
+            shutil.copy2(model_path, dest_path)
+
+            # Create registry entry
+            version = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+            registry["models"][name] = {
+                'name': name,
+                'version': version,
+                'created': datetime.utcnow().isoformat() + 'Z',
+                'run_id': run_id,
+                'path': str(dest_path.relative_to(self.project_root)),
+                'metadata': metadata or {}
+            }
+
+            # Save without additional lock
+            self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.registry_path, 'w') as f:
+                yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
+
+        return version
+
+    def get_model(self, name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get model information by name.
+
+        Args:
+            name: Model name
+
+        Returns:
+            Model dictionary or None if not found
+        """
         registry = self._load_registry()
-        if run_id in registry.get("runs", {}):
-            del registry["runs"][run_id]
-            self._save_registry(registry)
+        return registry["models"].get(name)
+
+    def list_models(self) -> list[Dict[str, Any]]:
+        """
+        List all promoted models.
+
+        Returns:
+            List of model dictionaries
+        """
+        registry = self._load_registry()
+        return list(registry["models"].values())
+
+    def remove_model(self, name: str) -> None:
+        """
+        Remove a promoted model.
+
+        Args:
+            name: Model name
+
+        Raises:
+            ValueError: If model not found
+        """
+        from .io import FileLock
+        import shutil
+
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
+
+            if name not in registry["models"]:
+                raise ValueError(f"Model not found: {name}")
+
+            # Remove model directory
+            model_dir = self.models_dir / name
+            if model_dir.exists():
+                shutil.rmtree(model_dir)
+
+            # Remove from registry
+            del registry["models"][name]
+
+            # Save without additional lock
+            self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.registry_path, 'w') as f:
+                yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
