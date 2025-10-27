@@ -1,1 +1,30 @@
-models: {}
+models:
+  first-test-model:
+    name: first-test-model
+    version: 20251027-174016
+    created: '2025-10-27T17:40:16.091805Z'
+    run_id: run-20251027-173327
+    path: models/first-test-model/best.pt
+    metadata:
+      description: ''
+      metrics:
+        map50: 0.27801
+        map50_95: 0.1829
+        precision: 0.70809
+        recall: 0.5
+        best_epoch: 5
+        box_loss: 2.10267
+        cls_loss: 3.04511
+        dfl_loss: 2.58255
+      config:
+        model: yolov8s
+        epochs: 5
+        imgsz: 640
+        batch: 16
+        device: cpu
+        patience: 50
+        save_period: 10
+        workers: 8
+        task: detect
+      dataset_name: test-ds
+      dataset_snapshot_id: snapshot-20251027-173328

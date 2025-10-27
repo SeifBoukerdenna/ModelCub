@@ -342,10 +342,22 @@ class DatasetRegistry:
             with open(dataset_yaml, 'r') as f:
                 ds_config = yaml.safe_load(f) or {}
         else:
-            ds_config = {"path": str(dataset_path)}
+            ds_config = {
+                "path": str(dataset_path),
+                "train": "train/images",
+                "val": "val/images",
+                "test": "test/images"
+            }
 
         ds_config["names"] = clean_classes
         ds_config["nc"] = len(clean_classes)
+
+        if "train" not in ds_config:
+            ds_config["train"] = "train/images"
+        if "val" not in ds_config:
+            ds_config["val"] = "val/images"
+        if "test" not in ds_config:
+            ds_config["test"] = "test/images"
 
         with open(dataset_yaml, 'w') as f:
             yaml.safe_dump(ds_config, f, default_flow_style=False, sort_keys=False)

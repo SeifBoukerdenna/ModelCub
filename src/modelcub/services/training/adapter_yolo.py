@@ -22,39 +22,22 @@ class YOLOAdapter:
         output_path: Path,
         config: Dict[str, Any]
     ) -> List[str]:
-        """
-        Build YOLO training command.
+        """Build YOLO training command."""
 
-        Args:
-            dataset_path: Path to dataset directory
-            output_path: Path for training outputs
-            config: Training configuration
+        # Correct format: yolo [TASK] MODE args
+        # TASK is optional (detect/segment/classify/pose/obb)
+        # MODE is required (train/predict/val/export/track)
+        task = config.get('task', 'detect')
 
-        Returns:
-            Command list for subprocess execution
-        """
-        import sys
+        command = ['yolo', task, 'train']
 
-        # Build Python command
-        command = [
-            sys.executable,
-            '-m', 'ultralytics',
-            'train'
-        ]
-
-        # Add model
-        command.extend(['model=' + config['model']])
-
-        # Add dataset
+        # Add parameters
         dataset_yaml = dataset_path / 'dataset.yaml'
-        command.extend(['data=' + str(dataset_yaml)])
-
-        # Add output directory
-        command.extend(['project=' + str(output_path)])
-        command.extend(['name=train'])
-
-        # Add training parameters
         command.extend([
+            f'model={config["model"]}',
+            f'data={dataset_yaml}',
+            f'project={output_path}',
+            'name=train',
             f'epochs={config["epochs"]}',
             f'imgsz={config["imgsz"]}',
             f'batch={config["batch"]}',
@@ -64,7 +47,6 @@ class YOLOAdapter:
             f'workers={config["workers"]}'
         ])
 
-        # Add optional parameters
         if 'seed' in config:
             command.append(f'seed={config["seed"]}')
 
@@ -82,6 +64,7 @@ class YOLOAdapter:
                 command.append(f'{param}={config[param]}')
 
         return command
+
 
     def parse_results(self, run_path: Path) -> Dict[str, Any]:
         """

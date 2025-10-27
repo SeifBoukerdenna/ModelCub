@@ -167,6 +167,9 @@ def import_images(req: ImportImagesRequest) -> ImportImagesResult:
     dataset_yaml = dataset_dir / "dataset.yaml"
     yaml_config = {
         "path": str(dataset_dir),
+        "train": "train/images",
+        "val": "val/images",
+        "test": "test/images",
         "names": classes,
         "nc": len(classes)
     }

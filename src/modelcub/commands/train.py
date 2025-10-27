@@ -82,15 +82,18 @@ def create(dataset_name: str, model: str, epochs: int, imgsz: int, batch: int,
 
 @train.command()
 @click.argument('run_id')
-def start(run_id: str):
+@click.option('--watch', '-w', is_flag=True, help='Watch training logs in real-time')
+def start(run_id: str, watch: bool):
     """
     Start a pending training run.
 
     Examples:
         modelcub train start run-20251027-143022
+        modelcub train start run-20251027-143022 --watch
     """
     from modelcub.services.training.training_service import TrainingService
     from modelcub.core.paths import project_root
+    import time
 
     try:
         root = project_root()
@@ -102,10 +105,62 @@ def start(run_id: str):
         service.start_run(run_id)
 
         click.echo(f"✅ Training started!")
-        click.echo(f"\nMonitor progress:")
-        click.echo(f"  • Check status:  modelcub train status {run_id}")
-        click.echo(f"  • View logs:     modelcub train logs {run_id}")
-        click.echo(f"  • Stop training: modelcub train stop {run_id}")
+
+        if not watch:
+            click.echo(f"\nMonitor progress:")
+            click.echo(f"  • Check status:  modelcub train status {run_id}")
+            click.echo(f"  • View logs:     modelcub train logs {run_id} --follow")
+            click.echo(f"  • Stop training: modelcub train stop {run_id}")
+            return
+
+        # Watch mode - tail logs
+        click.echo(f"\n📜 Following training logs (Ctrl+C to stop)...")
+        click.echo(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+        # Get run info for log path
+        run = service.get_status(run_id)
+        run_path = root / run['artifacts_path']
+        log_file = run_path / 'logs' / 'stdout.log'
+
+        # Wait for log file to be created
+        max_wait = 10
+        waited = 0
+        while not log_file.exists() and waited < max_wait:
+            time.sleep(0.5)
+            waited += 0.5
+
+        if not log_file.exists():
+            click.echo(f"⚠️  Log file not created yet. Run:")
+            click.echo(f"   modelcub train logs {run_id} --follow")
+            return
+
+        try:
+            with open(log_file, 'r') as f:
+                # Start from beginning
+                f.seek(0)
+
+                # Stream new lines
+                while True:
+                    line = f.readline()
+                    if line:
+                        click.echo(line, nl=False)
+                    else:
+                        # No new data, check if process still running
+                        time.sleep(0.5)
+                        current_run = service.get_status(run_id)
+                        if current_run['status'] not in ['running', 'pending']:
+                            # Training finished, show final lines
+                            for line in f:
+                                click.echo(line, nl=False)
+                            click.echo(f"\n\n✅ Training finished with status: {current_run['status']}")
+                            break
+
+        except KeyboardInterrupt:
+            click.echo(f"\n\n👋 Stopped watching logs")
+            click.echo(f"\nTraining is still running in background.")
+            click.echo(f"  • Check status: modelcub train status {run_id}")
+            click.echo(f"  • View logs:    modelcub train logs {run_id} --follow")
+            click.echo(f"  • Stop:         modelcub train stop {run_id}")
 
     except ValueError as e:
         click.echo(f"❌ {e}")

@@ -1,13 +1,13 @@
 runs:
-  run-20251027-170042:
-    id: run-20251027-170042
-    created: '2025-10-27T17:00:44.440289Z'
-    status: running
+  run-20251027-170927:
+    id: run-20251027-170927
+    created: '2025-10-27T17:09:29.019444Z'
+    status: failed
     dataset_name: lolol
-    dataset_snapshot_id: snapshot-20251027-170044
+    dataset_snapshot_id: snapshot-20251027-170929
     task: detect
     config:
-      model: yolov8n
+      model: yolov8s
       epochs: 5
       imgsz: 640
       batch: 16
@@ -16,10 +16,90 @@ runs:
       save_period: 10
       workers: 8
       task: detect
-    artifacts_path: runs/run-20251027-170042
+    artifacts_path: runs/run-20251027-170927
     metrics: {}
-    pid: 29695
-    duration_ms: null
+    pid: null
+    duration_ms: 3044
+    exit_code: null
+    error: No results found - training may have crashed
+    started: '2025-10-27T17:12:48.093030Z'
+  run-20251027-171319:
+    id: run-20251027-171319
+    created: '2025-10-27T17:13:20.403740Z'
+    status: failed
+    dataset_name: lolol
+    dataset_snapshot_id: snapshot-20251027-171320
+    task: detect
+    config:
+      model: yolov8s
+      epochs: 5
+      imgsz: 640
+      batch: 16
+      device: cpu
+      patience: 50
+      save_period: 10
+      workers: 8
+      task: detect
+    artifacts_path: runs/run-20251027-171319
+    metrics: {}
+    pid: null
+    duration_ms: 2056
+    exit_code: null
+    error: No results found - training may have crashed
+    started: '2025-10-27T17:13:32.824163Z'
+  run-20251027-171516:
+    id: run-20251027-171516
+    created: '2025-10-27T17:15:17.284591Z'
+    status: failed
+    dataset_name: lolol
+    dataset_snapshot_id: snapshot-20251027-171517
+    task: detect
+    config:
+      model: yolov8s
+      epochs: 5
+      imgsz: 640
+      batch: 16
+      device: cpu
+      patience: 50
+      save_period: 10
+      workers: 8
+      task: detect
+    artifacts_path: runs/run-20251027-171516
+    metrics: {}
+    pid: null
+    duration_ms: 13916
+    exit_code: null
+    error: No results found - training may have crashed
+    started: '2025-10-27T17:15:26.492636Z'
+  run-20251027-173327:
+    id: run-20251027-173327
+    created: '2025-10-27T17:33:28.817167Z'
+    status: completed
+    dataset_name: test-ds
+    dataset_snapshot_id: snapshot-20251027-173328
+    task: detect
+    config:
+      model: yolov8s
+      epochs: 5
+      imgsz: 640
+      batch: 16
+      device: cpu
+      patience: 50
+      save_period: 10
+      workers: 8
+      task: detect
+    artifacts_path: runs/run-20251027-173327
+    metrics:
+      map50: 0.27801
+      map50_95: 0.1829
+      precision: 0.70809
+      recall: 0.5
+      best_epoch: 5
+      box_loss: 2.10267
+      cls_loss: 3.04511
+      dfl_loss: 2.58255
+    pid: null
+    duration_ms: 56108
     exit_code: null
     error: null
-    started: '2025-10-27T17:03:50.517686Z'
+    started: '2025-10-27T17:33:49.886499Z'
