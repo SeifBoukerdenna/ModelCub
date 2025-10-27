@@ -17,6 +17,7 @@ import type {
   CreateJobRequest,
   Annotation,
   Box,
+  PromotedModel,
 } from "./types";
 import { ModelCubAPIError } from "./errors";
 
@@ -467,12 +468,12 @@ export class ModelCubAPI {
 
   // ==================== MODEL METHODS ====================
 
-  async listModels(): Promise<any[]> {
-    return this.request("/models");
+  async listModels(): Promise<PromotedModel[]> {
+    return this.request<PromotedModel[]>(ENDPOINTS.models);
   }
 
-  async getModel(modelId: string): Promise<[]> {
-    return this.request(`/models/${modelId}`);
+  async getModel(name: string): Promise<PromotedModel> {
+    return this.request<PromotedModel>(ENDPOINTS.modelDetail(name));
   }
 
   // ==================== ANNOTATION METHODS ====================

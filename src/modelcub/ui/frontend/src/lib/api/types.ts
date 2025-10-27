@@ -220,3 +220,34 @@ export const ErrorCode = {
 } as const;
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+export interface ModelMetrics {
+  map50?: number;
+  map50_95?: number;
+  precision?: number;
+  recall?: number;
+  best_epoch?: number;
+}
+
+export interface ModelConfig {
+  model?: string;
+  epochs?: number;
+  batch?: number;
+  imgsz?: number;
+  device?: string;
+  patience?: number;
+  [key: string]: any;
+}
+
+export interface PromotedModel {
+  name: string;
+  version: string;
+  created: string;
+  run_id: string;
+  path: string;
+  description?: string;
+  tags?: string[];
+  metrics?: ModelMetrics;
+  dataset_name?: string;
+  config?: ModelConfig;
+}
