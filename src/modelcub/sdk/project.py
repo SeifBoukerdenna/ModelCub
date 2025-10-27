@@ -18,6 +18,8 @@ from ..core.config import Config, load_config, save_config
 from ..core.registries import DatasetRegistry, RunRegistry
 from ..core.paths import project_root
 from .dataset import Dataset
+from .training_run import TrainingManager
+
 
 
 class Project:
@@ -33,6 +35,7 @@ class Project:
     def __init__(self, path: str | Path):
         """Initialize Project by loading from path."""
         self.path = Path(path).resolve()
+        self._training_manager = None
 
         if not self._is_valid_project(self.path):
             raise ValueError(f"Not a valid ModelCub project: {self.path}")
@@ -150,6 +153,22 @@ class Project:
     def datasets(self) -> DatasetRegistry:
         """Dataset registry."""
         return DatasetRegistry(self.path)
+
+    @property
+    def training(self) -> TrainingManager:
+        """
+        Training manager for this project.
+
+        Returns:
+            TrainingManager instance
+
+        Example:
+            >>> run = project.training.create("my-dataset", model="yolov8n")
+            >>> all_runs = project.training.list()
+        """
+        if self._training_manager is None:
+            self._training_manager = TrainingManager(self.path)
+        return self._training_manager
 
     @property
     def runs(self) -> RunRegistry:

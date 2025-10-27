@@ -1,17 +1,1 @@
-datasets:
-  775991a8:
-    id: 775991a8
-    name: test-ds
-    created: '2025-10-27T13:32:01.481061Z'
-    status: unlabeled
-    num_images: 11
-    images:
-      total: 11
-      unlabeled: 11
-    classes:
-    - a
-    - b
-    - d
-    path: data/datasets/test-ds
-    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_d4mxz2q8
-    num_classes: 3
+datasets: {}

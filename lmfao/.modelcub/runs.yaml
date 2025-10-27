@@ -1,1 +1,33 @@
-runs: {}
+runs:
+  run-20251027-183211:
+    id: run-20251027-183211
+    created: '2025-10-27T18:32:12.796176Z'
+    status: completed
+    dataset_name: test-ds
+    dataset_snapshot_id: snapshot-20251027-183212
+    task: detect
+    config:
+      model: yolov8n
+      epochs: 5
+      imgsz: 640
+      batch: 16
+      device: cpu
+      patience: 50
+      save_period: 10
+      workers: 8
+      task: detect
+    artifacts_path: runs/run-20251027-183211
+    metrics:
+      map50: 0.2369
+      map50_95: 0.10215
+      precision: 0.00499
+      recall: 1.0
+      best_epoch: 1
+      box_loss: 2.41212
+      cls_loss: 3.87385
+      dfl_loss: 3.05779
+    pid: null
+    duration_ms: 37618
+    exit_code: null
+    error: null
+    started: '2025-10-27T18:37:05.607955Z'
