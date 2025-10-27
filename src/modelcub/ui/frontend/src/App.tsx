@@ -15,6 +15,7 @@ import { HotkeysProvider } from './hotkeys/HotkeysProvider'
 import { AnnotationView } from './components/AnnotationViewer'
 import DatasetViewer from './components/datasets/DatasetViewer'
 import JobReview from './pages/JobReview'
+import Runs from './pages/runs'
 
 const App: React.FC = () => {
     useEffect(() => {
@@ -78,6 +79,14 @@ const App: React.FC = () => {
                             <ProjectGuard>
                                 <JobReview />
                             </ProjectGuard>}
+                        />
+                        <Route
+                            path='runs'
+                            element={
+                                <ProjectGuard>
+                                    <Runs />
+                                </ProjectGuard>
+                            }
                         />
                         <Route
                             path="models"

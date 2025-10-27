@@ -18,6 +18,7 @@ import type {
   Annotation,
   Box,
   PromotedModel,
+  TrainingRun,
 } from "./types";
 import { ModelCubAPIError } from "./errors";
 
@@ -482,6 +483,59 @@ export class ModelCubAPI {
     });
   }
 
+  // ==================== TRAINING RUN METHODS ====================
+
+  async listRuns(status?: string): Promise<TrainingRun[]> {
+    const params = status ? `?status=${status}` : "";
+    return this.request<TrainingRun[]>(`${ENDPOINTS.runs}${params}`);
+  }
+
+  async getRun(runId: string): Promise<TrainingRun> {
+    return this.request<TrainingRun>(`${ENDPOINTS.runs}/${runId}`);
+  }
+
+  async createRun(data: {
+    dataset_name: string;
+    model?: string;
+    epochs?: number;
+    task?: string;
+    imgsz?: number;
+    batch?: number;
+    device?: string;
+    patience?: number;
+    save_period?: number;
+    workers?: number;
+    seed?: number | null;
+  }): Promise<TrainingRun> {
+    return this.request<TrainingRun>(ENDPOINTS.runs, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async startRun(runId: string): Promise<TrainingRun> {
+    return this.request<TrainingRun>(`${ENDPOINTS.runs}/${runId}/start`, {
+      method: "POST",
+    });
+  }
+
+  async stopRun(runId: string, timeout: number = 10.0): Promise<TrainingRun> {
+    return this.request<TrainingRun>(
+      `${ENDPOINTS.runs}/${runId}/stop?timeout=${timeout}`,
+      { method: "POST" }
+    );
+  }
+
+  async deleteRun(
+    runId: string,
+    keepArtifacts: boolean = false
+  ): Promise<void> {
+    return this.request<void>(
+      `${ENDPOINTS.runs}/${runId}?keep_artifacts=${keepArtifacts}`,
+      { method: "DELETE" }
+    );
+  }
+
   // ==================== ANNOTATION METHODS ====================
 
   async getAnnotation(
@@ -497,7 +551,7 @@ export class ModelCubAPI {
     datasetName: string,
     imageId: string,
     boxes: Box[],
-    isNull: boolean = false // NEW: null marking parameter
+    isNull: boolean = false
   ): Promise<{
     image_id: string;
     num_boxes: number;
@@ -506,7 +560,7 @@ export class ModelCubAPI {
   }> {
     return this.request(`/datasets/${datasetName}/annotations/${imageId}`, {
       method: "POST",
-      body: JSON.stringify({ boxes, is_null: isNull }), // NEW: include is_null
+      body: JSON.stringify({ boxes, is_null: isNull }),
     });
   }
 

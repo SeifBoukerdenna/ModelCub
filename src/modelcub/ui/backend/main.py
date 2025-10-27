@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import projects, datasets, models, jobs, annotations
+from .routes import projects, datasets, models, jobs, annotations, runs
 from .websockets import ConnectionManager
 from .middleware import APIResponseMiddleware, ErrorHandlerMiddleware, ProjectContextMiddleware
 from ..shared.api.config import APIConfig, Endpoints
@@ -63,6 +63,7 @@ app.include_router(datasets.router, prefix=APIConfig.PREFIX)
 app.include_router(models.router, prefix=APIConfig.PREFIX)
 app.include_router(jobs.router, prefix=APIConfig.PREFIX)
 app.include_router(annotations.router, prefix=APIConfig.PREFIX)
+app.include_router(runs.router, prefix=APIConfig.PREFIX)
 
 
 @app.get(f"{APIConfig.PREFIX}{Endpoints.HEALTH}")

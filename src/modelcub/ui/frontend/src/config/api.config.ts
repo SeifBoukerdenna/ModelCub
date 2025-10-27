@@ -29,6 +29,11 @@ export const ENDPOINTS = {
   models: "/models",
   modelDetail: (id: string) => `/models/${id}`,
 
+  runs: "/runs",
+  runDetail: (id: string) => `/runs/${id}`,
+  runStart: (id: string) => `/runs/${id}/start`,
+  runStop: (id: string) => `/runs/${id}/stop`,
+
   // WebSocket
   ws: "/ws",
 } as const;

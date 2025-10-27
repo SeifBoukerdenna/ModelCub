@@ -11,6 +11,7 @@ import {
     LucideIcon,
     ChevronLeft,
     ChevronRight,
+    TrendingUp,
 } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import { selectSelectedProject, useProjectStore } from '@/stores/projectStore'
@@ -30,6 +31,7 @@ const navigation: NavItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Projects', href: '/projects', icon: FolderKanban },
     { name: 'Datasets', href: '/datasets', icon: Database },
+    { name: 'Runs', href: '/runs', icon: TrendingUp },
     { name: 'Models', href: '/models', icon: Brain },
     { name: 'Settings', href: '/settings', icon: SettingsIcon },
 ]

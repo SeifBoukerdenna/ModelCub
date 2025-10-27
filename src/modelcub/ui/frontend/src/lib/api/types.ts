@@ -126,15 +126,6 @@ export interface Model {
   path?: string;
 }
 
-export interface TrainingRun {
-  id: string;
-  model_id: string;
-  dataset_id: string;
-  status: string;
-  created: string;
-  metrics?: Record<string, number>;
-}
-
 // ==================== JOB TYPES ====================
 
 export interface Job {
@@ -250,4 +241,42 @@ export interface PromotedModel {
   metrics?: ModelMetrics;
   dataset_name?: string;
   config?: ModelConfig;
+}
+
+export interface TrainingRunMetrics {
+  map50?: number;
+  map50_95?: number;
+  precision?: number;
+  recall?: number;
+  best_epoch?: number;
+}
+
+export interface TrainingRunConfig {
+  model: string;
+  epochs: number;
+  batch: number;
+  imgsz: number;
+  device: string;
+  patience: number;
+  save_period?: number;
+  workers?: number;
+  seed?: number;
+  [key: string]: any;
+}
+
+export interface TrainingRun {
+  id: string;
+  created: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  dataset_name: string;
+  dataset_snapshot_id: string;
+  task: string;
+  config: TrainingRunConfig;
+  artifacts_path: string;
+  metrics?: TrainingRunMetrics;
+  pid?: number | null;
+  duration_ms?: number | null;
+  exit_code?: number | null;
+  error?: string | null;
+  started?: string;
 }
