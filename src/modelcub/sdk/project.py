@@ -19,6 +19,7 @@ from ..core.registries import DatasetRegistry, RunRegistry
 from ..core.paths import project_root
 from .dataset import Dataset
 from .training_run import TrainingManager
+from .model_manager import ModelManager
 
 
 
@@ -36,6 +37,7 @@ class Project:
         """Initialize Project by loading from path."""
         self.path = Path(path).resolve()
         self._training_manager = None
+        self._model_manager = None
 
         if not self._is_valid_project(self.path):
             raise ValueError(f"Not a valid ModelCub project: {self.path}")
@@ -169,6 +171,23 @@ class Project:
         if self._training_manager is None:
             self._training_manager = TrainingManager(self.path)
         return self._training_manager
+
+    @property
+    def models(self) -> ModelManager:
+        """
+        Model manager for this project.
+
+        Returns:
+            ModelManager instance for working with promoted models
+
+        Example:
+            >>> model = project.models.promote("run-123", "detector-v1")
+            >>> all_models = project.models.list()
+            >>> detector = project.models.get("detector-v1")
+        """
+        if self._model_manager is None:
+            self._model_manager = ModelManager(self.path)
+        return self._model_manager
 
     @property
     def runs(self) -> RunRegistry:

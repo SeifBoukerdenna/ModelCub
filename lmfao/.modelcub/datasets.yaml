@@ -1,1 +1,17 @@
-datasets: {}
+datasets:
+  5a608bc8:
+    id: 5a608bc8
+    name: test-ds
+    created: '2025-10-27T17:13:54.914841Z'
+    status: unlabeled
+    num_images: 10
+    images:
+      total: 10
+      unlabeled: 10
+    classes:
+    - a
+    - b
+    - c
+    path: data/datasets/test-ds
+    source: /var/folders/t9/4n0r3kz548s1bw7lxtp7c6f80000gn/T/modelcub_upload_3bfeiwhg
+    num_classes: 3

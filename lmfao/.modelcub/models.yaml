@@ -28,3 +28,32 @@ models:
         task: detect
       dataset_name: test-ds
       dataset_snapshot_id: snapshot-20251027-173328
+  model-from-sdk:
+    name: model-from-sdk
+    version: 20251027-211442
+    created: '2025-10-27T21:14:42.234811Z'
+    run_id: run-20251027-183211
+    path: models/model-from-sdk/best.pt
+    metadata:
+      description: model created from sdk just to test things out
+      metrics:
+        map50: 0.2369
+        map50_95: 0.10215
+        precision: 0.00499
+        recall: 1.0
+        best_epoch: 1
+        box_loss: 2.41212
+        cls_loss: 3.87385
+        dfl_loss: 3.05779
+      config:
+        model: yolov8n
+        epochs: 5
+        imgsz: 640
+        batch: 16
+        device: cpu
+        patience: 50
+        save_period: 10
+        workers: 8
+        task: detect
+      dataset_name: test-ds
+      dataset_snapshot_id: snapshot-20251027-183212
