@@ -41,6 +41,12 @@ def initialize_registries(project_root: Path) -> None:
         with open(models_yaml, 'w') as f:
             yaml.safe_dump({"models": {}}, f)
 
+    # Initialize inferences.yaml
+    inferences_yaml = modelcub_dir / "inferences.yaml"
+    if not inferences_yaml.exists():
+        with open(inferences_yaml, 'w') as f:
+            yaml.safe_dump({"inferences": {}}, f)
+
 
 class DatasetRegistry:
     """Registry for managing datasets."""
@@ -646,3 +652,82 @@ class ModelRegistry:
             self.registry_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.registry_path, 'w') as f:
                 yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
+
+
+class InferenceRegistry:
+    """Registry for managing inference jobs."""
+
+    def __init__(self, project_root: Path):
+        self.project_root = Path(project_root)
+        self.registry_path = self.project_root / ".modelcub" / "inferences.yaml"
+
+    def _load_registry(self) -> Dict:
+        """Load inferences registry from YAML."""
+        if not self.registry_path.exists():
+            return {"inferences": {}}
+
+        with open(self.registry_path, 'r') as f:
+            return yaml.safe_load(f) or {"inferences": {}}
+
+    def _save_registry(self, registry: Dict) -> None:
+        """Save registry with atomic write and file lock."""
+        from .io import atomic_write, FileLock
+
+        with FileLock(self.registry_path):
+            content = yaml.safe_dump(
+                registry,
+                default_flow_style=False,
+                sort_keys=False
+            )
+            atomic_write(self.registry_path, content)
+
+    def add_inference(self, inference_info: Dict[str, Any]) -> None:
+        """Add inference job to registry."""
+        registry = self._load_registry()
+
+        inference_id = inference_info['id']
+        registry['inferences'][inference_id] = inference_info
+
+        self._save_registry(registry)
+
+    def update_inference(self, inference_id: str, updates: Dict[str, Any]) -> None:
+        """Update inference job information."""
+        from .io import FileLock
+
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
+
+            if inference_id not in registry.get("inferences", {}):
+                raise ValueError(f"Inference job not found: {inference_id}")
+
+            registry["inferences"][inference_id].update(updates)
+
+            # Save without additional lock
+            self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.registry_path, 'w') as f:
+                yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)
+
+    def get_inference(self, inference_id: str) -> Optional[Dict]:
+        """Get inference job by ID."""
+        registry = self._load_registry()
+        return registry.get("inferences", {}).get(inference_id)
+
+    def list_inferences(self) -> List[Dict]:
+        """List all inference jobs."""
+        registry = self._load_registry()
+        return list(registry.get("inferences", {}).values())
+
+    def remove_inference(self, inference_id: str) -> None:
+        """Remove inference job from registry."""
+        from .io import FileLock
+
+        with FileLock(self.registry_path):
+            registry = self._load_registry()
+
+            if inference_id in registry.get("inferences", {}):
+                del registry["inferences"][inference_id]
+
+                # Save without additional lock
+                self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(self.registry_path, 'w') as f:
+                    yaml.safe_dump(registry, f, default_flow_style=False, sort_keys=False)

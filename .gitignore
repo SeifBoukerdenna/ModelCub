@@ -67,6 +67,7 @@ runs/
 models/
 data/
 data/**/*
+predictions/
 !data/.gitkeep
 
 # ---- Secrets / creds (avoid committing!)

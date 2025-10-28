@@ -1,0 +1,97 @@
+inferences:
+  inf-20251028-060105:
+    id: inf-20251028-060105
+    created: '2025-10-28T06:01:05.633327Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: dog_0700.jpg
+    output_path: predictions/inf-20251028-060105
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: pending
+    stats: null
+  inf-20251028-060147:
+    id: inf-20251028-060147
+    created: '2025-10-28T06:01:47.517528Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: dog_0700.jpg
+    output_path: predictions/inf-20251028-060147
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: failed
+    stats: null
+    error: No module named 'inference'
+  inf-20251028-060317:
+    id: inf-20251028-060317
+    created: '2025-10-28T06:03:17.556676Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: dog_0700.jpg
+    output_path: predictions/inf-20251028-060317
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: failed
+    stats: null
+    error: No module named 'inference'
+  inf-20251028-060507:
+    id: inf-20251028-060507
+    created: '2025-10-28T06:05:07.553121Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: dog_0700.jpg
+    output_path: predictions/inf-20251028-060507
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: pending
+    stats: null
+  inf-20251028-060932:
+    id: inf-20251028-060932
+    created: '2025-10-28T06:09:32.019185Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: dog_0700.jpg
+    output_path: predictions/inf-20251028-060932
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 197.9
+      classes_detected: []

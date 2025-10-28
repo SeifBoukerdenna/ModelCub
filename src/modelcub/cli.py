@@ -5,6 +5,7 @@ from modelcub.commands import project, dataset, annotation, job, ui_cmd
 from modelcub.commands.split import split
 from modelcub.commands.train import train
 from modelcub.commands.model import model
+from modelcub.commands.predict import predict
 
 
 @click.group()
@@ -22,6 +23,8 @@ cli.add_command(ui_cmd.ui)
 cli.add_command(split)
 cli.add_command(train)
 cli.add_command(model)
+cli.add_command(predict)
+
 
 
 def main():
