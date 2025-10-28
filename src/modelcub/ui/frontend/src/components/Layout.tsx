@@ -4,6 +4,7 @@ import Sidebar from './Sidebar'
 import ProjectSwitcher from './ProjectSwitcher'
 import SelectedProjectIndicator from './SelectedProjectIndicator'
 import { useRegisterHotkey } from '@/hooks/useRegisterHotkey'
+import ResourceMonitor from './ResourceMonitor'
 
 const SIDEBAR_STORAGE_KEY = 'modelcub_sidebar_collapsed'
 const ROOT_TIP_DISMISS_KEY = 'modelcub_root_tip_dismissed'
@@ -84,6 +85,7 @@ const Layout: React.FC = () => {
                             </div>
                         )}
                     </div>
+                    <ResourceMonitor position="top-right" />
                 </header>
 
                 <div className="content">

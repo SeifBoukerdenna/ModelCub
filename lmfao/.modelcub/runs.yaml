@@ -63,3 +63,67 @@ runs:
     exit_code: null
     error: null
     started: '2025-10-28T01:45:57.314160Z'
+  run-20251028-014804:
+    id: run-20251028-014804
+    created: '2025-10-28T01:48:04.704524Z'
+    status: completed
+    dataset_name: test-ds
+    dataset_snapshot_id: snapshot-20251028-014804
+    task: detect
+    config:
+      model: yolov8n
+      epochs: 2
+      imgsz: 640
+      batch: 16
+      device: cpu
+      patience: 50
+      save_period: 10
+      workers: 8
+      task: detect
+    artifacts_path: runs/run-20251028-014804
+    metrics:
+      map50: 0.10763
+      map50_95: 0.0246
+      precision: 0.0102
+      recall: 1.0
+      best_epoch: 1
+      box_loss: 1.89507
+      cls_loss: 3.48956
+      dfl_loss: 2.38579
+    pid: null
+    duration_ms: 16548
+    exit_code: null
+    error: null
+    started: '2025-10-28T01:48:07.788181Z'
+  run-20251028-044817:
+    id: run-20251028-044817
+    created: '2025-10-28T04:48:18.855589Z'
+    status: completed
+    dataset_name: test-ds
+    dataset_snapshot_id: snapshot-20251028-044818
+    task: detect
+    config:
+      model: yolov8s
+      epochs: 10
+      imgsz: 640
+      batch: 16
+      device: cpu
+      patience: 50
+      save_period: 10
+      workers: 8
+      task: detect
+    artifacts_path: runs/run-20251028-044817
+    metrics:
+      map50: 0.995
+      map50_95: 0.24266
+      precision: 0.28216
+      recall: 1.0
+      best_epoch: 10
+      box_loss: 2.16171
+      cls_loss: 4.05284
+      dfl_loss: 2.69655
+    pid: null
+    duration_ms: 157586
+    exit_code: null
+    error: null
+    started: '2025-10-28T04:48:27.948694Z'
