@@ -31,3 +31,35 @@ runs:
     exit_code: null
     error: null
     started: '2025-10-28T01:23:42.123012Z'
+  run-20251028-014144:
+    id: run-20251028-014144
+    created: '2025-10-28T01:41:46.794956Z'
+    status: completed
+    dataset_name: test-ds
+    dataset_snapshot_id: snapshot-20251028-014146
+    task: detect
+    config:
+      model: yolov8n
+      epochs: 2
+      imgsz: 640
+      batch: 16
+      device: cpu
+      patience: 50
+      save_period: 10
+      workers: 8
+      task: detect
+    artifacts_path: runs/run-20251028-014144
+    metrics:
+      map50: 0.10763
+      map50_95: 0.0246
+      precision: 0.0102
+      recall: 1.0
+      best_epoch: 1
+      box_loss: 1.89507
+      cls_loss: 3.48956
+      dfl_loss: 2.38579
+    pid: null
+    duration_ms: 20975
+    exit_code: null
+    error: null
+    started: '2025-10-28T01:45:57.314160Z'

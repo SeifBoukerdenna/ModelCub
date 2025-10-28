@@ -1,1 +1,91 @@
-models: {}
+models:
+  detector-v1:
+    name: detector-v1
+    version: 20251028-013532
+    created: '2025-10-28T01:35:32.731348Z'
+    run_id: run-20251028-012338
+    path: models/detector-v1/best.pt
+    metadata:
+      description: ''
+      metrics:
+        map50: 0.11056
+        map50_95: 0.03046
+        precision: 0.01015
+        recall: 1.0
+        best_epoch: 3
+        box_loss: 2.51758
+        cls_loss: 3.56408
+        dfl_loss: 3.00562
+      config:
+        model: yolov8n
+        epochs: 4
+        imgsz: 640
+        batch: 16
+        device: cpu
+        patience: 50
+        save_period: 10
+        workers: 8
+        task: detect
+      dataset_name: test-ds
+      dataset_snapshot_id: snapshot-20251028-012338
+  dectector-v1:
+    name: dectector-v1
+    version: 20251028-014546
+    created: '2025-10-28T01:45:46.047200Z'
+    run_id: run-20251028-012338
+    path: models/dectector-v1/best.pt
+    metadata:
+      description: ''
+      metrics:
+        map50: 0.11056
+        map50_95: 0.03046
+        precision: 0.01015
+        recall: 1.0
+        best_epoch: 3
+        box_loss: 2.51758
+        cls_loss: 3.56408
+        dfl_loss: 3.00562
+      config:
+        model: yolov8n
+        epochs: 4
+        imgsz: 640
+        batch: 16
+        device: cpu
+        patience: 50
+        save_period: 10
+        workers: 8
+        task: detect
+      dataset_name: test-ds
+      dataset_snapshot_id: snapshot-20251028-012338
+  alls:
+    name: alls
+    version: 20251028-014656
+    created: '2025-10-28T01:46:56.687060Z'
+    run_id: run-20251028-014144
+    path: models/alls/best.pt
+    metadata:
+      description: mcdcdnckdnv
+      metrics:
+        map50: 0.10763
+        map50_95: 0.0246
+        precision: 0.0102
+        recall: 1.0
+        best_epoch: 1
+        box_loss: 1.89507
+        cls_loss: 3.48956
+        dfl_loss: 2.38579
+      config:
+        model: yolov8n
+        epochs: 2
+        imgsz: 640
+        batch: 16
+        device: cpu
+        patience: 50
+        save_period: 10
+        workers: 8
+        task: detect
+      dataset_name: test-ds
+      dataset_snapshot_id: snapshot-20251028-014146
+      tags:
+      - alds
+      - cddkcd

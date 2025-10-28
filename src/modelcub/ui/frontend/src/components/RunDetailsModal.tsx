@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Zap, Play, Square, Trash2, RefreshCw, Terminal, TrendingUp, Clock, AlertCircle } from 'lucide-react';
+import { X, Zap, Play, Square, Trash2, RefreshCw, Terminal, TrendingUp, Clock, AlertCircle, Upload } from 'lucide-react';
 import type { TrainingRun } from '@/lib/api/types';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -167,6 +167,26 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
+                        {run.status === "completed" && <button
+                            className="modal__close"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            title="Refresh"
+                            style={{
+                                padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                backgroundColor: '#10b981',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 'var(--border-radius-sm)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--spacing-xs)',
+                                fontSize: 'var(--font-size-sm)',
+                            }}
+                        >
+                            <Upload size={18} />
+                        </button>}
                         <button
                             className="modal__close"
                             onClick={handleRefresh}

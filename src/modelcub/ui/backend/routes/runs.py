@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/runs", tags=["Runs"])
 
 
+class PromoteModelRequest(BaseModel):
+    """Request model for promoting a model."""
+    name: str
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
 class CreateRunRequest(BaseModel):
     """Request model for creating a training run."""
     dataset_name: str
@@ -316,4 +321,88 @@ async def get_logs(
             success=False,
             data={'logs': [], 'exists': False},
             message=f"Failed to get logs: {str(e)}"
+        )
+
+
+@router.post("/{run_id}/promote")
+async def promote_model(
+    run_id: str,
+    request: PromoteModelRequest,
+    project: ProjectRequired
+) -> APIResponse[Dict[str, Any]]:
+    """Promote a model from a completed training run."""
+    logger.info(f"Promoting model from run: {run_id}, name: {request.name}")
+
+    try:
+        from modelcub.core.registries import ModelRegistry
+
+        service = TrainingService(project.path)
+        run = service.get_status(run_id)
+
+        # Validate run status
+        if run['status'] != 'completed':
+            return APIResponse(
+                success=False,
+                data=None,
+                message=f"Run must be completed (current status: {run['status']})"
+            )
+
+        # Find best weights
+        run_path = Path(project.path) / run['artifacts_path']
+        weights_dir = run_path / 'train' / 'weights'
+        best_weights = weights_dir / 'best.pt'
+
+        if not best_weights.exists():
+            return APIResponse(
+                success=False,
+                data=None,
+                message=f"Best weights not found at {best_weights}"
+            )
+
+        # Prepare metadata
+        metadata = {
+            'description': request.description or '',
+            'metrics': run.get('metrics', {}),
+            'config': run['config'],
+            'dataset_name': run['dataset_name'],
+            'dataset_snapshot_id': run.get('dataset_snapshot_id')
+        }
+
+        if request.tags:
+            metadata['tags'] = request.tags
+
+        # Promote model
+        model_registry = ModelRegistry(project.path)
+        version = model_registry.promote_model(
+            name=request.name,
+            run_id=run_id,
+            model_path=best_weights,
+            metadata=metadata
+        )
+
+        logger.info(f"Successfully promoted model: {request.name}, version: {version}")
+
+        return APIResponse(
+            success=True,
+            data={
+                'name': request.name,
+                'version': version,
+                'run_id': run_id,
+                'metrics': run.get('metrics', {})
+            },
+            message=f"Model '{request.name}' promoted successfully"
+        )
+
+    except ValueError as e:
+        return APIResponse(
+            success=False,
+            data=None,
+            message=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Failed to promote model from run {run_id}: {e}")
+        return APIResponse(
+            success=False,
+            data=None,
+            message=f"Failed to promote model: {str(e)}"
         )

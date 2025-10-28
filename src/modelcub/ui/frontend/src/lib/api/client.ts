@@ -547,6 +547,23 @@ export class ModelCubAPI {
     );
   }
 
+  async promoteModel(
+    runId: string,
+    name: string,
+    description?: string,
+    tags?: string[]
+  ): Promise<{
+    name: string;
+    version: string;
+    run_id: string;
+    metrics: Record<string, number>;
+  }> {
+    return this.request(`${ENDPOINTS.runs}/${runId}/promote`, {
+      method: "POST",
+      body: JSON.stringify({ name, description, tags }),
+    });
+  }
+
   // ==================== ANNOTATION METHODS ====================
 
   async getAnnotation(

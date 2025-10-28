@@ -19,6 +19,7 @@
 @import '../components/JobDetailsModal.css';
 @import '../components/JobReview.css';
 @import '../styles/dashboard.css';
+@import '../components/PromoteModelModal.css';
 
 /*============================================CSS Variables (Design Tokens)============================================*/
 :root {

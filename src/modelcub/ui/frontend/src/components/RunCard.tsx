@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Play, Square, Trash2, Clock, TrendingUp, Database, Zap } from 'lucide-react';
+import { Play, Square, Trash2, Clock, TrendingUp, Database, Zap, Upload } from 'lucide-react';
 import type { TrainingRun } from '@/lib/api/types';
 import RunDetailsModal from './RunDetailsModal';
+import PromoteModelModal from './PromoteModelModal';
 
 interface RunCardProps {
     run: TrainingRun;
@@ -14,6 +15,7 @@ interface RunCardProps {
 const RunCard: React.FC<RunCardProps> = ({ run, onStart, onStop, onDelete, onRunUpdated }) => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [showPromoteModal, setShowPromoteModal] = useState(false);
 
     const getStatusColor = (status: string) => {
         const colors = {
@@ -204,6 +206,26 @@ const RunCard: React.FC<RunCardProps> = ({ run, onStart, onStop, onDelete, onRun
                                 <Square size={14} />
                             </button>
                         )}
+                        {run.status === 'completed' && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowPromoteModal(true); }}
+                                style={{
+                                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                    backgroundColor: '#10b981',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: 'var(--border-radius-sm)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 'var(--spacing-xs)',
+                                    fontSize: 'var(--font-size-sm)',
+                                }}
+                                title="Promote model"
+                            >
+                                <Upload size={14} />
+                            </button>
+                        )}
                         {run.status !== 'running' && onDelete && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
@@ -319,6 +341,15 @@ const RunCard: React.FC<RunCardProps> = ({ run, onStart, onStop, onDelete, onRun
                     isOpen={showDetailsModal}
                     onClose={() => setShowDetailsModal(false)}
                     onRunUpdated={handleRunUpdated}
+                />
+            )}
+
+            {/* Promote Model Modal */}
+            {showPromoteModal && (
+                <PromoteModelModal
+                    run={run}
+                    onClose={() => setShowPromoteModal(false)}
+                    onSuccess={handleRunUpdated}
                 />
             )}
         </>
