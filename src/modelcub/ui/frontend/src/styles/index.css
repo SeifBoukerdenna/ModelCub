@@ -18,7 +18,7 @@
 @import '../components/AnnotationViewer.css';
 @import '../components/JobDetailsModal.css';
 @import '../components/JobReview.css';
-
+@import '../styles/dashboard.css';
 
 /*============================================CSS Variables (Design Tokens)============================================*/
 :root {

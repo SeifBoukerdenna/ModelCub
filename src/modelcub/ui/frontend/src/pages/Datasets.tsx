@@ -174,7 +174,6 @@ const Datasets = () => {
             {/* Class Manager Modal */}
             {classManagerDataset && (
                 <ClassManagerModal
-                    isOpen={!!classManagerDataset}
                     onClose={() => setClassManagerDataset(null)}
                     datasetId={classManagerDataset.name}
                     initialClasses={classManagerDataset.classes}
@@ -185,7 +184,6 @@ const Datasets = () => {
             {/* Delete Confirmation Modal */}
             {datasetToDelete && (
                 <DeleteConfirmModal
-                    isOpen={!!datasetToDelete}
                     title="Delete Dataset"
                     message={
                         <>

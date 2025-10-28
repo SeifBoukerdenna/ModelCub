@@ -1,109 +1,436 @@
 import { useEffect, useState } from 'react';
-import { Database, BarChart3, FolderOpen, TrendingUp } from 'lucide-react';
-import { api } from '@/lib/api';
-import { useProjectStore, selectSelectedProject } from '@/stores/projectStore';
-import Loading from '@/components/Loading';
+import {
+    LineChart,
+    Line,
+    PieChart,
+    Pie,
+    Cell,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer
+} from 'recharts';
 
-const Dashboard = () => {
-    const selectedProject = useProjectStore(selectSelectedProject);
-    const [stats, setStats] = useState({
-        datasets: 0,
-        models: 0,
-        runs: 0,
-        totalImages: 0,
-    });
+import type { TrainingRun } from '@/lib/api/types';
+import { api } from '@/lib/api';
+import { useApiSync } from '@/hooks/useApiSync';
+
+interface DashboardData {
+    summary: {
+        datasets: number;
+        models: number;
+        totalRuns: number;
+        runningRuns: number;
+        completedRuns: number;
+        failedRuns: number;
+    };
+    recentRuns: TrainingRun[];
+    metrics: {
+        averageMap50: number | null;
+        successRate: number;
+        totalTrainingTime: number;
+        bestRun: {
+            id: string;
+            map50: number;
+            datasetName: string;
+            model: string;
+        } | null;
+    };
+    chartData: {
+        performanceOverTime: Array<{
+            runId: string;
+            created: string;
+            map50: number;
+            map50_95: number;
+        }>;
+        statusCounts: Record<string, number>;
+    };
+}
+
+
+export default function Dashboard() {
+    const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useApiSync();
+
 
     useEffect(() => {
-        loadStats();
-    }, [selectedProject?.path]);
+        fetchDashboardData();
+        const interval = setInterval(fetchDashboardData, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
-    const loadStats = async () => {
-        if (!selectedProject) {
-            setLoading(false);
-            return;
-        }
-
+    const fetchDashboardData = async () => {
         try {
-            setLoading(true);
-            api.setProjectPath(selectedProject.path);
-
-            const [datasets, models] = await Promise.all([
-                api.listDatasets().catch(() => []),
-                api.listModels().catch(() => []),
+            // Fetch all required data using the API client
+            const [datasets, models, allRuns] = await Promise.all([
+                api.listDatasets(),
+                api.listModels(),
+                api.listRuns()
             ]);
 
-            const totalImages = datasets.reduce((sum, ds) => sum + (ds.images || 0), 0);
+            // Calculate status counts
+            const statusCounts: Record<string, number> = {
+                pending: 0,
+                running: 0,
+                completed: 0,
+                failed: 0,
+                cancelled: 0
+            };
 
-            setStats({
-                datasets: datasets.length,
-                models: models.length,
-                runs: 0,
-                totalImages,
+            allRuns.forEach(run => {
+                const status = run.status || 'pending';
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
             });
+
+            // Sort runs by creation date
+            const sortedRuns = [...allRuns].sort((a, b) =>
+                new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime()
+            );
+
+            const completedRuns = allRuns.filter(r => r.status === 'completed');
+
+            // Calculate metrics
+            const map50Values = completedRuns
+                .map(r => r.metrics?.map50)
+                .filter((v): v is number => v !== null && v !== undefined);
+
+            const averageMap50 = map50Values.length > 0
+                ? map50Values.reduce((a, b) => a + b, 0) / map50Values.length
+                : null;
+
+            const successRate = allRuns.length > 0
+                ? completedRuns.length / allRuns.length
+                : 0;
+
+            const totalTrainingTime = completedRuns.reduce(
+                (sum, r) => sum + (r.duration_ms || 0),
+                0
+            );
+
+            let bestRun = null;
+            if (map50Values.length > 0) {
+                const best = completedRuns.reduce((prev, curr) =>
+                    (curr.metrics?.map50 || 0) > (prev.metrics?.map50 || 0) ? curr : prev
+                );
+                bestRun = {
+                    id: best.id,
+                    map50: best.metrics?.map50 || 0,
+                    datasetName: best.dataset_name || 'unknown',
+                    model: best.config?.model || 'unknown'
+                };
+            }
+
+            // Performance over time chart data
+            const performanceOverTime = completedRuns
+                .filter(r => r.metrics?.map50 !== null && r.metrics?.map50 !== undefined)
+                .map(r => ({
+                    runId: r.id.slice(0, 12) + '...',
+                    created: r.created || '',
+                    map50: r.metrics?.map50 || 0,
+                    map50_95: r.metrics?.map50_95 || 0
+                }))
+                .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime());
+
+            setData({
+                summary: {
+                    datasets: datasets.length,
+                    models: models.length,
+                    totalRuns: allRuns.length,
+                    runningRuns: statusCounts.running ?? 0,
+                    completedRuns: statusCounts.completed ?? 0,
+                    failedRuns: statusCounts.failed ?? 0
+                },
+                recentRuns: sortedRuns.slice(0, 10),
+                metrics: {
+                    averageMap50,
+                    successRate,
+                    totalTrainingTime,
+                    bestRun
+                },
+                chartData: {
+                    performanceOverTime,
+                    statusCounts
+                }
+            });
+
+            setError(null);
         } catch (err) {
-            console.error('Failed to load stats:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load dashboard');
         } finally {
             setLoading(false);
         }
     };
 
-    if (!selectedProject) {
+    if (loading) {
         return (
-            <div>
-                <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700 }}>Dashboard</h1>
-                <div className="empty-state">
-                    <FolderOpen size={48} className="empty-state__icon" />
-                    <h3 className="empty-state__title">No Project Selected</h3>
-                    <p className="empty-state__description">Select a project to view dashboard</p>
-                </div>
+            <div className="dashboard-loading">
+                <div className="spinner"></div>
             </div>
         );
     }
 
-    if (loading) {
-        return <Loading message="Loading dashboard..." />;
+    if (error) {
+        return (
+            <div className="dashboard-error">
+                <p>Error loading dashboard: {error}</p>
+            </div>
+        );
     }
 
+    if (!data) return null;
+
+    const formatPercent = (val: number | null) =>
+        val !== null ? `${(val * 100).toFixed(1)}%` : 'N/A';
+
+    const formatDuration = (ms: number) => {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+
+        if (hours > 0) return `${hours}h ${minutes % 60}m`;
+        if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+        return `${seconds}s`;
+    };
+
     return (
-        <div>
-            <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, marginBottom: 'var(--spacing-xs)' }}>
-                    Dashboard
-                </h1>
-                <p style={{ color: 'var(--color-text-secondary)' }}>Project: <strong>{selectedProject.name}</strong></p>
+        <div className="dashboard">
+            <div className="dashboard-header">
+                <h1>Dashboard</h1>
+                <p className="dashboard-subtitle">Project: Imfao</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-2xl)' }}>
-                <StatCard icon={<Database size={24} />} label="Datasets" value={stats.datasets} color="var(--color-primary-500)" />
-                <StatCard icon={<BarChart3 size={24} />} label="Models" value={stats.models} color="var(--color-success)" />
-                <StatCard icon={<TrendingUp size={24} />} label="Training Runs" value={stats.runs} color="var(--color-warning)" />
+            {/* Summary Cards */}
+            <div className="summary-cards">
+                <div className="summary-card summary-card-blue">
+                    <div className="summary-card-content">
+                        <span className="summary-card-icon">🗄️</span>
+                        <div className="summary-card-text">
+                            <p className="summary-card-label">Datasets</p>
+                            <p className="summary-card-value">{data.summary.datasets}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="summary-card summary-card-green">
+                    <div className="summary-card-content">
+                        <span className="summary-card-icon">📊</span>
+                        <div className="summary-card-text">
+                            <p className="summary-card-label">Models</p>
+                            <p className="summary-card-value">{data.summary.models}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="summary-card summary-card-orange">
+                    <div className="summary-card-content">
+                        <span className="summary-card-icon">⚡</span>
+                        <div className="summary-card-text">
+                            <p className="summary-card-label">Training Runs</p>
+                            <p className="summary-card-value">{data.summary.totalRuns}</p>
+                            <p className="summary-card-subtitle">
+                                {data.summary.runningRuns} running, {data.summary.completedRuns} completed
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div className="card" style={{ textAlign: 'center', padding: 'var(--spacing-2xl)' }}>
-                <BarChart3 size={48} style={{ margin: '0 auto', color: 'var(--color-text-secondary)' }} />
-                <h3 style={{ marginTop: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xs)' }}>Dashboard Coming Soon</h3>
-                <p style={{ color: 'var(--color-text-secondary)' }}>Project overview and statistics will be displayed here</p>
+            {/* Key Metrics */}
+            {data.summary.totalRuns > 0 && (
+                <div className="metrics-grid">
+                    <div className="metric-card">
+                        <p className="metric-label">Avg mAP50</p>
+                        <p className="metric-value">{formatPercent(data.metrics.averageMap50)}</p>
+                    </div>
+                    <div className="metric-card">
+                        <p className="metric-label">Success Rate</p>
+                        <p className="metric-value">{formatPercent(data.metrics.successRate)}</p>
+                    </div>
+                    <div className="metric-card">
+                        <p className="metric-label">Total Training Time</p>
+                        <p className="metric-value">{formatDuration(data.metrics.totalTrainingTime)}</p>
+                    </div>
+                    <div className="metric-card">
+                        <p className="metric-label">Best mAP50</p>
+                        <p className="metric-value">
+                            {data.metrics.bestRun ? formatPercent(data.metrics.bestRun.map50) : 'N/A'}
+                        </p>
+                        {data.metrics.bestRun && (
+                            <p className="metric-subtitle">{data.metrics.bestRun.model}</p>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Charts */}
+            {data.summary.totalRuns > 0 && (
+                <div className="charts-grid">
+                    <div className="chart-card">
+                        <h2>Performance Over Time</h2>
+                        {data.chartData.performanceOverTime.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={300}>
+                                <LineChart data={data.chartData.performanceOverTime}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                                    <XAxis
+                                        dataKey="runId"
+                                        stroke="#9ca3af"
+                                        tick={{ fontSize: 11 }}
+                                        angle={-45}
+                                        textAnchor="end"
+                                        height={80}
+                                    />
+                                    <YAxis stroke="#9ca3af" domain={[0, 1]} />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#1f2937',
+                                            border: '1px solid #374151',
+                                            borderRadius: '8px'
+                                        }}
+                                        formatter={(value: any) => formatPercent(value)}
+                                    />
+                                    <Legend />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="map50"
+                                        stroke="#3b82f6"
+                                        name="mAP50"
+                                        strokeWidth={2}
+                                        dot={{ r: 4 }}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="map50_95"
+                                        stroke="#10b981"
+                                        name="mAP50-95"
+                                        strokeWidth={2}
+                                        dot={{ r: 4 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="empty-state">No completed runs with metrics yet</div>
+                        )}
+                    </div>
+
+                    <div className="chart-card">
+                        <h2>Status Distribution</h2>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={Object.entries(data.chartData.statusCounts)
+                                        .filter(([_, value]) => value > 0)
+                                        .map(([status, value]) => ({
+                                            name: status.charAt(0).toUpperCase() + status.slice(1),
+                                            value,
+                                            status
+                                        }))}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name} ${(percent as number * 100).toFixed(0)}%`}
+                                    outerRadius={90}
+                                    dataKey="value"
+                                >
+                                    {Object.entries(data.chartData.statusCounts)
+                                        .filter(([_, value]) => value > 0)
+                                        .map(([status, _], index) => (
+                                            <Cell key={`cell-${index}`} fill={STATUS_COLORS[status]} />
+                                        ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
+
+            {/* Recent Runs Table */}
+            <div className="runs-section">
+                <div className="runs-header">
+                    <h2>Recent Training Runs</h2>
+                    {data.recentRuns.length > 0 && (
+                        <a href="/runs" className="view-all-link">View All →</a>
+                    )}
+                </div>
+
+                {data.recentRuns.length > 0 ? (
+                    <div className="table-container">
+                        <table className="runs-table">
+                            <thead>
+                                <tr>
+                                    <th>Run ID</th>
+                                    <th>Dataset</th>
+                                    <th>Model</th>
+                                    <th>Status</th>
+                                    <th>mAP50</th>
+                                    <th>mAP50-95</th>
+                                    <th>Duration</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.recentRuns.map((run) => (
+                                    <tr
+                                        key={run.id}
+                                        onClick={() => window.location.href = `/runs?runId=${run.id}`}
+                                    >
+                                        <td className="run-id">{run.id.slice(0, 18)}...</td>
+                                        <td>{run.dataset_name}</td>
+                                        <td>
+                                            <code className="model-code">{run.config?.model || 'unknown'}</code>
+                                        </td>
+                                        <td>
+                                            <StatusBadge status={run.status || 'pending'} />
+                                        </td>
+                                        <td className="metric-cell">
+                                            {run.metrics?.map50 !== null && run.metrics?.map50 !== undefined
+                                                ? formatPercent(run.metrics.map50)
+                                                : '-'}
+                                        </td>
+                                        <td>
+                                            {run.metrics?.map50_95 !== null && run.metrics?.map50_95 !== undefined
+                                                ? formatPercent(run.metrics.map50_95)
+                                                : '-'}
+                                        </td>
+                                        <td>{run.duration_ms ? formatDuration(run.duration_ms) : '-'}</td>
+                                        <td className="date-cell">
+                                            {new Date(run.created || '').toLocaleString()}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="empty-state">
+                        <p>No training runs yet</p>
+                        <button
+                            onClick={() => window.location.href = '/datasets'}
+                            className="primary-button"
+                        >
+                            Start Your First Training Run
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
-};
-
-interface StatCardProps {
-    icon: React.ReactNode;
-    label: string;
-    value: number;
-    color: string;
 }
 
-const StatCard = ({ icon, label, value, color }: StatCardProps) => (
-    <div className="card" style={{ padding: 'var(--spacing-xl)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
-            <div style={{ color }}>{icon}</div>
-            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>{label}</span>
-        </div>
-        <div style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700 }}>{value}</div>
-    </div>
-);
+const STATUS_COLORS: Record<string, string> = {
+    completed: '#10b981',
+    failed: '#ef4444',
+    running: '#3b82f6',
+    cancelled: '#6b7280',
+    pending: '#f59e0b'
+};
 
-export default Dashboard;
+function StatusBadge({ status }: { status: string }) {
+    return <span className={`status-badge status-${status}`}>{status}</span>;
+}
+
