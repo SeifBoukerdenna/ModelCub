@@ -1,10 +1,10 @@
 runs:
-  run-20251027-183211:
-    id: run-20251027-183211
-    created: '2025-10-27T18:32:12.796176Z'
+  run-20251028-003926:
+    id: run-20251028-003926
+    created: '2025-10-28T00:39:27.725762Z'
     status: completed
     dataset_name: test-ds
-    dataset_snapshot_id: snapshot-20251027-183212
+    dataset_snapshot_id: snapshot-20251028-003927
     task: detect
     config:
       model: yolov8n
@@ -16,18 +16,18 @@ runs:
       save_period: 10
       workers: 8
       task: detect
-    artifacts_path: runs/run-20251027-183211
+    artifacts_path: runs/run-20251028-003926
     metrics:
-      map50: 0.2369
-      map50_95: 0.10215
-      precision: 0.00499
+      map50: 0.11056
+      map50_95: 0.03046
+      precision: 0.01015
       recall: 1.0
-      best_epoch: 1
-      box_loss: 2.41212
-      cls_loss: 3.87385
-      dfl_loss: 3.05779
+      best_epoch: 3
+      box_loss: 2.51575
+      cls_loss: 3.56484
+      dfl_loss: 3.00404
     pid: null
-    duration_ms: 37618
+    duration_ms: 42614
     exit_code: null
     error: null
-    started: '2025-10-27T18:37:05.607955Z'
+    started: '2025-10-28T00:39:30.180631Z'

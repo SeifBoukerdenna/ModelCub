@@ -19,6 +19,7 @@ import type {
   Box,
   PromotedModel,
   TrainingRun,
+  LogsResponse,
 } from "./types";
 import { ModelCubAPIError } from "./errors";
 
@@ -533,6 +534,16 @@ export class ModelCubAPI {
     return this.request<void>(
       `${ENDPOINTS.runs}/${runId}?keep_artifacts=${keepArtifacts}`,
       { method: "DELETE" }
+    );
+  }
+
+  async getLogs(
+    runId: string,
+    stream: "stdout" | "stderr" = "stdout",
+    lines: number = 100
+  ): Promise<LogsResponse> {
+    return this.request<LogsResponse>(
+      `${ENDPOINTS.runs}/${runId}/logs?stream=${stream}&lines=${lines}`
     );
   }
 

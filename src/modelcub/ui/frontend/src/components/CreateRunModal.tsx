@@ -72,97 +72,49 @@ const CreateRunModal: React.FC<CreateRunModalProps> = ({ isOpen, onClose, onSucc
         }
     };
 
+    const handleClose = () => {
+        if (!isCreating) {
+            onClose();
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
-        <div
-            style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: 'var(--spacing-lg)',
-            }}
-            onClick={onClose}
-        >
-            <div
-                style={{
-                    backgroundColor: 'var(--color-bg)',
-                    borderRadius: 'var(--border-radius-lg)',
-                    maxWidth: '600px',
-                    width: '100%',
-                    maxHeight: '90vh',
-                    overflow: 'auto',
-                    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-                }}
-                onClick={(e) => e.stopPropagation()}
-            >
+        <div className="modal-overlay" onClick={handleClose}>
+            <div className="modal create-run-modal" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
-                <div
-                    style={{
-                        padding: 'var(--spacing-lg)',
-                        borderBottom: '1px solid var(--color-border)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                    }}
-                >
+                <div className="modal__header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                        <Zap size={24} style={{ color: '#10b981' }} />
-                        <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, margin: 0 }}>
-                            Create Training Run
-                        </h2>
+                        <div className="modal__icon">
+                            <Zap size={20} />
+                        </div>
+                        <h2 className="modal__title">Create Training Run</h2>
                     </div>
                     <button
-                        onClick={onClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: 'var(--spacing-xs)',
-                            color: 'var(--color-text-secondary)',
-                        }}
+                        className="modal__close"
+                        onClick={handleClose}
+                        disabled={isCreating}
+                        aria-label="Close modal"
                     >
                         <X size={20} />
                     </button>
                 </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} style={{ padding: 'var(--spacing-lg)' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+                <form onSubmit={handleSubmit}>
+                    <div className="modal__body">
                         {/* Dataset */}
-                        <div>
-                            <label
-                                htmlFor="dataset"
-                                style={{
-                                    display: 'block',
-                                    fontSize: 'var(--font-size-sm)',
-                                    fontWeight: 600,
-                                    marginBottom: 'var(--spacing-xs)',
-                                }}
-                            >
-                                Dataset *
+                        <div className="form-group">
+                            <label htmlFor="dataset" className="form-label">
+                                Dataset <span style={{ color: 'var(--color-error)' }}>*</span>
                             </label>
                             <select
                                 id="dataset"
+                                className="form-input"
                                 value={datasetName}
                                 onChange={(e) => setDatasetName(e.target.value)}
                                 required
                                 disabled={datasetsLoading || isCreating}
-                                style={{
-                                    width: '100%',
-                                    padding: 'var(--spacing-sm)',
-                                    borderRadius: 'var(--border-radius-sm)',
-                                    border: '1px solid var(--color-border)',
-                                    backgroundColor: 'var(--color-surface)',
-                                    fontSize: 'var(--font-size-sm)',
-                                }}
                             >
                                 <option value="">Select a dataset</option>
                                 {datasets?.map((ds) => (
@@ -173,171 +125,79 @@ const CreateRunModal: React.FC<CreateRunModalProps> = ({ isOpen, onClose, onSucc
                             </select>
                         </div>
 
-                        {/* Model */}
+                        {/* Model & Device */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
-                            <div>
-                                <label
-                                    htmlFor="model"
-                                    style={{
-                                        display: 'block',
-                                        fontSize: 'var(--font-size-sm)',
-                                        fontWeight: 600,
-                                        marginBottom: 'var(--spacing-xs)',
-                                    }}
-                                >
-                                    Model
-                                </label>
+                            <div className="form-group">
+                                <label htmlFor="model" className="form-label">Model</label>
                                 <select
                                     id="model"
+                                    className="form-input"
                                     value={model}
                                     onChange={(e) => setModel(e.target.value)}
                                     disabled={isCreating}
-                                    style={{
-                                        width: '100%',
-                                        padding: 'var(--spacing-sm)',
-                                        borderRadius: 'var(--border-radius-sm)',
-                                        border: '1px solid var(--color-border)',
-                                        backgroundColor: 'var(--color-surface)',
-                                        fontSize: 'var(--font-size-sm)',
-                                    }}
                                 >
                                     <option value="yolov8n">YOLOv8n (Nano)</option>
                                     <option value="yolov8s">YOLOv8s (Small)</option>
                                     <option value="yolov8m">YOLOv8m (Medium)</option>
                                     <option value="yolov8l">YOLOv8l (Large)</option>
-                                    <option value="yolov8x">YOLOv8x (XLarge)</option>
-                                    <option value="yolov11n">YOLOv11n (Nano)</option>
-                                    <option value="yolov11s">YOLOv11s (Small)</option>
-                                    <option value="yolov11m">YOLOv11m (Medium)</option>
-                                    <option value="yolov11l">YOLOv11l (Large)</option>
-                                    <option value="yolov11x">YOLOv11x (XLarge)</option>
+                                    <option value="yolov8x">YOLOv8x (Extra Large)</option>
                                 </select>
                             </div>
 
-                            <div>
-                                <label
-                                    htmlFor="device"
-                                    style={{
-                                        display: 'block',
-                                        fontSize: 'var(--font-size-sm)',
-                                        fontWeight: 600,
-                                        marginBottom: 'var(--spacing-xs)',
-                                    }}
-                                >
-                                    Device
-                                </label>
+                            <div className="form-group">
+                                <label htmlFor="device" className="form-label">Device</label>
                                 <select
                                     id="device"
+                                    className="form-input"
                                     value={device}
                                     onChange={(e) => setDevice(e.target.value)}
                                     disabled={isCreating}
-                                    style={{
-                                        width: '100%',
-                                        padding: 'var(--spacing-sm)',
-                                        borderRadius: 'var(--border-radius-sm)',
-                                        border: '1px solid var(--color-border)',
-                                        backgroundColor: 'var(--color-surface)',
-                                        fontSize: 'var(--font-size-sm)',
-                                    }}
                                 >
                                     <option value="auto">Auto</option>
                                     <option value="cpu">CPU</option>
-                                    <option value="cuda">CUDA</option>
-                                    <option value="cuda:0">CUDA:0</option>
-                                    <option value="cuda:1">CUDA:1</option>
+                                    <option value="0">GPU (cuda:0)</option>
                                 </select>
                             </div>
                         </div>
 
                         {/* Training Parameters */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
-                            <div>
-                                <label
-                                    htmlFor="epochs"
-                                    style={{
-                                        display: 'block',
-                                        fontSize: 'var(--font-size-sm)',
-                                        fontWeight: 600,
-                                        marginBottom: 'var(--spacing-xs)',
-                                    }}
-                                >
-                                    Epochs
-                                </label>
+                            <div className="form-group">
+                                <label htmlFor="epochs" className="form-label">Epochs</label>
                                 <input
                                     id="epochs"
                                     type="number"
+                                    className="form-input"
                                     min="1"
                                     max="1000"
                                     value={epochs}
                                     onChange={(e) => setEpochs(parseInt(e.target.value))}
                                     disabled={isCreating}
-                                    style={{
-                                        width: '100%',
-                                        padding: 'var(--spacing-sm)',
-                                        borderRadius: 'var(--border-radius-sm)',
-                                        border: '1px solid var(--color-border)',
-                                        backgroundColor: 'var(--color-surface)',
-                                        fontSize: 'var(--font-size-sm)',
-                                    }}
                                 />
                             </div>
 
-                            <div>
-                                <label
-                                    htmlFor="batch"
-                                    style={{
-                                        display: 'block',
-                                        fontSize: 'var(--font-size-sm)',
-                                        fontWeight: 600,
-                                        marginBottom: 'var(--spacing-xs)',
-                                    }}
-                                >
-                                    Batch Size
-                                </label>
+                            <div className="form-group">
+                                <label htmlFor="batch" className="form-label">Batch Size</label>
                                 <input
                                     id="batch"
                                     type="number"
+                                    className="form-input"
                                     min="1"
                                     max="128"
                                     value={batch}
                                     onChange={(e) => setBatch(parseInt(e.target.value))}
                                     disabled={isCreating}
-                                    style={{
-                                        width: '100%',
-                                        padding: 'var(--spacing-sm)',
-                                        borderRadius: 'var(--border-radius-sm)',
-                                        border: '1px solid var(--color-border)',
-                                        backgroundColor: 'var(--color-surface)',
-                                        fontSize: 'var(--font-size-sm)',
-                                    }}
                                 />
                             </div>
 
-                            <div>
-                                <label
-                                    htmlFor="imgsz"
-                                    style={{
-                                        display: 'block',
-                                        fontSize: 'var(--font-size-sm)',
-                                        fontWeight: 600,
-                                        marginBottom: 'var(--spacing-xs)',
-                                    }}
-                                >
-                                    Image Size
-                                </label>
+                            <div className="form-group">
+                                <label htmlFor="imgsz" className="form-label">Image Size</label>
                                 <select
                                     id="imgsz"
+                                    className="form-input"
                                     value={imgsz}
                                     onChange={(e) => setImgsz(parseInt(e.target.value))}
                                     disabled={isCreating}
-                                    style={{
-                                        width: '100%',
-                                        padding: 'var(--spacing-sm)',
-                                        borderRadius: 'var(--border-radius-sm)',
-                                        border: '1px solid var(--color-border)',
-                                        backgroundColor: 'var(--color-surface)',
-                                        fontSize: 'var(--font-size-sm)',
-                                    }}
                                 >
                                     <option value="320">320</option>
                                     <option value="416">416</option>
@@ -346,82 +206,48 @@ const CreateRunModal: React.FC<CreateRunModalProps> = ({ isOpen, onClose, onSucc
                                 </select>
                             </div>
 
-                            <div>
-                                <label
-                                    htmlFor="patience"
-                                    style={{
-                                        display: 'block',
-                                        fontSize: 'var(--font-size-sm)',
-                                        fontWeight: 600,
-                                        marginBottom: 'var(--spacing-xs)',
-                                    }}
-                                >
-                                    Patience
-                                </label>
+                            <div className="form-group">
+                                <label htmlFor="patience" className="form-label">Patience</label>
                                 <input
                                     id="patience"
                                     type="number"
+                                    className="form-input"
                                     min="0"
                                     max="200"
                                     value={patience}
                                     onChange={(e) => setPatience(parseInt(e.target.value))}
                                     disabled={isCreating}
-                                    style={{
-                                        width: '100%',
-                                        padding: 'var(--spacing-sm)',
-                                        borderRadius: 'var(--border-radius-sm)',
-                                        border: '1px solid var(--color-border)',
-                                        backgroundColor: 'var(--color-surface)',
-                                        fontSize: 'var(--font-size-sm)',
-                                    }}
                                 />
                             </div>
                         </div>
                     </div>
 
                     {/* Footer */}
-                    <div
-                        style={{
-                            marginTop: 'var(--spacing-xl)',
-                            display: 'flex',
-                            gap: 'var(--spacing-sm)',
-                            justifyContent: 'flex-end',
-                        }}
-                    >
+                    <div className="modal__footer">
                         <button
                             type="button"
-                            onClick={onClose}
+                            className="btn btn--secondary"
+                            onClick={handleClose}
                             disabled={isCreating}
-                            style={{
-                                padding: 'var(--spacing-sm) var(--spacing-lg)',
-                                backgroundColor: '#374151',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 'var(--border-radius-sm)',
-                                cursor: isCreating ? 'not-allowed' : 'pointer',
-                                fontSize: 'var(--font-size-sm)',
-                                fontWeight: 500,
-                                opacity: isCreating ? 0.6 : 1,
-                            }}
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
+                            className="btn btn--primary"
                             disabled={isCreating || !datasetName}
-                            style={{
-                                padding: 'var(--spacing-sm) var(--spacing-lg)',
-                                backgroundColor: '#10b981',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 'var(--border-radius-sm)',
-                                cursor: isCreating || !datasetName ? 'not-allowed' : 'pointer',
-                                fontSize: 'var(--font-size-sm)',
-                                fontWeight: 600,
-                                opacity: isCreating || !datasetName ? 0.6 : 1,
-                            }}
                         >
-                            {isCreating ? 'Creating...' : 'Create Run'}
+                            {isCreating ? (
+                                <>
+                                    <Zap size={18} className="spinner" />
+                                    Creating...
+                                </>
+                            ) : (
+                                <>
+                                    <Zap size={18} />
+                                    Create Run
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>

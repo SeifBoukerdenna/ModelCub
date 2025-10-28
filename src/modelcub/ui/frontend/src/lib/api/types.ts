@@ -280,3 +280,9 @@ export interface TrainingRun {
   error?: string | null;
   started?: string;
 }
+
+export interface LogsResponse {
+  logs: string[];
+  exists: boolean;
+  total_lines: number;
+}

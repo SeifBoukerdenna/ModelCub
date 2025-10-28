@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { Play, Square, Trash2, Clock, TrendingUp, Database, Zap } from 'lucide-react';
 import type { TrainingRun } from '@/lib/api/types';
+import RunDetailsModal from './RunDetailsModal';
 
 interface RunCardProps {
     run: TrainingRun;
     onStart?: (run: TrainingRun) => void;
     onStop?: (run: TrainingRun) => void;
     onDelete?: (run: TrainingRun) => void;
+    onRunUpdated?: () => void;
 }
 
-const RunCard: React.FC<RunCardProps> = ({ run, onStart, onStop, onDelete }) => {
+const RunCard: React.FC<RunCardProps> = ({ run, onStart, onStop, onDelete, onRunUpdated }) => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
 
     const getStatusColor = (status: string) => {
         const colors = {
@@ -42,79 +45,64 @@ const RunCard: React.FC<RunCardProps> = ({ run, onStart, onStop, onDelete }) => 
         return `${(seconds / 3600).toFixed(1)}h`;
     };
 
-    const formatMetric = (value?: number) => {
-        if (value === undefined || value === null) return 'N/A';
+    const formatMetric = (value?: number | null) => {
+        if (value === null || value === undefined) return 'N/A';
         return `${(value * 100).toFixed(1)}%`;
     };
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+    const formatDate = (dateStr: string) => {
+        const date = new Date(dateStr);
+        return date.toLocaleString();
+    };
+
+    const handleCardClick = () => {
+        setShowDetailsModal(true);
+    };
+
+    const handleRunUpdated = () => {
+        if (onRunUpdated) onRunUpdated();
     };
 
     return (
-        <div className="card" style={{ position: 'relative' }}>
-            {/* Delete Confirmation Overlay */}
+        <>
+            {/* Delete Confirmation */}
             {showDeleteConfirm && (
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.95)',
-                        borderRadius: 'var(--border-radius-md)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 'var(--spacing-md)',
-                        padding: 'var(--spacing-lg)',
-                        zIndex: 20,
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <Trash2 size={40} style={{ color: '#ef4444' }} />
-                    <div style={{ textAlign: 'center' }}>
-                        <h4 style={{
-                            fontSize: 'var(--font-size-xl)',
-                            fontWeight: 600,
-                            marginBottom: 'var(--spacing-xs)',
-                            color: 'white'
-                        }}>
-                            Delete Run?
-                        </h4>
-                        <p style={{
-                            fontSize: 'var(--font-size-sm)',
-                            color: '#9ca3af',
-                            maxWidth: '300px'
-                        }}>
-                            This will permanently delete "{run.id}"
-                        </p>
-                    </div>
-                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-sm)' }}>
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 'var(--border-radius-lg)',
+                    zIndex: 10,
+                    padding: 'var(--spacing-lg)'
+                }}>
+                    <p style={{ color: 'white', fontSize: 'var(--font-size-md)', marginBottom: 'var(--spacing-md)' }}>
+                        Delete this training run?
+                    </p>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
                         <button
                             onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(false); }}
                             style={{
                                 padding: 'var(--spacing-sm) var(--spacing-lg)',
-                                backgroundColor: '#374151',
+                                backgroundColor: '#6b7280',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: 'var(--border-radius-sm)',
                                 cursor: 'pointer',
                                 fontSize: 'var(--font-size-sm)',
-                                fontWeight: 500,
+                                fontWeight: 600,
                             }}
                         >
                             Cancel
                         </button>
                         <button
-                            onClick={(e) => { e.stopPropagation(); onDelete?.(run); setShowDeleteConfirm(false); }}
+                            onClick={(e) => { e.stopPropagation(); if (onDelete) onDelete(run); setShowDeleteConfirm(false); }}
                             style={{
                                 padding: 'var(--spacing-sm) var(--spacing-lg)',
                                 backgroundColor: '#ef4444',
@@ -132,112 +120,114 @@ const RunCard: React.FC<RunCardProps> = ({ run, onStart, onStop, onDelete }) => 
                 </div>
             )}
 
-            {/* Header */}
-            <div className="card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-xs)' }}>
-                        <span style={{ fontSize: 'var(--font-size-lg)' }}>{getStatusIcon(run.status)}</span>
-                        <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, margin: 0 }}>
-                            {run.id}
-                        </h3>
+            <div
+                className="card run-card"
+                style={{
+                    position: 'relative',
+                    padding: 'var(--spacing-lg)',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s, box-shadow 0.2s'
+                }}
+                onClick={handleCardClick}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '';
+                }}
+            >
+                {/* Header */}
+                <div className="card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 'var(--spacing-md)' }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-xs)' }}>
+                            <span style={{ fontSize: 'var(--font-size-lg)' }}>{getStatusIcon(run.status)}</span>
+                            <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, margin: 0 }}>
+                                {run.id}
+                            </h3>
+                        </div>
+                        <div style={{
+                            display: 'inline-block',
+                            fontSize: 'var(--font-size-xs)',
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            backgroundColor: getStatusColor(run.status).bg,
+                            color: getStatusColor(run.status).text,
+                            border: `1px solid ${getStatusColor(run.status).border}`,
+                            fontWeight: 600,
+                            letterSpacing: '0.5px'
+                        }}>
+                            {run.status.toUpperCase()}
+                        </div>
                     </div>
-                    <div style={{
-                        display: 'inline-block',
-                        fontSize: 'var(--font-size-xs)',
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        backgroundColor: getStatusColor(run.status).bg,
-                        color: getStatusColor(run.status).text,
-                        border: `1px solid ${getStatusColor(run.status).border}`,
-                        fontWeight: 600,
-                        letterSpacing: '0.5px'
-                    }}>
-                        {run.status.toUpperCase()}
+
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }} onClick={(e) => e.stopPropagation()}>
+                        {run.status === 'pending' && onStart && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onStart(run); }}
+                                style={{
+                                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                    backgroundColor: '#10b981',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: 'var(--border-radius-sm)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 'var(--spacing-xs)',
+                                    fontSize: 'var(--font-size-sm)',
+                                }}
+                                title="Start training"
+                            >
+                                <Play size={14} />
+                            </button>
+                        )}
+                        {run.status === 'running' && onStop && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onStop(run); }}
+                                style={{
+                                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                    backgroundColor: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: 'var(--border-radius-sm)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 'var(--spacing-xs)',
+                                    fontSize: 'var(--font-size-sm)',
+                                }}
+                                title="Stop training"
+                            >
+                                <Square size={14} />
+                            </button>
+                        )}
+                        {run.status !== 'running' && onDelete && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
+                                style={{
+                                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                    backgroundColor: 'transparent',
+                                    color: '#6b7280',
+                                    border: '1px solid #6b7280',
+                                    borderRadius: 'var(--border-radius-sm)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 'var(--spacing-xs)',
+                                    fontSize: 'var(--font-size-sm)',
+                                }}
+                                title="Delete run"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-                    {run.status === 'pending' && onStart && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onStart(run); }}
-                            title="Start training"
-                            style={{
-                                padding: '8px',
-                                backgroundColor: '#10b981',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 'var(--border-radius-sm)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 150ms',
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
-                        >
-                            <Play size={16} />
-                        </button>
-                    )}
-                    {run.status === 'running' && onStop && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onStop(run); }}
-                            title="Stop training"
-                            style={{
-                                padding: '8px',
-                                backgroundColor: '#f59e0b',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 'var(--border-radius-sm)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 150ms',
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d97706'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f59e0b'}
-                        >
-                            <Square size={16} />
-                        </button>
-                    )}
-                    {run.status !== 'running' && onDelete && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
-                            title="Delete run"
-                            style={{
-                                padding: '8px',
-                                backgroundColor: 'transparent',
-                                color: '#6b7280',
-                                border: '1px solid #374151',
-                                borderRadius: 'var(--border-radius-sm)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 150ms',
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#ef4444';
-                                e.currentTarget.style.borderColor = '#ef4444';
-                                e.currentTarget.style.color = 'white';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                                e.currentTarget.style.borderColor = '#374151';
-                                e.currentTarget.style.color = '#6b7280';
-                            }}
-                        >
-                            <Trash2 size={16} />
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* Body */}
-            <div className="card__body">
-                {/* Config Summary */}
+                {/* Config */}
                 <div style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
@@ -321,7 +311,17 @@ const RunCard: React.FC<RunCardProps> = ({ run, onStart, onStop, onDelete }) => 
                     )}
                 </div>
             </div>
-        </div>
+
+            {/* Run Details Modal */}
+            {showDetailsModal && (
+                <RunDetailsModal
+                    run={run}
+                    isOpen={showDetailsModal}
+                    onClose={() => setShowDetailsModal(false)}
+                    onRunUpdated={handleRunUpdated}
+                />
+            )}
+        </>
     );
 };
 

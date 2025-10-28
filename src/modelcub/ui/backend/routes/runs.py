@@ -1,10 +1,12 @@
 """
 Training runs API routes.
 """
+from pathlib import Path
+
 from typing import List, Optional, Dict, Any
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from ..dependencies import ProjectRequired
@@ -261,4 +263,57 @@ async def delete_run(
             success=False,
             data=None,
             message=f"Failed to delete run: {str(e)}"
+        )
+
+@router.get("/{run_id}/logs")
+async def get_logs(
+    run_id: str,
+    project: ProjectRequired,
+    stream: str = Query(default="stdout", regex="^(stdout|stderr)$"),
+    lines: int = Query(default=100, ge=1, le=10000)
+) -> APIResponse[Dict[str, Any]]:
+    """Get training run logs."""
+    logger.info(f"Getting logs for run: {run_id}, stream={stream}, lines={lines}")
+
+    try:
+        service = TrainingService(project.path)
+        run = service.get_status(run_id)
+
+        # Get log file path
+        log_file = project.path / run['artifacts_path'] / 'logs' / f'{stream}.log'
+
+        if not log_file.exists():
+            return APIResponse(
+                success=True,
+                data={'logs': [], 'exists': False},
+                message=f"Log file not found: {stream}.log"
+            )
+
+        # Read last N lines
+        with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+            all_lines = f.readlines()
+            log_lines = all_lines[-lines:] if lines else all_lines
+
+        return APIResponse(
+            success=True,
+            data={
+                'logs': [line.rstrip() for line in log_lines],
+                'exists': True,
+                'total_lines': len(all_lines)
+            },
+            message=f"Retrieved {len(log_lines)} log lines"
+        )
+
+    except ValueError as e:
+        return APIResponse(
+            success=False,
+            data={'logs': [], 'exists': False},
+            message=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Failed to get logs for run {run_id}: {e}")
+        return APIResponse(
+            success=False,
+            data={'logs': [], 'exists': False},
+            message=f"Failed to get logs: {str(e)}"
         )
