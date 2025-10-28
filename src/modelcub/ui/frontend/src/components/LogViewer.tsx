@@ -29,13 +29,11 @@ const parseTrainingLogs = (logs: string[]) => {
         // Skip empty lines
         if (!line.trim()) continue;
 
-        // Epoch training progress (e.g., "      Epoch   GPU_mem  box_loss  cls_loss  dfl_loss  Instances       Size")
-        // and data lines like " [K         3/5        0G     2.516     3.565     3.004         16        640: 0%"
+        // Epoch training progress
         const epochMatch = line.match(/\[K\s+(\d+\/\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+):\s*(\d+%)/);
         if (epochMatch) {
             const [, epoch, gpu_mem, box_loss, cls_loss, dfl_loss, instances, size, progress] = epochMatch;
 
-            // Only add complete epochs (100%)
             if (progress === '100%' && epoch) {
                 currentEpoch = {
                     epoch,
@@ -50,13 +48,13 @@ const parseTrainingLogs = (logs: string[]) => {
             }
         }
 
-        // Training time info (e.g., "━━━━━━━━━━━━━━━━ 1/1 0.31it/s 3.6s")
+        // Training time info
         const timeMatch = line.match(/━+\s+\d+\/\d+\s+[\d.]+it\/s\s+([\d.]+s)/);
         if (timeMatch && currentEpoch) {
             currentEpoch.time = timeMatch[1];
         }
 
-        // Validation results (e.g., "                 all         2         2    0.0101         1     0.111    0.0305")
+        // Validation results
         const valMatch = line.match(/all\s+\d+\s+\d+\s+([\d.]+)\s+(\d+)\s+([\d.]+)\s+([\d.]+)/);
         if (valMatch && currentEpoch) {
             const [, box_p, r, map50, map50_95] = valMatch;
@@ -94,7 +92,7 @@ const LogViewer: React.FC<{ logs: string[] }> = ({ logs }) => {
                 <div style={{ marginBottom: 'var(--spacing-md)', paddingBottom: 'var(--spacing-md)', borderBottom: '1px solid var(--color-border)' }}>
                     {important.map((msg, idx) => (
                         <div key={idx} style={{
-                            color: '#10b981',
+                            color: 'var(--color-success)',
                             marginBottom: '4px',
                             fontSize: '11px'
                         }}>
@@ -110,7 +108,7 @@ const LogViewer: React.FC<{ logs: string[] }> = ({ logs }) => {
                     <div style={{
                         fontWeight: 600,
                         marginBottom: 'var(--spacing-sm)',
-                        color: '#3b82f6',
+                        color: 'var(--color-primary-600)',
                         fontSize: '13px'
                     }}>
                         Training Progress
@@ -123,7 +121,7 @@ const LogViewer: React.FC<{ logs: string[] }> = ({ logs }) => {
                         gap: '8px',
                         padding: '8px',
                         backgroundColor: 'var(--color-surface)',
-                        borderRadius: '4px',
+                        borderRadius: 'var(--border-radius-sm)',
                         marginBottom: '4px',
                         fontWeight: 600,
                         fontSize: '10px',
@@ -149,18 +147,18 @@ const LogViewer: React.FC<{ logs: string[] }> = ({ logs }) => {
                                     gridTemplateColumns: '60px 50px 70px 70px 70px 70px 50px',
                                     gap: '8px',
                                     padding: '8px',
-                                    backgroundColor: 'var(--color-bg)',
-                                    borderRadius: '4px',
+                                    backgroundColor: 'var(--color-background)',
+                                    borderRadius: 'var(--border-radius-sm)',
                                     fontSize: '11px',
                                     border: '1px solid var(--color-border)'
                                 }}>
-                                    <div style={{ fontWeight: 600, color: '#3b82f6' }}>{epoch.epoch}</div>
-                                    <div>{epoch.gpu_mem}</div>
-                                    <div style={{ color: '#f59e0b' }}>{epoch.box_loss}</div>
-                                    <div style={{ color: '#f59e0b' }}>{epoch.cls_loss}</div>
-                                    <div style={{ color: '#f59e0b' }}>{epoch.dfl_loss}</div>
-                                    <div>{epoch.instances}</div>
-                                    <div>{epoch.time || '-'}</div>
+                                    <div style={{ fontWeight: 600, color: 'var(--color-primary-600)' }}>{epoch.epoch}</div>
+                                    <div style={{ color: 'var(--color-text-primary)' }}>{epoch.gpu_mem}</div>
+                                    <div style={{ color: 'var(--color-warning)' }}>{epoch.box_loss}</div>
+                                    <div style={{ color: 'var(--color-warning)' }}>{epoch.cls_loss}</div>
+                                    <div style={{ color: 'var(--color-warning)' }}>{epoch.dfl_loss}</div>
+                                    <div style={{ color: 'var(--color-text-primary)' }}>{epoch.instances}</div>
+                                    <div style={{ color: 'var(--color-text-primary)' }}>{epoch.time || '-'}</div>
                                 </div>
 
                                 {/* Validation metrics for this epoch */}
@@ -168,29 +166,37 @@ const LogViewer: React.FC<{ logs: string[] }> = ({ logs }) => {
                                     <div style={{
                                         marginTop: '4px',
                                         padding: '6px 8px',
-                                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                        borderLeft: '3px solid #10b981',
-                                        borderRadius: '4px',
+                                        backgroundColor: 'var(--color-success-50)',
+                                        borderLeft: '3px solid var(--color-success)',
+                                        borderRadius: 'var(--border-radius-sm)',
                                         fontSize: '11px',
                                         display: 'grid',
                                         gridTemplateColumns: 'repeat(4, 1fr)',
                                         gap: '8px'
                                     }}>
                                         <div>
-                                            <span style={{ color: '#059669' }}>mAP50: </span>
-                                            <span style={{ fontWeight: 600, color: '#10b981' }}>{(parseFloat(validation.data.map50 || '0') * 100).toFixed(1)}%</span>
+                                            <span style={{ color: 'var(--color-success-700)' }}>mAP50: </span>
+                                            <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>
+                                                {(parseFloat(validation.data.map50 || '0') * 100).toFixed(1)}%
+                                            </span>
                                         </div>
                                         <div>
-                                            <span style={{ color: '#059669' }}>mAP50-95: </span>
-                                            <span style={{ fontWeight: 600, color: '#10b981' }}>{(parseFloat(validation.data.map50_95 || '0') * 100).toFixed(1)}%</span>
+                                            <span style={{ color: 'var(--color-success-700)' }}>mAP50-95: </span>
+                                            <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>
+                                                {(parseFloat(validation.data.map50_95 || '0') * 100).toFixed(1)}%
+                                            </span>
                                         </div>
                                         <div>
-                                            <span style={{ color: '#059669' }}>Precision: </span>
-                                            <span style={{ fontWeight: 600, color: '#10b981' }}>{(parseFloat(validation.data.precision || '0') * 100).toFixed(1)}%</span>
+                                            <span style={{ color: 'var(--color-success-700)' }}>Precision: </span>
+                                            <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>
+                                                {(parseFloat(validation.data.precision || '0') * 100).toFixed(1)}%
+                                            </span>
                                         </div>
                                         <div>
-                                            <span style={{ color: '#059669' }}>Recall: </span>
-                                            <span style={{ fontWeight: 600, color: '#10b981' }}>{(parseFloat(validation.data.recall || '0') * 100).toFixed(1)}%</span>
+                                            <span style={{ color: 'var(--color-success-700)' }}>Recall: </span>
+                                            <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>
+                                                {(parseFloat(validation.data.recall || '0') * 100).toFixed(1)}%
+                                            </span>
                                         </div>
                                     </div>
                                 )}

@@ -16,7 +16,6 @@ export default function PromoteModelModal({ run, onClose, onSuccess }: PromoteMo
     const [tags, setTags] = useState('');
     const [isPromoting, setIsPromoting] = useState(false);
 
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -54,243 +53,139 @@ export default function PromoteModelModal({ run, onClose, onSuccess }: PromoteMo
         val !== null && val !== undefined ? `${(val * 100).toFixed(1)}%` : 'N/A';
 
     return (
-        <div
-            onClick={onClose}
-            style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '20px'
-            }}
-        >
-            <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: '12px',
-                    width: '100%',
-                    maxWidth: '600px',
-                    maxHeight: '90vh',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column'
-                }}
-            >
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '24px 28px',
-                    borderBottom: '1px solid #334155'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Upload size={24} style={{ color: '#60a5fa' }} />
-                        <h2 style={{
-                            fontSize: '20px',
-                            fontWeight: 600,
-                            margin: 0,
-                            color: '#f1f5f9'
-                        }}>
-                            Promote Model
-                        </h2>
+                <div className="modal__header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                        <div className="modal__icon">
+                            <Upload size={20} />
+                        </div>
+                        <div>
+                            <h2 className="modal__title">Promote Model</h2>
+                            <p className="modal__subtitle">Promote trained model to production</p>
+                        </div>
                     </div>
                     <button
                         onClick={onClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#94a3b8',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}
+                        className="modal__close"
+                        aria-label="Close modal"
                     >
-                        <X size={24} />
+                        <X size={20} />
                     </button>
                 </div>
 
-                {/* Content */}
-                <div style={{
-                    flex: 1,
-                    overflowY: 'auto',
-                    padding: '28px'
-                }}>
-                    <p style={{
-                        color: '#94a3b8',
-                        fontSize: '14px',
-                        margin: '0 0 24px 0'
-                    }}>
-                        Promote trained model to production
-                    </p>
-
+                {/* Body */}
+                <div className="modal__body">
                     {/* Run Info */}
                     <div style={{
-                        padding: '20px',
-                        backgroundColor: '#334155',
-                        borderRadius: '8px',
-                        marginBottom: '24px'
+                        padding: 'var(--spacing-md)',
+                        backgroundColor: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--border-radius-md)',
+                        marginBottom: 'var(--spacing-lg)'
                     }}>
-                        <div style={{ marginBottom: '12px', fontSize: '14px' }}>
-                            <span style={{ color: '#94a3b8' }}>Run ID: </span>
-                            <code style={{
-                                color: '#f1f5f9',
-                                fontFamily: 'monospace'
-                            }}>
-                                {run.id}
-                            </code>
-                        </div>
-                        <div style={{ marginBottom: '12px', fontSize: '14px' }}>
-                            <span style={{ color: '#94a3b8' }}>Dataset: </span>
-                            <span style={{ color: '#f1f5f9' }}>{run.dataset_name}</span>
-                        </div>
-                        <div style={{ marginBottom: '20px', fontSize: '14px' }}>
-                            <span style={{ color: '#94a3b8' }}>Model: </span>
-                            <code style={{
-                                color: '#f1f5f9',
-                                fontFamily: 'monospace'
-                            }}>
-                                {run.config?.model}
-                            </code>
+                        <div style={{
+                            display: 'grid',
+                            gap: 'var(--spacing-sm)',
+                            fontSize: 'var(--font-size-sm)',
+                            marginBottom: 'var(--spacing-md)'
+                        }}>
+                            <div>
+                                <span style={{ color: 'var(--color-text-secondary)' }}>Run ID:</span>{' '}
+                                <code style={{
+                                    padding: '2px 6px',
+                                    backgroundColor: 'var(--color-background)',
+                                    borderRadius: 'var(--border-radius-sm)',
+                                    fontSize: 'var(--font-size-xs)',
+                                    fontFamily: 'monospace'
+                                }}>{run.id}</code>
+                            </div>
+                            <div>
+                                <span style={{ color: 'var(--color-text-secondary)' }}>Dataset:</span>{' '}
+                                <strong>{run.dataset_name}</strong>
+                            </div>
+                            <div>
+                                <span style={{ color: 'var(--color-text-secondary)' }}>Model:</span>{' '}
+                                <strong>{run.config.model}</strong>
+                            </div>
                         </div>
 
-                        {run.metrics && (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(2, 1fr)',
-                                gap: '20px',
-                                paddingTop: '16px',
-                                borderTop: '1px solid #475569'
-                            }}>
-                                <div>
-                                    <div style={{
-                                        fontSize: '11px',
-                                        color: '#94a3b8',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.5px',
-                                        marginBottom: '6px'
-                                    }}>
-                                        MAP50
-                                    </div>
-                                    <div style={{
-                                        fontSize: '20px',
-                                        fontWeight: 600,
-                                        color: '#10b981'
-                                    }}>
-                                        {formatPercent(run.metrics.map50)}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div style={{
-                                        fontSize: '11px',
-                                        color: '#94a3b8',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.5px',
-                                        marginBottom: '6px'
-                                    }}>
-                                        MAP50-95
-                                    </div>
-                                    <div style={{
-                                        fontSize: '20px',
-                                        fontWeight: 600,
-                                        color: '#10b981'
-                                    }}>
-                                        {formatPercent(run.metrics.map50_95)}
-                                    </div>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: 'var(--spacing-md)',
+                            paddingTop: 'var(--spacing-md)',
+                            borderTop: '1px solid var(--color-border)'
+                        }}>
+                            <div>
+                                <div style={{
+                                    fontSize: 'var(--font-size-xs)',
+                                    color: 'var(--color-text-secondary)',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                    marginBottom: 'var(--spacing-xs)'
+                                }}>MAP50</div>
+                                <div style={{
+                                    fontSize: 'var(--font-size-xl)',
+                                    fontWeight: 600,
+                                    color: 'var(--color-success)'
+                                }}>
+                                    {formatPercent(run.metrics?.map50)}
                                 </div>
                             </div>
-                        )}
+                            <div>
+                                <div style={{
+                                    fontSize: 'var(--font-size-xs)',
+                                    color: 'var(--color-text-secondary)',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                    marginBottom: 'var(--spacing-xs)'
+                                }}>MAP50-95</div>
+                                <div style={{
+                                    fontSize: 'var(--font-size-xl)',
+                                    fontWeight: 600,
+                                    color: 'var(--color-success)'
+                                }}>
+                                    {formatPercent(run.metrics?.map50_95)}
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Form */}
                     <form onSubmit={handleSubmit}>
-                        <div style={{ marginBottom: '20px' }}>
-                            <label
-                                htmlFor="name"
-                                style={{
-                                    display: 'block',
-                                    fontSize: '14px',
-                                    fontWeight: 500,
-                                    marginBottom: '8px',
-                                    color: '#f1f5f9'
-                                }}
-                            >
-                                Model Name <span style={{ color: '#ef4444' }}>*</span>
+                        <div className="form-group">
+                            <label htmlFor="model-name" className="form-label">
+                                Model Name <span style={{ color: 'var(--color-error)' }}>*</span>
                             </label>
                             <input
-                                id="name"
+                                id="model-name"
                                 type="text"
+                                className="form-input"
+                                placeholder="e.g., detector-v1, segmenter-prod"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="e.g., detector-v1, segmenter-prod"
-                                required
                                 disabled={isPromoting}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    backgroundColor: '#0f172a',
-                                    border: '1px solid #334155',
-                                    borderRadius: '6px',
-                                    fontSize: '14px',
-                                    color: '#f1f5f9',
-                                    outline: 'none'
-                                }}
+                                required
                             />
-                            <small style={{
-                                display: 'block',
-                                marginTop: '6px',
-                                fontSize: '12px',
-                                color: '#94a3b8'
-                            }}>
-                                Choose a unique name for this model
-                            </small>
+                            <small className="form-help">Choose a unique name for this model</small>
                         </div>
 
-                        <div style={{ marginBottom: '20px' }}>
-                            <label
-                                htmlFor="description"
-                                style={{
-                                    display: 'block',
-                                    fontSize: '14px',
-                                    fontWeight: 500,
-                                    marginBottom: '8px',
-                                    color: '#f1f5f9'
-                                }}
-                            >
+                        <div className="form-group">
+                            <label htmlFor="model-description" className="form-label">
                                 Description (optional)
                             </label>
                             <textarea
-                                id="description"
+                                id="model-description"
+                                className="form-input"
+                                placeholder="e.g., Improved detector with 10k labeled images"
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                placeholder="e.g., Improved detector with 10k labeled images"
-                                rows={3}
                                 disabled={isPromoting}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    backgroundColor: '#0f172a',
-                                    border: '1px solid #334155',
-                                    borderRadius: '6px',
-                                    fontSize: '14px',
-                                    color: '#f1f5f9',
-                                    resize: 'vertical',
-                                    fontFamily: 'inherit',
-                                    outline: 'none'
-                                }}
+                                rows={3}
                             />
                         </div>
-
                         <div style={{ marginBottom: '0' }}>
                             <label
                                 htmlFor="tags"
@@ -335,49 +230,20 @@ export default function PromoteModelModal({ run, onClose, onSuccess }: PromoteMo
                 </div>
 
                 {/* Footer */}
-                <div style={{
-                    padding: '20px 28px',
-                    borderTop: '1px solid #334155',
-                    display: 'flex',
-                    gap: '12px',
-                    justifyContent: 'flex-end'
-                }}>
+                <div className="modal__footer">
                     <button
                         type="button"
                         onClick={onClose}
+                        className="btn btn--secondary"
                         disabled={isPromoting}
-                        style={{
-                            padding: '10px 24px',
-                            backgroundColor: 'transparent',
-                            color: '#f1f5f9',
-                            border: '1px solid #475569',
-                            borderRadius: '6px',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            cursor: isPromoting ? 'not-allowed' : 'pointer',
-                            opacity: isPromoting ? 0.5 : 1
-                        }}
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         onClick={handleSubmit}
+                        className="btn btn--primary"
                         disabled={isPromoting}
-                        style={{
-                            padding: '10px 24px',
-                            backgroundColor: '#3b82f6',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            cursor: isPromoting ? 'not-allowed' : 'pointer',
-                            opacity: isPromoting ? 0.5 : 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px'
-                        }}
                     >
                         <Upload size={16} />
                         {isPromoting ? 'Promoting...' : 'Promote Model'}

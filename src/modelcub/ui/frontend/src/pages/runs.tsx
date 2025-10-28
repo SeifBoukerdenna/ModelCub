@@ -29,6 +29,34 @@ const Runs: React.FC = () => {
         loadRuns();
     }, [statusFilter]);
 
+    // Refresh once when training completes
+    useEffect(() => {
+        const hasActiveRuns = runs?.some(
+            run => run.status === 'pending' || run.status === 'running'
+        );
+
+        if (!hasActiveRuns) return;
+
+        // Check status once every 3 seconds, refresh page when complete
+        const interval = setInterval(async () => {
+            try {
+                const updated = await api.listRuns(statusFilter);
+                const stillActive = updated.some(
+                    run => run.status === 'pending' || run.status === 'running'
+                );
+
+                // If no longer active, do final refresh and stop polling
+                if (!stillActive) {
+                    await loadRuns();
+                }
+            } catch (err) {
+                console.error('Failed to check run status:', err);
+            }
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [runs, statusFilter, loadRuns]);
+
     const handleRefresh = async () => {
         await loadRuns();
         toast.success('Runs refreshed');
@@ -148,61 +176,46 @@ const Runs: React.FC = () => {
 
             {/* Content */}
             {runs?.length === 0 ? (
-                <div className="empty-state">
-                    <Activity size={48} className="empty-state__icon" />
-                    <h3 className="empty-state__title">No training runs yet</h3>
-                    <p className="empty-state__description">
-                        Create and start a training run
+                <div style={{
+                    textAlign: 'center',
+                    padding: 'var(--spacing-2xl)',
+                    color: 'var(--color-text-secondary)'
+                }}>
+                    <Activity size={48} style={{ opacity: 0.3, marginBottom: 'var(--spacing-md)' }} />
+                    <p style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--spacing-sm)' }}>
+                        No training runs yet
                     </p>
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="btn btn--primary"
-                        style={{
-                            marginTop: 'var(--spacing-md)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 'var(--spacing-xs)'
-                        }}
-                    >
-                        <Plus size={16} />
-                        Create Your First Run
-                    </button>
+                    <p style={{ fontSize: 'var(--font-size-sm)' }}>
+                        Create your first training run to get started
+                    </p>
                 </div>
             ) : (
-                <>
-                    <div style={{
-                        marginBottom: 'var(--spacing-md)',
-                        color: 'var(--color-text-secondary)',
-                        fontSize: 'var(--font-size-sm)'
-                    }}>
-                        {runs?.length} {runs?.length === 1 ? 'run' : 'runs'} found
-                    </div>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
-                        gap: 'var(--spacing-lg)',
-                        opacity: isProcessing ? 0.5 : 1,
-                        pointerEvents: isProcessing ? 'none' : 'auto',
-                    }}>
-                        {runs?.map((run) => (
-                            <RunCard
-                                key={run.id}
-                                run={run}
-                                onStart={handleStart}
-                                onStop={handleStop}
-                                onDelete={handleDelete}
-                            />
-                        ))}
-                    </div>
-                </>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 'var(--spacing-md)'
+                }}>
+                    {runs?.map(run => (
+                        <RunCard
+                            key={run.id}
+                            run={run}
+                            onStart={handleStart}
+                            onStop={handleStop}
+                            onDelete={handleDelete}
+                            onRunUpdated={loadRuns}
+                        />
+                    ))}
+                </div>
             )}
 
             {/* Create Run Modal */}
-            <CreateRunModal
-                isOpen={showCreateModal}
-                onClose={() => setShowCreateModal(false)}
-                onSuccess={handleCreateSuccess}
-            />
+            {showCreateModal && (
+                <CreateRunModal
+                    isOpen={showCreateModal}
+                    onClose={() => setShowCreateModal(false)}
+                    onSuccess={handleCreateSuccess}
+                />
+            )}
         </div>
     );
 };

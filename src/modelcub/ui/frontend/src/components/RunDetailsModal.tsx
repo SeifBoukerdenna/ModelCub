@@ -5,7 +5,6 @@ import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import LogViewer from './LogViewer';
 
-
 interface RunDetailsModalProps {
     run: TrainingRun;
     isOpen: boolean;
@@ -32,7 +31,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
             const logsData = await api.getLogs(run.id, logStream, 200);
             if (logsData.exists) {
                 setLogs(logsData.logs);
-                // Auto-scroll to bottom
                 setTimeout(() => logsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
             }
         } catch (err) {
@@ -42,14 +40,12 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
         }
     };
 
-    // Fetch logs on mount and when stream changes
     useEffect(() => {
         if (isOpen) {
             fetchLogs();
         }
     }, [isOpen, logStream, run.id]);
 
-    // Auto-refresh for running jobs every 3 seconds
     useEffect(() => {
         if (!isOpen || run.status !== 'running') return;
 
@@ -57,7 +53,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
             try {
                 const updated = await api.getRun(run.id);
                 if (updated) setRun(updated);
-                // Also fetch logs
                 fetchLogs();
             } catch (err) {
                 console.error('Failed to refresh run:', err);
@@ -153,7 +148,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal run-details-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
-                {/* Header */}
                 <div className="modal__header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                         <div className="modal__icon">
@@ -207,7 +201,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                 </div>
 
                 <div className="modal__body">
-                    {/* Status Section */}
                     <div className="form-group">
                         <label className="form-label">Status</label>
                         <div style={{
@@ -229,7 +222,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                         </div>
                     </div>
 
-                    {/* Configuration */}
                     <div className="form-group">
                         <label className="form-label">Configuration</label>
                         <div style={{
@@ -252,7 +244,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                         </div>
                     </div>
 
-                    {/* Metrics (if completed) */}
                     {run.status === 'completed' && run.metrics && (
                         <div className="form-group">
                             <label className="form-label">
@@ -280,7 +271,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                         </div>
                     )}
 
-                    {/* Error (if failed) */}
                     {run.status === 'failed' && run.error && (
                         <div className="alert alert--error">
                             <AlertCircle size={20} />
@@ -290,7 +280,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                         </div>
                     )}
 
-                    {/* Timeline */}
                     <div className="form-group">
                         <label className="form-label">
                             <Clock size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
@@ -328,7 +317,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                         </div>
                     </div>
 
-                    {/* Logs Note */}
                     {run.status === 'running' && (
                         <div className="info-box">
                             <div className="info-box__icon">
@@ -343,7 +331,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                         </div>
                     )}
 
-                    {/* Logs Viewer */}
                     <div className="form-group">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--spacing-sm)' }}>
                             <label className="form-label" style={{ marginBottom: 0 }}>
@@ -406,23 +393,22 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                             </div>
                         </div>
                         <div style={{
-                            backgroundColor: '#0f172a',
-                            border: '1px solid #334155',
+                            backgroundColor: 'var(--color-surface)',
+                            border: '1px solid var(--color-border)',
                             borderRadius: 'var(--border-radius-md)',
                             padding: 'var(--spacing-md)',
                             maxHeight: '400px',
                             overflowY: 'auto',
                             fontFamily: 'monospace',
                             fontSize: '12px',
-                            lineHeight: '1.5',
-                            color: '#e2e8f0'
+                            lineHeight: '1.5'
                         }}>
                             {isLoadingLogs && logs.length === 0 ? (
-                                <div style={{ color: '#64748b', textAlign: 'center', padding: 'var(--spacing-lg)' }}>
+                                <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center', padding: 'var(--spacing-lg)' }}>
                                     Loading logs...
                                 </div>
                             ) : logs.length === 0 ? (
-                                <div style={{ color: '#64748b', textAlign: 'center', padding: 'var(--spacing-lg)' }}>
+                                <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center', padding: 'var(--spacing-lg)' }}>
                                     No logs available yet
                                 </div>
                             ) : (
@@ -433,7 +419,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="modal__footer">
                     {showDeleteConfirm ? (
                         <>
@@ -509,7 +494,6 @@ const RunDetailsModal: React.FC<RunDetailsModalProps> = ({ run: initialRun, isOp
     );
 };
 
-// Helper components
 const ConfigItem: React.FC<{ label: string; value: any }> = ({ label, value }) => (
     <div style={{ fontSize: 'var(--font-size-sm)' }}>
         <div style={{ color: 'var(--color-text-secondary)', marginBottom: '2px' }}>{label}</div>
