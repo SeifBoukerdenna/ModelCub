@@ -159,25 +159,6 @@ inferences:
     status: failed
     stats: null
     error: 'No images found in: fruit_0000.jpg'
-  inf-20251029-012716:
-    id: inf-20251029-012716
-    created: '2025-10-29T01:27:16.163996Z'
-    model_source: lallalala
-    model_path: models/lallalala/best.pt
-    input_type: image
-    input_path: fruit_0001.jpg
-    output_path: predictions/inf-20251029-012716
-    config:
-      conf_threshold: 0.25
-      iou_threshold: 0.45
-      device: cpu
-      save_txt: true
-      save_img: false
-      classes: null
-      batch_size: 16
-    status: failed
-    stats: null
-    error: 'No images found in: fruit_0001.jpg'
   inf-20251029-013744:
     id: inf-20251029-013744
     created: '2025-10-29T01:37:44.881274Z'
@@ -284,4 +265,70 @@ inferences:
       total_images: 1
       total_detections: 0
       avg_inference_time_ms: 156.79
+      classes_detected: []
+  inf-20251029-022351:
+    id: inf-20251029-022351
+    created: '2025-10-29T02:23:51.857885Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_222351/fruit_0002.jpg
+    output_path: predictions/inf-20251029-022351
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 260.94
+      classes_detected: []
+  inf-20251029-022409:
+    id: inf-20251029-022409
+    created: '2025-10-29T02:24:09.326481Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_222409/fruit_0013.jpg
+    output_path: predictions/inf-20251029-022409
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 155.57
+      classes_detected: []
+  inf-20251029-023056:
+    id: inf-20251029-023056
+    created: '2025-10-29T02:30:56.532294Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_223056/fruit_0021.jpg
+    output_path: predictions/inf-20251029-023056
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 241.74
       classes_detected: []
