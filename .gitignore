@@ -91,3 +91,4 @@ docs/.vitepress/cache
 
 # --- UI ---
 src/modelcub/ui/frontend/node_modules
+!src/modelcub/ui/frontend/src/components/predictions
