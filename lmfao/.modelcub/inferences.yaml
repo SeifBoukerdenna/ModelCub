@@ -1,23 +1,4 @@
 inferences:
-  inf-20251028-060147:
-    id: inf-20251028-060147
-    created: '2025-10-28T06:01:47.517528Z'
-    model_source: lallalala
-    model_path: models/lallalala/best.pt
-    input_type: image
-    input_path: dog_0700.jpg
-    output_path: predictions/inf-20251028-060147
-    config:
-      conf_threshold: 0.25
-      iou_threshold: 0.45
-      device: cpu
-      save_txt: true
-      save_img: false
-      classes: null
-      batch_size: 16
-    status: failed
-    stats: null
-    error: No module named 'inference'
   inf-20251028-060317:
     id: inf-20251028-060317
     created: '2025-10-28T06:03:17.556676Z'
@@ -400,3 +381,117 @@ inferences:
       total_detections: 0
       avg_inference_time_ms: 169.79
       classes_detected: []
+  inf-20251029-032441:
+    id: inf-20251029-032441
+    created: '2025-10-29T03:24:41.499128Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_232441/fruit_0000.jpg
+    output_path: predictions/inf-20251029-032441
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 221.5
+      classes_detected:
+      - cake
+  inf-20251029-032513:
+    id: inf-20251029-032513
+    created: '2025-10-29T03:25:13.187489Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_232513/fruit_0000.jpg
+    output_path: predictions/inf-20251029-032513
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 155.96
+      classes_detected:
+      - cake
+  inf-20251029-033204:
+    id: inf-20251029-033204
+    created: '2025-10-29T03:32:04.341758Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_233204/fruit_0004.jpg
+    output_path: predictions/inf-20251029-033204
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 231.58
+      classes_detected:
+      - cake
+  inf-20251029-040835:
+    id: inf-20251029-040835
+    created: '2025-10-29T04:08:35.166835Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251029_000835/polar_bear99.jpg
+    output_path: predictions/inf-20251029-040835
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 292.9
+      classes_detected: []
+  inf-20251029-040851:
+    id: inf-20251029-040851
+    created: '2025-10-29T04:08:51.517350Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251029_000851/fruit_0000.jpg
+    output_path: predictions/inf-20251029-040851
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 187.72
+      classes_detected:
+      - cake

@@ -23,6 +23,7 @@ import type {
   PredictionJob,
   PredictionResult,
   CreatePredictionRequest,
+  PredictionJobWithImages,
 } from "./types";
 import { ModelCubAPIError } from "./errors";
 
@@ -670,8 +671,10 @@ export class ModelCubAPI {
     return this.request<PredictionJob[]>(`/predictions${params}`);
   }
 
-  async getPrediction(inferenceId: string): Promise<PredictionResult> {
-    return this.request<PredictionResult>(`/predictions/${inferenceId}`);
+  async getPrediction(inferenceId: string): Promise<PredictionJobWithImages> {
+    return this.request<PredictionJobWithImages>(
+      `/predictions/${inferenceId}/results`
+    );
   }
 
   async createPrediction(
@@ -697,6 +700,31 @@ export class ModelCubAPI {
     return this.request<PredictionResult>(`/predictions?${params.toString()}`, {
       method: "POST",
     });
+  }
+
+  async getPredictionImage(
+    inferenceId: string,
+    imageName: string
+  ): Promise<string> {
+    const headers: Record<string, string> = {};
+    if (this.currentProjectPath) {
+      headers["X-Project-Path"] = this.currentProjectPath;
+    }
+
+    const response = await fetch(
+      `${this.baseURL}/predictions/${inferenceId}/images/${imageName}`,
+      { headers }
+    );
+
+    if (!response.ok) {
+      throw new ModelCubAPIError(
+        `Failed to load image: ${response.statusText}`,
+        response.status
+      );
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
   }
 
   async deletePrediction(inferenceId: string): Promise<void> {

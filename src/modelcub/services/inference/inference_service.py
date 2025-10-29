@@ -159,10 +159,10 @@ class InferenceService:
         return inference_id
 
     def run_inference(
-        self,
-        inference_id: str,
-        progress_callback: Optional[callable] = None
-    ) -> Dict[str, Any]:
+    self,
+    inference_id: str,
+    progress_callback: Optional[callable] = None
+) -> Dict[str, Any]:
         """
         Execute inference job.
 
@@ -218,9 +218,9 @@ class InferenceService:
             if progress_callback:
                 progress_callback(80, 100, "Processing results")
 
-            # Save results
+            # Save results - PASS THE ADAPTER! ✅
             output_path = self.project_root / job['output_path']
-            self._save_results(predictions, output_path, config)
+            self._save_results(predictions, output_path, config, adapter)  # ← CHANGED
 
             # Calculate stats
             total_detections = sum(len(p.detections) for p in predictions)
@@ -254,6 +254,7 @@ class InferenceService:
                 'error': str(e)
             })
             raise
+
 
     def _collect_images(self, input_type: str, input_path: str) -> List[Path]:
         """Collect image paths based on input type."""
@@ -289,9 +290,20 @@ class InferenceService:
         self,
         predictions: List,
         output_path: Path,
-        config: Dict
+        config: Dict,
+        adapter  # ← ADDED PARAMETER
     ) -> None:
-        """Save prediction results."""
+        """
+        Save prediction results.
+
+        Args:
+            predictions: List of ImagePrediction objects
+            output_path: Output directory path
+            config: Configuration dictionary
+            adapter: Loaded YOLOInferenceAdapter instance (for image visualization)
+        """
+        import json
+
         # Save JSON results
         results_json = {
             'predictions': [
@@ -323,16 +335,8 @@ class InferenceService:
         with open(results_path, 'w') as f:
             json.dump(results_json, f, indent=2)
 
-        # Save labels/images if requested
+        # Save labels/images if requested - USE THE PASSED ADAPTER! ✅
         if config['save_txt'] or config['save_img']:
-            from .inference_yolo import YOLOInferenceAdapter
-            adapter = YOLOInferenceAdapter()
-
-            # Need to reload model for image saving
-            if config['save_img']:
-                model_path = output_path.parent.parent / 'model.pt'  # Placeholder
-                # In practice, we'd pass the loaded adapter through
-
             adapter.save_annotations(
                 predictions=predictions,
                 output_dir=output_path,

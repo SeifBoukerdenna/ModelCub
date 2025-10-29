@@ -5,10 +5,8 @@ import logging
 from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import FileResponse
-from pathlib import Path
 
 from ..dependencies import ProjectRequired
-from ...shared.api.config import Endpoints
 from ...shared.api.schemas import APIResponse, ResponseMeta
 from ...shared.api.errors import BadRequestError, NotFoundError, ErrorCode
 from ....services.inference import InferenceService
@@ -24,12 +22,9 @@ async def list_predictions(
     status: Optional[str] = None
 ) -> APIResponse[List[dict]]:
     """List all inference jobs."""
-    logger.info(f"Listing predictions for project: {project.name}")
-
     try:
         service = InferenceService(project.path)
         jobs = service.list_inferences(status=status)
-
         return APIResponse(
             success=True,
             data=jobs,
@@ -38,45 +33,7 @@ async def list_predictions(
         )
     except Exception as e:
         logger.error(f"Failed to list predictions: {e}")
-        return APIResponse(
-            success=False,
-            data=[],
-            message=f"Failed to list predictions: {str(e)}"
-        )
-
-
-@router.get("/{inference_id}")
-async def get_prediction(
-    inference_id: str,
-    project: ProjectRequired
-) -> APIResponse[dict]:
-    """Get prediction job details and results."""
-    logger.info(f"Getting prediction: {inference_id}")
-
-    try:
-        service = InferenceService(project.path)
-        result = service.get_results(inference_id)
-
-        if not result:
-            raise NotFoundError(
-                message=f"Prediction not found: {inference_id}",
-                code=ErrorCode.NOT_FOUND
-            )
-
-        return APIResponse(
-            success=True,
-            data=result,
-            message="Prediction retrieved successfully"
-        )
-    except NotFoundError:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get prediction: {e}")
-        return APIResponse(
-            success=False,
-            data=None,
-            message=f"Failed to get prediction: {str(e)}"
-        )
+        return APIResponse(success=False, data=[], message=f"Failed to list predictions: {str(e)}")
 
 
 @router.post("")
@@ -94,35 +51,16 @@ async def create_prediction(
     classes: Optional[str] = None,
     split: Optional[str] = "val"
 ) -> APIResponse[dict]:
-    """
-    Create and run inference job.
-
-    Args:
-        model_name: Model name to use
-        input_type: 'image', 'images', or 'dataset'
-        input_path: Path to input (relative to project)
-        conf: Confidence threshold (0-1)
-        iou: IoU threshold (0-1)
-        device: Device (cpu, cuda, mps)
-        batch_size: Batch size
-        save_txt: Save YOLO labels
-        save_img: Save annotated images
-        classes: Comma-separated class IDs to filter
-        split: Dataset split (for dataset type)
-    """
-    logger.info(f"Creating prediction: {model_name} on {input_path}")
-
+    """Create and run inference job."""
     try:
         service = InferenceService(project.path)
 
-        # Validate input
         if input_type not in ['image', 'images', 'dataset']:
             raise BadRequestError(
                 message=f"Invalid input_type: {input_type}",
                 code=ErrorCode.VALIDATION_ERROR
             )
 
-        # Parse classes
         class_list = None
         if classes:
             try:
@@ -133,17 +71,12 @@ async def create_prediction(
                     code=ErrorCode.VALIDATION_ERROR
                 )
 
-        # For dataset input, validate and adjust path
         if input_type == 'dataset':
             dataset_registry = DatasetRegistry(project.path)
             if not dataset_registry.exists(input_path):
-                raise NotFoundError(
-                    message=f"Dataset not found: {input_path}",
-                    code=ErrorCode.NOT_FOUND
-                )
+                raise NotFoundError(message=f"Dataset not found: {input_path}", code=ErrorCode.NOT_FOUND)
             input_path = str(project.path / "data" / "datasets" / input_path)
 
-        # Create inference job
         inference_id = service.create_inference_job(
             model_identifier=model_name,
             input_type=input_type,
@@ -157,36 +90,22 @@ async def create_prediction(
             batch_size=batch_size
         )
 
-        # Run inference (async in production, sync for now)
         stats = service.run_inference(inference_id)
-
-        # Get final job data
         job = service.inference_registry.get_inference(inference_id)
 
         return APIResponse(
             success=True,
-            data={
-                'inference_id': inference_id,
-                'stats': stats,
-                'job': job
-            },
+            data={'inference_id': inference_id, 'stats': stats, 'job': job},
             message="Inference completed successfully"
         )
 
     except (BadRequestError, NotFoundError):
         raise
     except FileNotFoundError as e:
-        raise NotFoundError(
-            message=str(e),
-            code=ErrorCode.NOT_FOUND
-        )
+        raise NotFoundError(message=str(e), code=ErrorCode.NOT_FOUND)
     except Exception as e:
         logger.error(f"Failed to run inference: {e}", exc_info=True)
-        return APIResponse(
-            success=False,
-            data=None,
-            message=f"Failed to run inference: {str(e)}"
-        )
+        return APIResponse(success=False, data=None, message=f"Failed to run inference: {str(e)}")
 
 
 @router.delete("/{inference_id}")
@@ -195,25 +114,18 @@ async def delete_prediction(
     project: ProjectRequired
 ) -> APIResponse[None]:
     """Delete a prediction job."""
-    logger.info(f"Deleting prediction: {inference_id}")
-
     try:
         service = InferenceService(project.path)
         job = service.inference_registry.get_inference(inference_id)
 
         if not job:
-            raise NotFoundError(
-                message=f"Prediction not found: {inference_id}",
-                code=ErrorCode.NOT_FOUND
-            )
+            raise NotFoundError(message=f"Prediction not found: {inference_id}", code=ErrorCode.NOT_FOUND)
 
-        # Delete output directory
         output_path = project.path / job['output_path']
         if output_path.exists():
             import shutil
             shutil.rmtree(output_path)
 
-        # Remove from registry
         service.inference_registry.remove_inference(inference_id)
 
         return APIResponse(
@@ -221,17 +133,11 @@ async def delete_prediction(
             data=None,
             message=f"Prediction '{inference_id}' deleted successfully"
         )
-
     except NotFoundError:
         raise
     except Exception as e:
         logger.error(f"Failed to delete prediction: {e}")
-        return APIResponse(
-            success=False,
-            data=None,
-            message=f"Failed to delete prediction: {str(e)}"
-        )
-
+        return APIResponse(success=False, data=None, message=f"Failed to delete prediction: {str(e)}")
 
 
 @router.post("/upload")
@@ -239,17 +145,11 @@ async def upload_files(
     files: List[UploadFile] = File(...),
     project: ProjectRequired = None
 ) -> APIResponse[dict]:
-    """
-    Upload files for inference.
-    Returns file path for single file, directory path for multiple files.
-    """
+    """Upload files for inference."""
     import shutil
     from datetime import datetime
 
-    logger.info(f"Uploading {len(files)} file(s)")
-
     try:
-        # Create upload directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         upload_dir = project.path / "data" / "uploads" / "predictions" / timestamp
         upload_dir.mkdir(parents=True, exist_ok=True)
@@ -258,82 +158,29 @@ async def upload_files(
         file_paths = []
 
         for upload_file in files:
-            # Get filename, preserving folder structure if present
             filename = upload_file.filename or "uploaded_file"
             file_path = upload_dir / filename
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Save file
             with open(file_path, 'wb') as f:
                 shutil.copyfileobj(upload_file.file, f)
 
             saved_files.append(filename)
             file_paths.append(file_path)
 
-        # Return appropriate path based on count
         if len(file_paths) == 1:
-            # Single file: return file path
             relative_path = str(file_paths[0].relative_to(project.path))
         else:
-            # Multiple files: return directory path
             relative_path = str(upload_dir.relative_to(project.path))
 
         return APIResponse(
             success=True,
-            data={
-                'path': relative_path,
-                'files': saved_files,
-                'count': len(saved_files)
-            },
+            data={'path': relative_path, 'files': saved_files, 'count': len(saved_files)},
             message=f"Uploaded {len(saved_files)} file(s) successfully"
         )
-
     except Exception as e:
         logger.error(f"Upload failed: {e}", exc_info=True)
-        return APIResponse(
-            success=False,
-            data=None,
-            message=f"Upload failed: {str(e)}"
-        )
-
-
-@router.get("/{inference_id}/images/{image_name:path}")
-async def get_prediction_image(
-    inference_id: str,
-    image_name: str,
-    project: ProjectRequired
-) -> FileResponse:
-    """Serve prediction result image."""
-    try:
-        service = InferenceService(project.path)
-        job = service.inference_registry.get_inference(inference_id)
-
-        if not job:
-            raise NotFoundError(
-                message=f"Prediction not found: {inference_id}",
-                code=ErrorCode.NOT_FOUND
-            )
-
-        # Construct image path
-        output_path = project.path / job['output_path']
-        image_path = output_path / image_name
-
-        if not image_path.exists():
-            raise NotFoundError(
-                message=f"Image not found: {image_name}",
-                code=ErrorCode.FILE_NOT_FOUND
-            )
-
-        return FileResponse(image_path)
-
-    except NotFoundError:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to serve image: {e}")
-        raise NotFoundError(
-            message=f"Failed to serve image: {str(e)}",
-            code=ErrorCode.FILE_NOT_FOUND
-        )
+        return APIResponse(success=False, data=None, message=f"Upload failed: {str(e)}")
 
 
 @router.get("/{inference_id}/results")
@@ -347,37 +194,51 @@ async def get_prediction_results(
         job = service.inference_registry.get_inference(inference_id)
 
         if not job:
-            raise NotFoundError(
-                message=f"Prediction not found: {inference_id}",
-                code=ErrorCode.NOT_FOUND
-            )
+            raise NotFoundError(message=f"Prediction not found: {inference_id}", code=ErrorCode.NOT_FOUND)
 
-        # Get output images if save_img was enabled
         output_images = []
         if job['config'].get('save_img'):
             output_path = project.path / job['output_path']
-            if output_path.exists():
-                # Look for images in output directory
+            images_dir = output_path / 'images'
+            if images_dir.exists():
                 for ext in ['*.jpg', '*.jpeg', '*.png']:
-                    output_images.extend([
-                        f.name for f in output_path.glob(ext)
-                    ])
+                    output_images.extend([f.name for f in images_dir.glob(ext)])
 
         return APIResponse(
             success=True,
-            data={
-                **job,
-                'output_images': sorted(output_images)
-            },
+            data={**job, 'output_images': sorted(output_images)},
             message="Results retrieved successfully"
         )
-
     except NotFoundError:
         raise
     except Exception as e:
         logger.error(f"Failed to get results: {e}")
-        return APIResponse(
-            success=False,
-            data=None,
-            message=f"Failed to get results: {str(e)}"
-        )
+        return APIResponse(success=False, data=None, message=f"Failed to get results: {str(e)}")
+
+
+@router.get("/{inference_id}/images/{image_name:path}")
+async def serve_prediction_image(
+    inference_id: str,
+    image_name: str,
+    project: ProjectRequired
+):
+    """Serve a prediction output image."""
+    try:
+        service = InferenceService(project.path)
+        job = service.inference_registry.get_inference(inference_id)
+
+        if not job:
+            raise NotFoundError(message=f"Prediction not found: {inference_id}", code=ErrorCode.NOT_FOUND)
+
+        output_path = project.path / job['output_path']
+        image_path = output_path / 'images' / image_name
+
+        if not image_path.exists():
+            raise NotFoundError(message=f"Image not found: {image_name}", code=ErrorCode.FILE_NOT_FOUND)
+
+        return FileResponse(image_path)
+    except NotFoundError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to serve image: {e}")
+        raise NotFoundError(message=f"Failed to serve image: {str(e)}", code=ErrorCode.FILE_NOT_FOUND)

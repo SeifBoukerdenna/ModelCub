@@ -325,6 +325,10 @@ export interface PredictionJob {
   error?: string;
 }
 
+export interface PredictionJobWithImages extends PredictionJob {
+  output_images: string[];
+}
+
 export interface PredictionResult {
   inference_id: string;
   stats: PredictionStats;
