@@ -12,6 +12,7 @@ import {
     ChevronLeft,
     ChevronRight,
     TrendingUp,
+    Zap,
 } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import { selectSelectedProject, useProjectStore } from '@/stores/projectStore'
@@ -33,6 +34,7 @@ const navigation: NavItem[] = [
     { name: 'Datasets', href: '/datasets', icon: Database },
     { name: 'Runs', href: '/runs', icon: TrendingUp },
     { name: 'Models', href: '/models', icon: Brain },
+    { name: 'Predictions', href: '/predictions', icon: Zap }, // Added
     { name: 'Settings', href: '/settings', icon: SettingsIcon },
 ]
 
@@ -42,7 +44,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     const location = useLocation()
     const selectedProject = useProjectStore(selectSelectedProject)
 
-    // Save collapsed state to localStorage when it changes
     useEffect(() => {
         try {
             localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed))
@@ -57,13 +58,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
     return (
         <aside className={`sidebar ${isCollapsed ? 'sidebar--collapsed' : ''}`}>
-            {/* Logo & Title */}
             <div className="sidebar__header">
                 <div className="sidebar__logo">M</div>
                 {!isCollapsed && <h1 className="sidebar__title">ModelCub</h1>}
             </div>
 
-            {/* Collapse Toggle Button */}
             <button
                 onClick={toggleSidebar}
                 className="sidebar__toggle"
@@ -72,7 +71,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                 {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
             </button>
 
-            {/* Navigation */}
             <nav className="sidebar__nav">
                 <ul className="sidebar__nav-list">
                     {navigation.map((item) => {
@@ -100,7 +98,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                 </ul>
             </nav>
 
-            {/* Footer */}
             <div className="sidebar__footer">
                 {!isCollapsed && (
                     <div className="sidebar__theme">

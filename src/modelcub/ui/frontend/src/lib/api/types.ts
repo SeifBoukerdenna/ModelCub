@@ -286,3 +286,56 @@ export interface LogsResponse {
   exists: boolean;
   total_lines: number;
 }
+
+// ==================== PREDICTION TYPES ====================
+
+export interface PredictionConfig {
+  conf_threshold: number;
+  iou_threshold: number;
+  device: string;
+  save_txt: boolean;
+  save_img: boolean;
+  classes: number[] | null;
+  batch_size: number;
+}
+
+export interface PredictionStats {
+  total_images: number;
+  total_detections: number;
+  avg_inference_time_ms: number;
+  classes_detected: string[];
+}
+
+export interface PredictionJob {
+  id: string;
+  created: string;
+  model_source: string;
+  model_path: string;
+  input_type: "image" | "images" | "dataset";
+  input_path: string;
+  output_path: string;
+  config: PredictionConfig;
+  status: "pending" | "running" | "completed" | "failed";
+  stats: PredictionStats | null;
+  error?: string;
+}
+
+export interface PredictionResult {
+  inference_id: string;
+  stats: PredictionStats;
+  job: PredictionJob;
+}
+
+export interface CreatePredictionRequest {
+  model_name: string;
+  input_type: "image" | "images" | "dataset";
+  input_path: string;
+  conf?: number;
+  iou?: number;
+  device?: string;
+  batch_size?: number;
+  save_txt?: boolean;
+  save_img?: boolean;
+  classes?: string;
+  split?: string;
+}

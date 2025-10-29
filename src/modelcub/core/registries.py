@@ -717,13 +717,13 @@ class InferenceRegistry:
         registry = self._load_registry()
         return list(registry.get("inferences", {}).values())
 
+
     def remove_inference(self, inference_id: str) -> None:
-        """Remove inference job from registry."""
+        """Remove inference from registry."""
         from .io import FileLock
 
         with FileLock(self.registry_path):
             registry = self._load_registry()
-
             if inference_id in registry.get("inferences", {}):
                 del registry["inferences"][inference_id]
 

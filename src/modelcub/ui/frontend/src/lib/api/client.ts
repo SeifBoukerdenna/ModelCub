@@ -20,6 +20,9 @@ import type {
   PromotedModel,
   TrainingRun,
   LogsResponse,
+  PredictionJob,
+  PredictionResult,
+  CreatePredictionRequest,
 } from "./types";
 import { ModelCubAPIError } from "./errors";
 
@@ -27,11 +30,11 @@ export class ModelCubAPI {
   private readonly baseURL = "/api/v1";
   private currentProjectPath: string | null = null;
 
-  setCurrentProject(projectPath: string | null) {
+  setCurrentProject(projectPath: string | null): void {
     this.setProjectPath(projectPath);
   }
 
-  setProjectPath(projectPath: string | null) {
+  setProjectPath(projectPath: string | null): void {
     this.currentProjectPath = projectPath;
     console.log("API: Set current project path to:", projectPath);
   }
@@ -131,7 +134,7 @@ export class ModelCubAPI {
     });
   }
 
-  async getProjectConfig(path: string): Promise<any> {
+  async getProjectConfig(path: string): Promise<ProjectConfigFull> {
     return this.request(`/projects/config?path=${encodeURIComponent(path)}`);
   }
 
@@ -225,6 +228,7 @@ export class ModelCubAPI {
 
     return data.data as Dataset;
   }
+
   async importDatasetFiles(
     files: FileList,
     name?: string,
@@ -461,7 +465,7 @@ export class ModelCubAPI {
   async assignSplits(
     jobId: string,
     assignments: Array<{ image_id: string; split: string }>
-  ): Promise<{ success: string[]; failed: any[] }> {
+  ): Promise<{ success: string[]; failed: unknown[] }> {
     return this.request(`/jobs/${jobId}/assign-splits`, {
       method: "POST",
       body: JSON.stringify({ assignments }),
@@ -607,5 +611,47 @@ export class ModelCubAPI {
         method: "DELETE",
       }
     );
+  }
+
+  // ==================== PREDICTION METHODS ====================
+
+  async listPredictions(status?: string): Promise<PredictionJob[]> {
+    const params = status ? `?status=${status}` : "";
+    return this.request<PredictionJob[]>(`/predictions${params}`);
+  }
+
+  async getPrediction(inferenceId: string): Promise<PredictionResult> {
+    return this.request<PredictionResult>(`/predictions/${inferenceId}`);
+  }
+
+  async createPrediction(
+    data: CreatePredictionRequest
+  ): Promise<PredictionResult> {
+    const params = new URLSearchParams();
+    params.append("model_name", data.model_name);
+    params.append("input_type", data.input_type);
+    params.append("input_path", data.input_path);
+
+    if (data.conf !== undefined) params.append("conf", data.conf.toString());
+    if (data.iou !== undefined) params.append("iou", data.iou.toString());
+    if (data.device) params.append("device", data.device);
+    if (data.batch_size !== undefined)
+      params.append("batch_size", data.batch_size.toString());
+    if (data.save_txt !== undefined)
+      params.append("save_txt", data.save_txt.toString());
+    if (data.save_img !== undefined)
+      params.append("save_img", data.save_img.toString());
+    if (data.classes) params.append("classes", data.classes);
+    if (data.split) params.append("split", data.split);
+
+    return this.request<PredictionResult>(`/predictions?${params.toString()}`, {
+      method: "POST",
+    });
+  }
+
+  async deletePrediction(inferenceId: string): Promise<void> {
+    return this.request<void>(`/predictions/${inferenceId}`, {
+      method: "DELETE",
+    });
   }
 }

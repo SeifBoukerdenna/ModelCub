@@ -16,6 +16,7 @@ import { AnnotationView } from './components/AnnotationViewer'
 import DatasetViewer from './components/datasets/DatasetViewer'
 import JobReview from './pages/JobReview'
 import Runs from './pages/runs'
+import Predictions from './pages/Predictions'
 
 const App: React.FC = () => {
     useEffect(() => {
@@ -93,6 +94,14 @@ const App: React.FC = () => {
                             element={
                                 <ProjectGuard>
                                     <Models />
+                                </ProjectGuard>
+                            }
+                        />
+                        <Route
+                            path="predictions"
+                            element={
+                                <ProjectGuard>
+                                    <Predictions />
                                 </ProjectGuard>
                             }
                         />

@@ -1,22 +1,4 @@
 inferences:
-  inf-20251028-060105:
-    id: inf-20251028-060105
-    created: '2025-10-28T06:01:05.633327Z'
-    model_source: lallalala
-    model_path: models/lallalala/best.pt
-    input_type: image
-    input_path: dog_0700.jpg
-    output_path: predictions/inf-20251028-060105
-    config:
-      conf_threshold: 0.25
-      iou_threshold: 0.45
-      device: cpu
-      save_txt: true
-      save_img: false
-      classes: null
-      batch_size: 16
-    status: pending
-    stats: null
   inf-20251028-060147:
     id: inf-20251028-060147
     created: '2025-10-28T06:01:47.517528Z'
@@ -139,3 +121,60 @@ inferences:
       total_detections: 0
       avg_inference_time_ms: 164.35
       classes_detected: []
+  inf-20251029-012642:
+    id: inf-20251029-012642
+    created: '2025-10-29T01:26:42.626125Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: download.svg
+    output_path: predictions/inf-20251029-012642
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: failed
+    stats: null
+    error: 'No images found in: download.svg'
+  inf-20251029-012658:
+    id: inf-20251029-012658
+    created: '2025-10-29T01:26:58.193637Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: fruit_0000.jpg
+    output_path: predictions/inf-20251029-012658
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: failed
+    stats: null
+    error: 'No images found in: fruit_0000.jpg'
+  inf-20251029-012716:
+    id: inf-20251029-012716
+    created: '2025-10-29T01:27:16.163996Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: fruit_0001.jpg
+    output_path: predictions/inf-20251029-012716
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: failed
+    stats: null
+    error: 'No images found in: fruit_0001.jpg'

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Brain, Calendar, TrendingUp, Tag, Trash2 } from 'lucide-react';
+import { Brain, Calendar, TrendingUp, Tag, Trash2, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { PromotedModel } from '@/lib/api/types';
-
 
 interface ModelCardProps {
     model: PromotedModel;
@@ -10,6 +10,8 @@ interface ModelCardProps {
 }
 
 const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onDelete }) => {
+    const navigate = useNavigate();
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -21,6 +23,16 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onDelete }) => {
     const formatMetric = (value?: number) => {
         if (value === undefined || value === null) return 'N/A';
         return `${(value * 100).toFixed(1)}%`;
+    };
+
+    const handlePredict = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigate('/predictions', { state: { modelName: model.name } });
+    };
+
+    const handleDelete = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onDelete();
     };
 
     return (
@@ -189,12 +201,34 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onClick, onDelete }) => {
                 )}
             </div>
 
-            {/* Card Footer - Delete Button */}
-            <div className="card__footer" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            {/* Card Footer - Actions */}
+            <div className="card__footer" style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 'var(--spacing-sm)'
+            }}>
+                <button
+                    className="btn btn--sm"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--spacing-xs)',
+                        backgroundColor: 'var(--color-primary-50)',
+                        color: 'var(--color-primary-600)',
+                        border: '1px solid var(--color-primary-200)',
+                        padding: '6px 12px',
+                    }}
+                    onClick={handlePredict}
+                    title="Run inference with this model"
+                >
+                    <Zap size={14} />
+                    Predict
+                </button>
                 <button
                     className="btn btn--text btn--sm"
                     style={{ color: 'var(--color-error)' }}
-                    onClick={onDelete}
+                    onClick={handleDelete}
+                    title="Delete model"
                 >
                     <Trash2 size={16} />
                 </button>
