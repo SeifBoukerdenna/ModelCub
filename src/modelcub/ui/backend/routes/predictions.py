@@ -4,6 +4,7 @@ Predictions/Inference routes for ModelCub UI.
 import logging
 from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File
+from fastapi.responses import FileResponse
 from pathlib import Path
 
 from ..dependencies import ProjectRequired
@@ -232,10 +233,6 @@ async def delete_prediction(
         )
 
 
-"""
-Fixed upload route for predictions.
-Add this to the predictions.py router after the delete_prediction route.
-"""
 
 @router.post("/upload")
 async def upload_files(
@@ -297,4 +294,90 @@ async def upload_files(
             success=False,
             data=None,
             message=f"Upload failed: {str(e)}"
+        )
+
+
+@router.get("/{inference_id}/images/{image_name:path}")
+async def get_prediction_image(
+    inference_id: str,
+    image_name: str,
+    project: ProjectRequired
+) -> FileResponse:
+    """Serve prediction result image."""
+    try:
+        service = InferenceService(project.path)
+        job = service.inference_registry.get_inference(inference_id)
+
+        if not job:
+            raise NotFoundError(
+                message=f"Prediction not found: {inference_id}",
+                code=ErrorCode.NOT_FOUND
+            )
+
+        # Construct image path
+        output_path = project.path / job['output_path']
+        image_path = output_path / image_name
+
+        if not image_path.exists():
+            raise NotFoundError(
+                message=f"Image not found: {image_name}",
+                code=ErrorCode.FILE_NOT_FOUND
+            )
+
+        return FileResponse(image_path)
+
+    except NotFoundError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to serve image: {e}")
+        raise NotFoundError(
+            message=f"Failed to serve image: {str(e)}",
+            code=ErrorCode.FILE_NOT_FOUND
+        )
+
+
+@router.get("/{inference_id}/results")
+async def get_prediction_results(
+    inference_id: str,
+    project: ProjectRequired
+) -> APIResponse[dict]:
+    """Get prediction results with output image list."""
+    try:
+        service = InferenceService(project.path)
+        job = service.inference_registry.get_inference(inference_id)
+
+        if not job:
+            raise NotFoundError(
+                message=f"Prediction not found: {inference_id}",
+                code=ErrorCode.NOT_FOUND
+            )
+
+        # Get output images if save_img was enabled
+        output_images = []
+        if job['config'].get('save_img'):
+            output_path = project.path / job['output_path']
+            if output_path.exists():
+                # Look for images in output directory
+                for ext in ['*.jpg', '*.jpeg', '*.png']:
+                    output_images.extend([
+                        f.name for f in output_path.glob(ext)
+                    ])
+
+        return APIResponse(
+            success=True,
+            data={
+                **job,
+                'output_images': sorted(output_images)
+            },
+            message="Results retrieved successfully"
+        )
+
+    except NotFoundError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get results: {e}")
+        return APIResponse(
+            success=False,
+            data=None,
+            message=f"Failed to get results: {str(e)}"
         )

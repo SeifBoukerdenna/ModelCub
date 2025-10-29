@@ -219,3 +219,69 @@ inferences:
       total_detections: 0
       avg_inference_time_ms: 237.3
       classes_detected: []
+  inf-20251029-014913:
+    id: inf-20251029-014913
+    created: '2025-10-29T01:49:13.768152Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_214913/fruit_0000.jpg
+    output_path: predictions/inf-20251029-014913
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 217.36
+      classes_detected: []
+  inf-20251029-015035:
+    id: inf-20251029-015035
+    created: '2025-10-29T01:50:35.047699Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_215035/fruit_0008.jpg
+    output_path: predictions/inf-20251029-015035
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 252.94
+      classes_detected: []
+  inf-20251029-015052:
+    id: inf-20251029-015052
+    created: '2025-10-29T01:50:52.113528Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_215052/fruit_0012.jpg
+    output_path: predictions/inf-20251029-015052
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 156.79
+      classes_detected: []

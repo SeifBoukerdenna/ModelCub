@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Play, Image as ImageIcon, Folder, Database, ChevronDown, Trash2, Upload, X } from 'lucide-react'
+import { Play, Image as ImageIcon, Folder, Database, ChevronDown, Trash2, Upload, X, Eye } from 'lucide-react'
 import { useProjectStore, selectSelectedProject } from '@/stores/projectStore'
 import type { PromotedModel, Dataset, PredictionJob } from '@/lib/api/types'
 import { api } from '@/lib/api'
@@ -19,12 +19,14 @@ const Predictions: React.FC = () => {
     const [running, setRunning] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [isDragging, setIsDragging] = useState(false)
+    const [selectedPrediction, setSelectedPrediction] = useState<string | null>(null)
 
     // Form state
     const [selectedModel, setSelectedModel] = useState('')
     const [inputType, setInputType] = useState<'image' | 'images' | 'dataset'>('image')
     const [inputPath, setInputPath] = useState('')
     const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+    const [previewUrls, setPreviewUrls] = useState<string[]>([])
     const [uploadedPath, setUploadedPath] = useState<string>('')
     const [conf, setConf] = useState(0.25)
     const [iou, setIou] = useState(0.45)
@@ -46,6 +48,19 @@ const Predictions: React.FC = () => {
             setSelectedModel(state.modelName)
         }
     }, [location.state])
+
+    // Generate preview URLs for selected files
+    useEffect(() => {
+        if (selectedFiles.length > 0) {
+            const imageFiles = selectedFiles.filter(f => f.type.startsWith('image/'))
+            const urls = imageFiles.slice(0, 3).map(file => URL.createObjectURL(file))
+            setPreviewUrls(urls)
+
+            return () => urls.forEach(url => URL.revokeObjectURL(url))
+        } else {
+            setPreviewUrls([])
+        }
+    }, [selectedFiles])
 
     // Drag and drop handlers
     useEffect(() => {
@@ -121,9 +136,7 @@ const Predictions: React.FC = () => {
         try {
             const formData = new FormData()
 
-            // Append all files with proper structure
             files.forEach((file) => {
-                // For folders, preserve the relative path
                 const path = (file as any).webkitRelativePath || file.name
                 formData.append('files', file, path)
             })
@@ -159,7 +172,6 @@ const Predictions: React.FC = () => {
         if (inputType === 'image') {
             setInputPath(`${files[0].name}`)
         } else {
-            // For folder/multiple files
             const firstPath = (files[0] as any).webkitRelativePath || files[0].name
             const folderName = firstPath.includes('/')
                 ? firstPath.split('/')[0]
@@ -184,7 +196,6 @@ const Predictions: React.FC = () => {
         setSelectedFiles([])
         setUploadedPath('')
 
-        // Clear file inputs
         if (fileInputRef.current) fileInputRef.current.value = ''
         if (folderInputRef.current) folderInputRef.current.value = ''
     }
@@ -205,7 +216,6 @@ const Predictions: React.FC = () => {
 
         let finalPath = inputPath
 
-        // Upload files first if needed
         if ((inputType === 'image' || inputType === 'images') && selectedFiles.length > 0 && !uploadedPath) {
             try {
                 finalPath = await uploadFiles(selectedFiles)
@@ -242,7 +252,6 @@ const Predictions: React.FC = () => {
             })
             alert('Inference completed successfully!')
             loadData()
-            // Reset
             clearFiles()
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error'
@@ -273,17 +282,12 @@ const Predictions: React.FC = () => {
         <div className="predictions-page">
             <div className="predictions-header">
                 <h1>Predictions</h1>
-                <p>Run inference on images, directories, or datasets</p>
             </div>
 
             <div className="predictions-content">
-                {/* Inference Form */}
                 <div className="predictions-form-card">
-                    <h2>New Prediction</h2>
-
-                    {/* Model Selection */}
                     <div className="form-group">
-                        <label>Model</label>
+                        <br />
                         <select
                             value={selectedModel}
                             onChange={(e) => setSelectedModel(e.target.value)}
@@ -298,7 +302,6 @@ const Predictions: React.FC = () => {
                         </select>
                     </div>
 
-                    {/* Input Type */}
                     <div className="form-group">
                         <label>Input Type</label>
                         <div className="input-type-buttons">
@@ -329,7 +332,6 @@ const Predictions: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Input Selection with Drag & Drop */}
                     <div className="form-group">
                         <label>
                             {inputType === 'dataset' ? 'Dataset Name' : 'Input'}
@@ -350,7 +352,6 @@ const Predictions: React.FC = () => {
                             </select>
                         ) : (
                             <>
-                                {/* Hidden file inputs */}
                                 <input
                                     ref={fileInputRef}
                                     type="file"
@@ -371,7 +372,6 @@ const Predictions: React.FC = () => {
                                     style={{ display: 'none' }}
                                 />
 
-                                {/* Drag & Drop Zone */}
                                 <div
                                     ref={dropZoneRef}
                                     className={`drop-zone ${isDragging ? 'dragging' : ''} ${hasFiles ? 'has-files' : ''}`}
@@ -420,11 +420,26 @@ const Predictions: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Image Previews */}
+                                {previewUrls.length > 0 && (
+                                    <div className="image-previews">
+                                        {previewUrls.map((url, idx) => (
+                                            <div key={idx} className="preview-item">
+                                                <img src={url} alt={`Preview ${idx + 1}`} />
+                                            </div>
+                                        ))}
+                                        {selectedFiles.length > 3 && (
+                                            <div className="preview-more">
+                                                +{selectedFiles.length - 3} more
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
 
-                    {/* Advanced Settings */}
                     <details className="advanced-settings">
                         <summary>
                             <ChevronDown size={16} />
@@ -521,7 +536,6 @@ const Predictions: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Recent Predictions */}
                 <div className="predictions-history">
                     <h2>Recent Predictions</h2>
                     {predictions.length === 0 ? (
@@ -547,16 +561,86 @@ const Predictions: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <button
-                                        className="delete-btn"
-                                        onClick={() => deletePrediction(pred.id)}
-                                        title="Delete prediction"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
+                                    <div className="prediction-actions">
+                                        {pred.status === 'completed' && (
+                                            <button
+                                                className="view-btn"
+                                                onClick={() => setSelectedPrediction(pred.id)}
+                                                title="View results"
+                                            >
+                                                <Eye size={14} />
+                                            </button>
+                                        )}
+                                        <button
+                                            className="delete-btn"
+                                            onClick={() => deletePrediction(pred.id)}
+                                            title="Delete prediction"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Results Modal */}
+            {selectedPrediction && (
+                <ResultsModal
+                    predictionId={selectedPrediction}
+                    onClose={() => setSelectedPrediction(null)}
+                />
+            )}
+        </div>
+    )
+}
+
+// Results Modal Component
+const ResultsModal: React.FC<{ predictionId: string; onClose: () => void }> = ({ predictionId, onClose }) => {
+    const [results, setResults] = useState<any>(null)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        loadResults()
+    }, [predictionId])
+
+    const loadResults = async () => {
+        try {
+            const data = await api.getPrediction(predictionId)
+            setResults(data)
+        } catch (error) {
+            console.error('Failed to load results:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>Prediction Results</h2>
+                    <button className="close-btn" onClick={onClose}>
+                        <X size={20} />
+                    </button>
+                </div>
+                <div className="modal-body">
+                    {loading ? (
+                        <div>Loading results...</div>
+                    ) : results ? (
+                        <div className="results-grid">
+                            {/* Show annotated images if save_img was enabled */}
+                            {results.output_images?.slice(0, 6).map((img: string, idx: number) => (
+                                <div key={idx} className="result-image">
+                                    <img src={`/api/v1/predictions/${predictionId}/images/${img}`} alt={img} />
+                                    <span className="image-name">{img}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div>No results found</div>
                     )}
                 </div>
             </div>
