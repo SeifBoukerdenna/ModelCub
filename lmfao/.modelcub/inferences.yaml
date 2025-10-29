@@ -178,3 +178,44 @@ inferences:
     status: failed
     stats: null
     error: 'No images found in: fruit_0001.jpg'
+  inf-20251029-013744:
+    id: inf-20251029-013744
+    created: '2025-10-29T01:37:44.881274Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_213744
+    output_path: predictions/inf-20251029-013744
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: failed
+    stats: null
+    error: '[Errno 21] Is a directory: ''/Users/malikmacbook/Desktop/ModelCub/lmfao/data/uploads/predictions/20251028_213744'''
+  inf-20251029-014121:
+    id: inf-20251029-014121
+    created: '2025-10-29T01:41:21.158158Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_214121/fruit_0002.jpg
+    output_path: predictions/inf-20251029-014121
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 237.3
+      classes_detected: []

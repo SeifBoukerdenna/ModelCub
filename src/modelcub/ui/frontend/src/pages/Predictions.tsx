@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Play, Image as ImageIcon, Folder, Database, ChevronDown, Trash2, Upload } from 'lucide-react'
+import { Play, Image as ImageIcon, Folder, Database, ChevronDown, Trash2, Upload, X } from 'lucide-react'
 import { useProjectStore, selectSelectedProject } from '@/stores/projectStore'
 import type { PromotedModel, Dataset, PredictionJob } from '@/lib/api/types'
 import { api } from '@/lib/api'
@@ -10,6 +10,7 @@ const Predictions: React.FC = () => {
     const project = useProjectStore(selectSelectedProject)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const folderInputRef = useRef<HTMLInputElement>(null)
+    const dropZoneRef = useRef<HTMLDivElement>(null)
 
     const [models, setModels] = useState<PromotedModel[]>([])
     const [datasets, setDatasets] = useState<Dataset[]>([])
@@ -17,13 +18,13 @@ const Predictions: React.FC = () => {
     const [loading, setLoading] = useState(false)
     const [running, setRunning] = useState(false)
     const [uploading, setUploading] = useState(false)
+    const [isDragging, setIsDragging] = useState(false)
 
     // Form state
     const [selectedModel, setSelectedModel] = useState('')
     const [inputType, setInputType] = useState<'image' | 'images' | 'dataset'>('image')
     const [inputPath, setInputPath] = useState('')
-    const [selectedFile, setSelectedFile] = useState<File | null>(null)
-    const [selectedFolder, setSelectedFolder] = useState<FileList | null>(null)
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([])
     const [uploadedPath, setUploadedPath] = useState<string>('')
     const [conf, setConf] = useState(0.25)
     const [iou, setIou] = useState(0.45)
@@ -46,6 +47,54 @@ const Predictions: React.FC = () => {
         }
     }, [location.state])
 
+    // Drag and drop handlers
+    useEffect(() => {
+        const dropZone = dropZoneRef.current
+        if (!dropZone || inputType === 'dataset') return
+
+        const handleDragEnter = (e: DragEvent) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setIsDragging(true)
+        }
+
+        const handleDragLeave = (e: DragEvent) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (e.target === dropZone) {
+                setIsDragging(false)
+            }
+        }
+
+        const handleDragOver = (e: DragEvent) => {
+            e.preventDefault()
+            e.stopPropagation()
+        }
+
+        const handleDrop = (e: DragEvent) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setIsDragging(false)
+
+            const files = Array.from(e.dataTransfer?.files || [])
+            if (files.length > 0) {
+                handleFilesSelected(files)
+            }
+        }
+
+        dropZone.addEventListener('dragenter', handleDragEnter)
+        dropZone.addEventListener('dragleave', handleDragLeave)
+        dropZone.addEventListener('dragover', handleDragOver)
+        dropZone.addEventListener('drop', handleDrop)
+
+        return () => {
+            dropZone.removeEventListener('dragenter', handleDragEnter)
+            dropZone.removeEventListener('dragleave', handleDragLeave)
+            dropZone.removeEventListener('dragover', handleDragOver)
+            dropZone.removeEventListener('drop', handleDrop)
+        }
+    }, [inputType])
+
     const loadData = async () => {
         setLoading(true)
         try {
@@ -67,12 +116,16 @@ const Predictions: React.FC = () => {
         }
     }
 
-    const uploadFiles = async (files: File[] | FileList): Promise<string> => {
+    const uploadFiles = async (files: File[]): Promise<string> => {
         setUploading(true)
         try {
             const formData = new FormData()
-            Array.from(files).forEach((file) => {
-                formData.append('files', file, file.webkitRelativePath || file.name)
+
+            // Append all files with proper structure
+            files.forEach((file) => {
+                // For folders, preserve the relative path
+                const path = (file as any).webkitRelativePath || file.name
+                formData.append('files', file, path)
             })
 
             const headers: Record<string, string> = {}
@@ -97,32 +150,51 @@ const Predictions: React.FC = () => {
         }
     }
 
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (file) {
-            setSelectedFile(file)
-            setInputPath(`${file.name} (ready to upload)`)
-            setUploadedPath('')
+    const handleFilesSelected = (files: File[]) => {
+        if (files.length === 0) return
+
+        setSelectedFiles(files)
+        setUploadedPath('')
+
+        if (inputType === 'image') {
+            setInputPath(`${files[0].name}`)
+        } else {
+            // For folder/multiple files
+            const firstPath = (files[0] as any).webkitRelativePath || files[0].name
+            const folderName = firstPath.includes('/')
+                ? firstPath.split('/')[0]
+                : 'selected-files'
+            setInputPath(`${folderName} (${files.length} files)`)
         }
     }
 
-    const handleFolderSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files
-        if (files && files.length > 0) {
-            setSelectedFolder(files)
-            const firstPath = files[0].webkitRelativePath || files[0].name
-            const folderName = firstPath.split('/')[0] || 'selected-folder'
-            setInputPath(`${folderName} (${files.length} files, ready to upload)`)
-            setUploadedPath('')
-        }
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || [])
+        handleFilesSelected(files)
+    }
+
+    const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || [])
+        handleFilesSelected(files)
     }
 
     const handleInputTypeChange = (type: 'image' | 'images' | 'dataset') => {
         setInputType(type)
         setInputPath('')
-        setSelectedFile(null)
-        setSelectedFolder(null)
+        setSelectedFiles([])
         setUploadedPath('')
+
+        // Clear file inputs
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        if (folderInputRef.current) folderInputRef.current.value = ''
+    }
+
+    const clearFiles = () => {
+        setSelectedFiles([])
+        setInputPath('')
+        setUploadedPath('')
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        if (folderInputRef.current) folderInputRef.current.value = ''
     }
 
     const runInference = async () => {
@@ -134,33 +206,23 @@ const Predictions: React.FC = () => {
         let finalPath = inputPath
 
         // Upload files first if needed
-        if (inputType === 'image' && selectedFile && !uploadedPath) {
+        if ((inputType === 'image' || inputType === 'images') && selectedFiles.length > 0 && !uploadedPath) {
             try {
-                finalPath = await uploadFiles([selectedFile])
+                finalPath = await uploadFiles(selectedFiles)
                 setUploadedPath(finalPath)
+                setInputPath(finalPath)
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Upload failed'
                 alert(`File upload failed: ${message}`)
                 return
             }
-        } else if (inputType === 'images' && selectedFolder && !uploadedPath) {
-            try {
-                finalPath = await uploadFiles(selectedFolder)
-                setUploadedPath(finalPath)
-            } catch (error) {
-                const message = error instanceof Error ? error.message : 'Upload failed'
-                alert(`Folder upload failed: ${message}`)
-                return
-            }
-        } else if (inputType === 'image' && uploadedPath) {
-            finalPath = uploadedPath
-        } else if (inputType === 'images' && uploadedPath) {
+        } else if (uploadedPath) {
             finalPath = uploadedPath
         } else if (inputType === 'dataset' && !inputPath) {
             alert('Please select a dataset')
             return
         } else if (!inputPath && !uploadedPath) {
-            alert('Please provide input path or select files')
+            alert('Please provide input')
             return
         }
 
@@ -181,10 +243,7 @@ const Predictions: React.FC = () => {
             alert('Inference completed successfully!')
             loadData()
             // Reset
-            setInputPath('')
-            setSelectedFile(null)
-            setSelectedFolder(null)
-            setUploadedPath('')
+            clearFiles()
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error'
             alert(`Inference failed: ${message}`)
@@ -208,6 +267,7 @@ const Predictions: React.FC = () => {
     }
 
     const isProcessing = running || uploading
+    const hasFiles = selectedFiles.length > 0 || uploadedPath || (inputType === 'dataset' && inputPath)
 
     return (
         <div className="predictions-page">
@@ -269,7 +329,7 @@ const Predictions: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Input Path/File */}
+                    {/* Input Selection with Drag & Drop */}
                     <div className="form-group">
                         <label>
                             {inputType === 'dataset' ? 'Dataset Name' : 'Input'}
@@ -288,8 +348,9 @@ const Predictions: React.FC = () => {
                                     </option>
                                 ))}
                             </select>
-                        ) : inputType === 'image' ? (
+                        ) : (
                             <>
+                                {/* Hidden file inputs */}
                                 <input
                                     ref={fileInputRef}
                                     type="file"
@@ -298,27 +359,6 @@ const Predictions: React.FC = () => {
                                     disabled={isProcessing}
                                     style={{ display: 'none' }}
                                 />
-                                <div className="file-input-wrapper">
-                                    <input
-                                        type="text"
-                                        value={inputPath}
-                                        placeholder="Select an image..."
-                                        readOnly
-                                        disabled={isProcessing}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="file-input-btn"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={isProcessing}
-                                    >
-                                        <Upload size={16} />
-                                        Browse
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
                                 <input
                                     ref={folderInputRef}
                                     type="file"
@@ -330,23 +370,55 @@ const Predictions: React.FC = () => {
                                     disabled={isProcessing}
                                     style={{ display: 'none' }}
                                 />
-                                <div className="file-input-wrapper">
-                                    <input
-                                        type="text"
-                                        value={inputPath}
-                                        placeholder="Select a folder..."
-                                        readOnly
-                                        disabled={isProcessing}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="file-input-btn"
-                                        onClick={() => folderInputRef.current?.click()}
-                                        disabled={isProcessing}
-                                    >
-                                        <Upload size={16} />
-                                        Browse
-                                    </button>
+
+                                {/* Drag & Drop Zone */}
+                                <div
+                                    ref={dropZoneRef}
+                                    className={`drop-zone ${isDragging ? 'dragging' : ''} ${hasFiles ? 'has-files' : ''}`}
+                                    onClick={() => {
+                                        if (isProcessing) return
+                                        if (inputType === 'image') {
+                                            fileInputRef.current?.click()
+                                        } else {
+                                            folderInputRef.current?.click()
+                                        }
+                                    }}
+                                >
+                                    {hasFiles ? (
+                                        <div className="drop-zone-content">
+                                            <div className="file-info">
+                                                {inputType === 'image' ? (
+                                                    <ImageIcon size={24} />
+                                                ) : (
+                                                    <Folder size={24} />
+                                                )}
+                                                <span>{inputPath || uploadedPath}</span>
+                                            </div>
+                                            {!isProcessing && (
+                                                <button
+                                                    className="clear-files-btn"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        clearFiles()
+                                                    }}
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="drop-zone-content">
+                                            <Upload size={32} />
+                                            <p>
+                                                {inputType === 'image'
+                                                    ? 'Click to select or drag & drop an image'
+                                                    : 'Click to select or drag & drop a folder'}
+                                            </p>
+                                            <span className="drop-zone-hint">
+                                                Supports JPG, PNG, BMP, GIF
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         )}
@@ -442,7 +514,7 @@ const Predictions: React.FC = () => {
                     <button
                         className="run-btn"
                         onClick={runInference}
-                        disabled={isProcessing || !selectedModel || (!inputPath && !uploadedPath)}
+                        disabled={isProcessing || !selectedModel || !hasFiles}
                     >
                         <Play size={16} />
                         {uploading ? 'Uploading...' : running ? 'Running...' : 'Run Inference'}

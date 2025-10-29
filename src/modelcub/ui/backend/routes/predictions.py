@@ -230,3 +230,71 @@ async def delete_prediction(
             data=None,
             message=f"Failed to delete prediction: {str(e)}"
         )
+
+
+"""
+Fixed upload route for predictions.
+Add this to the predictions.py router after the delete_prediction route.
+"""
+
+@router.post("/upload")
+async def upload_files(
+    files: List[UploadFile] = File(...),
+    project: ProjectRequired = None
+) -> APIResponse[dict]:
+    """
+    Upload files for inference.
+    Returns file path for single file, directory path for multiple files.
+    """
+    import shutil
+    from datetime import datetime
+
+    logger.info(f"Uploading {len(files)} file(s)")
+
+    try:
+        # Create upload directory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        upload_dir = project.path / "data" / "uploads" / "predictions" / timestamp
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        saved_files = []
+        file_paths = []
+
+        for upload_file in files:
+            # Get filename, preserving folder structure if present
+            filename = upload_file.filename or "uploaded_file"
+            file_path = upload_dir / filename
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Save file
+            with open(file_path, 'wb') as f:
+                shutil.copyfileobj(upload_file.file, f)
+
+            saved_files.append(filename)
+            file_paths.append(file_path)
+
+        # Return appropriate path based on count
+        if len(file_paths) == 1:
+            # Single file: return file path
+            relative_path = str(file_paths[0].relative_to(project.path))
+        else:
+            # Multiple files: return directory path
+            relative_path = str(upload_dir.relative_to(project.path))
+
+        return APIResponse(
+            success=True,
+            data={
+                'path': relative_path,
+                'files': saved_files,
+                'count': len(saved_files)
+            },
+            message=f"Uploaded {len(saved_files)} file(s) successfully"
+        )
+
+    except Exception as e:
+        logger.error(f"Upload failed: {e}", exc_info=True)
+        return APIResponse(
+            success=False,
+            data=None,
+            message=f"Upload failed: {str(e)}"
+        )
