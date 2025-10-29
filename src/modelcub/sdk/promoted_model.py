@@ -5,8 +5,54 @@ Provides high-level Python API for working with promoted models.
 """
 from __future__ import annotations
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 import shutil
+
+
+class InferenceResult:
+    """
+    Result from an inference operation.
+
+    Attributes:
+        inference_id: Unique inference job ID
+        stats: Dictionary with inference statistics
+        output_path: Path to inference results
+        detections: List of detections (if available)
+    """
+
+    def __init__(self, inference_id: str, stats: Dict[str, Any], output_path: Path):
+        self.inference_id = inference_id
+        self.stats = stats
+        self.output_path = output_path
+        self._detections = None
+
+    @property
+    def total_images(self) -> int:
+        """Total number of images processed."""
+        return self.stats.get('total_images', 0)
+
+    @property
+    def total_detections(self) -> int:
+        """Total number of detections found."""
+        return self.stats.get('total_detections', 0)
+
+    @property
+    def avg_inference_time(self) -> float:
+        """Average inference time in milliseconds."""
+        return self.stats.get('avg_inference_time_ms', 0.0)
+
+    @property
+    def classes_detected(self) -> List[str]:
+        """List of class names detected."""
+        return self.stats.get('classes_detected', [])
+
+    def __repr__(self) -> str:
+        return (
+            f"InferenceResult("
+            f"images={self.total_images}, "
+            f"detections={self.total_detections}, "
+            f"time={self.avg_inference_time:.1f}ms)"
+        )
 
 
 class PromotedModel:
@@ -16,8 +62,9 @@ class PromotedModel:
     Example:
         >>> model = PromotedModel("detector-v1", project_path="/path/to/project")
         >>> print(f"Model: {model.name}")
-        >>> print(f"mAP50: {model.metadata.get('metrics', {}).get('map50')}")
-        >>> predictions = model.predict("image.jpg")
+        >>> print(f"mAP50: {model.map50}")
+        >>> result = model.predict_image("test.jpg")
+        >>> print(f"Found {result.total_detections} objects")
     """
 
     def __init__(self, name: str, project_path: str | Path):
@@ -105,154 +152,201 @@ class PromotedModel:
         """mAP@0.5:0.95 metric if available."""
         return self.metrics.get('map50_95')
 
-    # ========== Methods ==========
+    # ========== Inference Methods ==========
 
-    def reload(self) -> None:
-        """
-        Reload model data from registry.
-
-        Example:
-            >>> model.reload()
-        """
-        self._load_data()
-
-    def predict(
+    def predict_image(
         self,
-        source: str | Path,
+        image_path: str | Path,
         conf: float = 0.25,
-        iou: float = 0.7,
-        imgsz: int = 640,
-        save: bool = False,
-        save_txt: bool = False,
-        save_conf: bool = False,
-        **kwargs
-    ) -> Any:
+        iou: float = 0.45,
+        device: str = "cpu",
+        save_txt: bool = True,
+        save_img: bool = False,
+        classes: Optional[List[int]] = None,
+        progress_callback: Optional[Callable] = None
+    ) -> InferenceResult:
         """
-        Run inference on image(s), video, or directory.
+        Run inference on a single image.
 
         Args:
-            source: Path to image, video, directory, or URL
-            conf: Confidence threshold
-            iou: IoU threshold for NMS
-            imgsz: Input image size
-            save: Save images with predictions
-            save_txt: Save results as txt files
-            save_conf: Save confidence in txt files
-            **kwargs: Additional YOLO predict parameters
+            image_path: Path to image file
+            conf: Confidence threshold (0-1)
+            iou: IoU threshold for NMS (0-1)
+            device: Device to use (cpu, cuda, cuda:0, mps)
+            save_txt: Save YOLO format labels
+            save_img: Save annotated image
+            classes: Filter specific class IDs
+            progress_callback: Optional callback(current, total, message)
 
         Returns:
-            YOLO Results object(s)
+            InferenceResult with statistics and output path
 
         Example:
-            >>> results = model.predict("image.jpg")
-            >>> results = model.predict("images/", save=True)
-            >>> for r in results:
-            ...     print(r.boxes)
+            >>> result = model.predict_image("test.jpg", conf=0.5)
+            >>> print(f"Found {result.total_detections} objects")
+            >>> print(f"Results saved to: {result.output_path}")
         """
-        from ultralytics import YOLO
+        from ..services.inference import InferenceService
 
-        yolo_model = YOLO(str(self.path))
+        service = InferenceService(self._project_path)
 
-        return yolo_model.predict(
-            source=str(source),
-            conf=conf,
-            iou=iou,
-            imgsz=imgsz,
-            save=save,
+        # Create inference job
+        inference_id = service.create_inference_job(
+            model_identifier=self.name,
+            input_type='image',
+            input_path=str(image_path),
+            conf_threshold=conf,
+            iou_threshold=iou,
+            device=device,
             save_txt=save_txt,
-            save_conf=save_conf,
-            **kwargs
+            save_img=save_img,
+            classes=classes
         )
 
-    def export(
+        # Run inference
+        stats = service.run_inference(inference_id, progress_callback=progress_callback)
+
+        # Get output path
+        job = service.inference_registry.get_inference(inference_id)
+        output_path = self._project_path / job['output_path']
+
+        return InferenceResult(inference_id, stats, output_path)
+
+    def predict_images(
         self,
-        format: str = 'onnx',
-        imgsz: int = 640,
-        output: Optional[str | Path] = None,
-        **kwargs
-    ) -> Path:
+        directory: str | Path,
+        conf: float = 0.25,
+        iou: float = 0.45,
+        device: str = "cpu",
+        batch_size: int = 16,
+        save_txt: bool = True,
+        save_img: bool = False,
+        classes: Optional[List[int]] = None,
+        progress_callback: Optional[Callable] = None
+    ) -> InferenceResult:
         """
-        Export model to different format.
+        Run inference on a directory of images.
 
         Args:
-            format: Export format (onnx, torchscript, openvino, engine, coreml, etc.)
-            imgsz: Input image size
-            output: Output path (default: auto-generated)
-            **kwargs: Additional YOLO export parameters
+            directory: Path to directory containing images
+            conf: Confidence threshold (0-1)
+            iou: IoU threshold for NMS (0-1)
+            device: Device to use (cpu, cuda, cuda:0, mps)
+            batch_size: Batch size for processing
+            save_txt: Save YOLO format labels
+            save_img: Save annotated images
+            classes: Filter specific class IDs
+            progress_callback: Optional callback(current, total, message)
 
         Returns:
-            Path to exported model
+            InferenceResult with statistics and output path
 
         Example:
-            >>> model.export(format='onnx')
-            >>> model.export(format='engine', output='model.trt')
+            >>> result = model.predict_images("test_images/", batch_size=32)
+            >>> print(f"Processed {result.total_images} images")
+            >>> print(f"Found {result.total_detections} total detections")
         """
-        from ultralytics import YOLO
+        from ..services.inference import InferenceService
 
-        yolo_model = YOLO(str(self.path))
+        service = InferenceService(self._project_path)
 
-        # Export
-        export_path = yolo_model.export(
-            format=format,
-            imgsz=imgsz,
-            **kwargs
+        # Create inference job
+        inference_id = service.create_inference_job(
+            model_identifier=self.name,
+            input_type='images',
+            input_path=str(directory),
+            conf_threshold=conf,
+            iou_threshold=iou,
+            device=device,
+            save_txt=save_txt,
+            save_img=save_img,
+            classes=classes,
+            batch_size=batch_size
         )
 
-        # Move to desired location if specified
-        if output:
-            output_path = Path(output).resolve()
-            shutil.move(str(export_path), str(output_path))
-            return output_path
+        # Run inference
+        stats = service.run_inference(inference_id, progress_callback=progress_callback)
 
-        return Path(export_path)
+        # Get output path
+        job = service.inference_registry.get_inference(inference_id)
+        output_path = self._project_path / job['output_path']
 
-    def evaluate(
+        return InferenceResult(inference_id, stats, output_path)
+
+    def predict_dataset(
         self,
-        data: Optional[str | Path] = None,
+        dataset_name: str,
         split: str = 'val',
-        imgsz: int = 640,
-        batch: int = 16,
-        **kwargs
-    ) -> Any:
+        conf: float = 0.25,
+        iou: float = 0.45,
+        device: str = "cpu",
+        batch_size: int = 16,
+        save_txt: bool = True,
+        save_img: bool = False,
+        progress_callback: Optional[Callable] = None
+    ) -> InferenceResult:
         """
-        Evaluate model on dataset.
+        Run inference on a dataset split.
 
         Args:
-            data: Path to dataset YAML (default: use original training dataset)
-            split: Dataset split to evaluate on ('val', 'test')
-            imgsz: Input image size
-            batch: Batch size
-            **kwargs: Additional YOLO val parameters
+            dataset_name: Name of dataset in project
+            split: Dataset split (train, val, test)
+            conf: Confidence threshold (0-1)
+            iou: IoU threshold for NMS (0-1)
+            device: Device to use (cpu, cuda, cuda:0, mps)
+            batch_size: Batch size for processing
+            save_txt: Save YOLO format labels
+            save_img: Save annotated images
+            progress_callback: Optional callback(current, total, message)
 
         Returns:
-            YOLO validation results
+            InferenceResult with statistics and output path
 
         Example:
-            >>> results = model.evaluate()
-            >>> print(f"mAP50: {results.box.map50}")
+            >>> result = model.predict_dataset("my-dataset", split="test")
+            >>> print(f"Processed {result.total_images} images")
+            >>> print(f"Classes detected: {result.classes_detected}")
         """
-        from ultralytics import YOLO
+        from ..services.inference import InferenceService
+        from ..core.registries import DatasetRegistry
 
-        yolo_model = YOLO(str(self.path))
+        # Validate dataset exists
+        dataset_registry = DatasetRegistry(self._project_path)
+        if not dataset_registry.exists(dataset_name):
+            raise ValueError(f"Dataset not found: {dataset_name}")
 
-        # If no data provided, try to construct from metadata
-        if data is None and self.dataset_name:
-            dataset_path = self._project_path / "data" / "datasets" / self.dataset_name
-            data_yaml = dataset_path / "data.yaml"
-            if data_yaml.exists():
-                data = str(data_yaml)
+        # Get dataset path
+        dataset_path = self._project_path / "data" / "datasets" / dataset_name
 
-        return yolo_model.val(
-            data=data,
-            split=split,
-            imgsz=imgsz,
-            batch=batch,
-            **kwargs
+        service = InferenceService(self._project_path)
+
+        # Create inference job
+        inference_id = service.create_inference_job(
+            model_identifier=self.name,
+            input_type='dataset',
+            input_path=str(dataset_path),
+            conf_threshold=conf,
+            iou_threshold=iou,
+            device=device,
+            save_txt=save_txt,
+            save_img=save_img,
+            batch_size=batch_size
         )
+
+        # Run inference
+        stats = service.run_inference(inference_id, progress_callback=progress_callback)
+
+        # Get output path
+        job = service.inference_registry.get_inference(inference_id)
+        output_path = self._project_path / job['output_path']
+
+        return InferenceResult(inference_id, stats, output_path)
+
+    # ========== Utility Methods ==========
 
     def info(self) -> None:
         """
-        Print detailed model information.
+        Print model information.
 
         Example:
             >>> model.info()

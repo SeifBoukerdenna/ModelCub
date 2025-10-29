@@ -8,7 +8,7 @@ from .project import Project
 from .dataset import Dataset, DatasetInfo, Box
 from .job import JobManager, Job, JobStatus, TaskStatus
 from .training_run import TrainingRun, TrainingManager, RunMetrics
-from .promoted_model import PromotedModel
+from .promoted_model import PromotedModel, InferenceResult
 from .model_manager import ModelManager
 
 __all__ = [
@@ -34,4 +34,5 @@ __all__ = [
     # Models
     "PromotedModel",
     "ModelManager",
+    "InferenceResult",
 ]

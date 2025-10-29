@@ -95,3 +95,47 @@ inferences:
       total_detections: 0
       avg_inference_time_ms: 197.9
       classes_detected: []
+  inf-20251029-005826:
+    id: inf-20251029-005826
+    created: '2025-10-29T00:58:26.437830Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: ./dog_0700.jpg
+    output_path: predictions/inf-20251029-005826
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 254.77
+      classes_detected: []
+  inf-20251029-005846:
+    id: inf-20251029-005846
+    created: '2025-10-29T00:58:46.725632Z'
+    model_source: lallalala
+    model_path: models/lallalala/best.pt
+    input_type: image
+    input_path: ./dog_0700.jpg
+    output_path: predictions/inf-20251029-005846
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 164.35
+      classes_detected: []
