@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Package } from 'lucide-react';
+import { RefreshCw, Package, Upload } from 'lucide-react';
 import { useProjectStore, selectSelectedProject } from '@/stores/projectStore';
 import Loading from '@/components/Loading';
 import ErrorMessage from '@/components/ErrorMessage';
@@ -8,8 +8,7 @@ import { useApiSync } from '@/hooks/useApiSync';
 import { PromotedModel } from '@/lib/api/types';
 import { api } from '@/lib/api';
 import ModelCard from '@/components/ModelCard';
-
-
+import ImportModelModal from '@/components/ImportModelModal';
 
 const Models: React.FC = () => {
     useApiSync();
@@ -18,6 +17,7 @@ const Models: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
 
     const loadModels = async () => {
         try {
@@ -42,9 +42,30 @@ const Models: React.FC = () => {
         toast.success('Models refreshed');
     };
 
+    const handleImportSuccess = () => {
+        setShowImportModal(false);
+        loadModels();
+        toast.success('Model imported successfully');
+    };
+
     const handleModelClick = (model: PromotedModel) => {
         // TODO: Navigate to model details page or show modal
         console.log('Model clicked:', model);
+    };
+
+    const handleDeleteModel = async (model: PromotedModel) => {
+        if (!confirm(`Are you sure you want to delete model "${model.name}"?`)) {
+            return;
+        }
+
+        try {
+            await api.deleteModel(model.name);
+            toast.success(`Model "${model.name}" deleted successfully`);
+            loadModels();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to delete model';
+            toast.error(message);
+        }
     };
 
     if (loading) {
@@ -76,66 +97,88 @@ const Models: React.FC = () => {
                         Project: <strong>{selectedProject?.name}</strong>
                     </p>
                 </div>
-                <button
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    className="btn btn--secondary"
-                    style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}
-                >
-                    <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
-                    Refresh
-                </button>
+
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                    <button
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="btn btn--secondary"
+                        style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}
+                    >
+                        <RefreshCw size={16} className={refreshing ? 'spinning' : ''} />
+                        Refresh
+                    </button>
+
+                    <button
+                        onClick={() => setShowImportModal(true)}
+                        className="btn btn--primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}
+                    >
+                        <Upload size={16} />
+                        Import Model
+                    </button>
+                </div>
             </div>
 
-            {/* Content */}
+            {/* Models Grid */}
             {models.length === 0 ? (
-                /* Empty State */
-                <div className="empty-state">
-                    <Package size={48} className="empty-state__icon" />
-                    <h3 className="empty-state__title">No models promoted yet</h3>
-                    <p className="empty-state__description">
-                        Train a model and promote it for production use
-                    </p>
-                    <code style={{
-                        display: 'block',
-                        marginTop: 'var(--spacing-md)',
-                        padding: 'var(--spacing-sm) var(--spacing-md)',
-                        backgroundColor: 'var(--color-surface)',
-                        borderRadius: 'var(--border-radius-md)',
-                        fontSize: 'var(--font-size-sm)'
+                <div style={{
+                    textAlign: 'center',
+                    padding: 'var(--spacing-3xl)',
+                    background: 'var(--color-surface)',
+                    border: '2px dashed var(--color-border)',
+                    borderRadius: 'var(--border-radius-lg)'
+                }}>
+                    <Package size={48} style={{
+                        color: 'var(--color-text-tertiary)',
+                        marginBottom: 'var(--spacing-md)'
+                    }} />
+                    <h3 style={{
+                        fontSize: 'var(--font-size-lg)',
+                        fontWeight: 600,
+                        marginBottom: 'var(--spacing-xs)',
+                        color: 'var(--color-text-primary)'
                     }}>
-                        modelcub model promote &lt;run-id&gt; &lt;model-name&gt;
-                    </code>
+                        No models yet
+                    </h3>
+                    <p style={{
+                        color: 'var(--color-text-secondary)',
+                        marginBottom: 'var(--spacing-lg)'
+                    }}>
+                        Get started by importing a model or training a new one
+                    </p>
+                    <button
+                        onClick={() => setShowImportModal(true)}
+                        className="btn btn--primary"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}
+                    >
+                        <Upload size={18} />
+                        Import Your First Model
+                    </button>
                 </div>
             ) : (
-                /* Models Grid */
-                <>
-                    <div style={{
-                        marginBottom: 'var(--spacing-md)',
-                        color: 'var(--color-text-secondary)',
-                        fontSize: 'var(--font-size-sm)'
-                    }}>
-                        {models.length} {models.length === 1 ? 'model' : 'models'} promoted
-                    </div>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-                        gap: 'var(--spacing-lg)',
-                    }}>
-                        {models.map((model) => (
-                            <ModelCard
-                                key={model.name}
-                                model={model}
-                                onClick={() => handleModelClick(model)}
-                                onDelete={() => {
-                                    api.deleteModel(model.name)
-                                    handleRefresh()
-                                }}
-                            />
-                        ))}
-                    </div>
-                </>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                    gap: 'var(--spacing-lg)'
+                }}>
+                    {models.map((model) => (
+                        <ModelCard
+                            key={model.name}
+                            model={model}
+                            onClick={() => handleModelClick(model)}
+                            onDelete={() => handleDeleteModel(model)}
+                        />
+                    ))}
+                </div>
             )}
+
+            {/* Import Modal */}
+            <ImportModelModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                onSuccess={handleImportSuccess}
+            />
         </div>
     );
 };

@@ -568,6 +568,56 @@ export class ModelCubAPI {
     });
   }
 
+  async importModel(
+    file: File,
+    name: string,
+    options?: {
+      description?: string;
+      tags?: string;
+      validate?: boolean; // Keep the interface the same for the client
+    }
+  ): Promise<PromotedModel> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("name", name);
+
+    if (options?.description) {
+      formData.append("description", options.description);
+    }
+
+    if (options?.tags) {
+      formData.append("tags", options.tags);
+    }
+
+    if (options?.validate !== undefined) {
+      formData.append("validate_model", String(options.validate)); // CHANGED: validate -> validate_model
+    }
+
+    const headers: Record<string, string> = {};
+    if (this.currentProjectPath) {
+      headers["X-Project-Path"] = this.currentProjectPath;
+    }
+
+    const response = await fetch(`${this.baseURL}/models/import`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      const error = data.error;
+      throw new ModelCubAPIError(
+        error?.message || `HTTP ${response.status}`,
+        response.status,
+        error?.details
+      );
+    }
+
+    return data.data as PromotedModel;
+  }
+
   // ==================== ANNOTATION METHODS ====================
 
   async getAnnotation(

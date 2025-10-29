@@ -332,3 +332,71 @@ inferences:
       total_detections: 0
       avg_inference_time_ms: 241.74
       classes_detected: []
+  inf-20251029-031407:
+    id: inf-20251029-031407
+    created: '2025-10-29T03:14:07.134188Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_231407/fruit_0159.jpg
+    output_path: predictions/inf-20251029-031407
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 290.38
+      classes_detected:
+      - person
+  inf-20251029-031503:
+    id: inf-20251029-031503
+    created: '2025-10-29T03:15:03.078347Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_231503/fruit_0003.jpg
+    output_path: predictions/inf-20251029-031503
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 166.19
+      classes_detected:
+      - orange
+  inf-20251029-031517:
+    id: inf-20251029-031517
+    created: '2025-10-29T03:15:17.095469Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251028_231517/fruit_0002.jpg
+    output_path: predictions/inf-20251029-031517
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 0
+      avg_inference_time_ms: 169.79
+      classes_detected: []

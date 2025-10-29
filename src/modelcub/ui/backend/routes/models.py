@@ -1,10 +1,10 @@
-"""
-Model management API routes.
-"""
 from typing import List, Optional, Dict, Any
 import logging
+from pathlib import Path
+import tempfile
+import shutil
 
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File, Form
 
 from ..dependencies import ProjectRequired
 from ...shared.api.config import Endpoints
@@ -23,13 +23,17 @@ def _format_model_response(model_data: Dict[str, Any]) -> Dict[str, Any]:
         'name': model_data['name'],
         'version': model_data['version'],
         'created': model_data['created'],
-        'run_id': model_data['run_id'],
+        'run_id': model_data.get('run_id'),
         'path': model_data['path'],
+        'provenance': model_data.get('provenance', 'promoted'),
         'description': metadata.get('description', ''),
         'tags': metadata.get('tags', []),
         'metrics': metadata.get('metrics', {}),
         'dataset_name': metadata.get('dataset_name', ''),
-        'config': metadata.get('config', {})
+        'config': metadata.get('config', {}),
+        'classes': metadata.get('classes', []),
+        'num_classes': metadata.get('num_classes', 0),
+        'task': metadata.get('task', 'detect'),
     }
 
 
@@ -72,30 +76,119 @@ async def get_model(
 
     try:
         model_registry = ModelRegistry(project.path)
-        model_data = model_registry.get_model(name)
+        model = model_registry.get_model(name)
 
-        if not model_data:
+        if not model:
             return APIResponse(
                 success=False,
                 data=None,
                 message=f"Model not found: {name}"
             )
 
-        formatted_model = _format_model_response(model_data)
-
         return APIResponse(
             success=True,
-            data=formatted_model,
-            message="Model retrieved successfully"
+            data=_format_model_response(model),
+            message=f"Model '{name}' loaded successfully"
         )
 
     except Exception as e:
-        logger.error(f"Failed to get model {name}: {e}")
+        logger.error(f"Failed to get model: {e}")
         return APIResponse(
             success=False,
             data=None,
             message=f"Failed to get model: {str(e)}"
         )
+
+@router.post("/import")
+async def import_model(
+    file: UploadFile = File(...),
+    name: str = Form(...),
+    description: Optional[str] = Form(None),
+    tags: Optional[str] = Form(None),
+    validate_model: bool = Form(True),  # CHANGED: validate -> validate_model
+    project: ProjectRequired = None
+) -> APIResponse[Dict[str, Any]]:
+    """
+    Import a model from uploaded .pt file.
+
+    Args:
+        file: Model file (.pt)
+        name: Model name
+        description: Model description
+        tags: Comma-separated tags
+        validate_model: Whether to validate model before import
+        project: Project dependency
+
+    Returns:
+        APIResponse with imported model info
+    """
+    logger.info(f"Importing model: {name} from file: {file.filename}")
+
+    if not file.filename or not file.filename.endswith('.pt'):
+        return APIResponse(
+            success=False,
+            data=None,
+            message="Invalid file type. Only .pt files are supported."
+        )
+
+    temp_file = None
+    try:
+        # Save uploaded file to temp location
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pt') as temp_file:
+            shutil.copyfileobj(file.file, temp_file)
+            temp_path = Path(temp_file.name)
+
+        logger.info(f"Saved temp file: {temp_path}")
+
+        # Import using ModelImportService
+        from ....services.model_import_service import ModelImportService
+
+        service = ModelImportService(project.path)
+
+        # Parse tags
+        tag_list = None
+        if tags:
+            tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+
+        # Import model
+        model_info = service.import_model(
+            source_path=temp_path,
+            name=name,
+            description=description,
+            tags=tag_list,
+            validate=validate_model  # CHANGED: pass validate_model here
+        )
+
+        logger.info(f"Model imported successfully: {name}")
+
+        return APIResponse(
+            success=True,
+            data=_format_model_response(model_info),
+            message=f"Model '{name}' imported successfully"
+        )
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        return APIResponse(
+            success=False,
+            data=None,
+            message=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Failed to import model: {e}", exc_info=True)
+        return APIResponse(
+            success=False,
+            data=None,
+            message=f"Failed to import model: {str(e)}"
+        )
+    finally:
+        # Clean up temp file
+        if temp_file and Path(temp_file.name).exists():
+            try:
+                Path(temp_file.name).unlink()
+                logger.info("Cleaned up temp file")
+            except Exception as e:
+                logger.warning(f"Failed to clean up temp file: {e}")
 
 
 @router.delete("/{name}")
@@ -108,20 +201,9 @@ async def delete_model(
 
     try:
         model_registry = ModelRegistry(project.path)
-
-        # Check if model exists
-        model_data = model_registry.get_model(name)
-        if not model_data:
-            return APIResponse(
-                success=False,
-                data=None,
-                message=f"Model not found: {name}"
-            )
-
-        # Delete model
         model_registry.remove_model(name)
 
-        logger.info(f"Successfully deleted model: {name}")
+        logger.info(f"Model deleted successfully: {name}")
 
         return APIResponse(
             success=True,
@@ -129,8 +211,14 @@ async def delete_model(
             message=f"Model '{name}' deleted successfully"
         )
 
+    except ValueError as e:
+        return APIResponse(
+            success=False,
+            data=None,
+            message=str(e)
+        )
     except Exception as e:
-        logger.error(f"Failed to delete model {name}: {e}")
+        logger.error(f"Failed to delete model: {e}")
         return APIResponse(
             success=False,
             data=None,

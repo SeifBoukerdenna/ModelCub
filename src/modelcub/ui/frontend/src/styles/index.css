@@ -22,6 +22,7 @@
 @import '../components/PromoteModelModal.css';
 @import '../components/ressourceMonitor.css';
 @import '../styles/predictions.css';
+@import '../styles/import-model-modal.css';
 
 /*============================================CSS Variables (Design Tokens)============================================*/
 :root {

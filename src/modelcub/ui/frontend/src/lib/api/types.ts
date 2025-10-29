@@ -234,13 +234,18 @@ export interface PromotedModel {
   name: string;
   version: string;
   created: string;
-  run_id: string;
+  run_id: string | null; // CHANGED: now nullable for imported models
   path: string;
-  description?: string;
-  tags?: string[];
-  metrics?: ModelMetrics;
-  dataset_name?: string;
-  config?: ModelConfig;
+  provenance: "promoted" | "imported"; // NEW: track model origin
+  description: string;
+  tags: string[];
+  metrics: Record<string, number>;
+  dataset_name: string;
+  config: Record<string, any>;
+  // NEW: Additional fields for imported models
+  classes?: string[];
+  num_classes?: number;
+  task?: string;
 }
 
 export interface TrainingRunMetrics {
