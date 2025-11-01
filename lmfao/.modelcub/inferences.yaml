@@ -495,3 +495,95 @@ inferences:
       avg_inference_time_ms: 187.72
       classes_detected:
       - cake
+  inf-20251029-041009:
+    id: inf-20251029-041009
+    created: '2025-10-29T04:10:09.803182Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251029_001009/fruit_0000.jpg
+    output_path: predictions/inf-20251029-041009
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 281.61
+      classes_detected:
+      - cake
+  inf-20251029-041125:
+    id: inf-20251029-041125
+    created: '2025-10-29T04:11:25.177668Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251029_001125/fruit_0000.jpg
+    output_path: predictions/inf-20251029-041125
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 316.8
+      classes_detected:
+      - cake
+  inf-20251101-034818:
+    id: inf-20251101-034818
+    created: '2025-11-01T03:48:18.473590Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251031_234818/grizzly9.jpg
+    output_path: predictions/inf-20251101-034818
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: false
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 210.82
+      classes_detected:
+      - sheep
+  inf-20251101-034836:
+    id: inf-20251101-034836
+    created: '2025-11-01T03:48:36.665210Z'
+    model_source: from-import
+    model_path: models/from-import/model.pt
+    input_type: image
+    input_path: data/uploads/predictions/20251031_234836/grizzly46.jpg
+    output_path: predictions/inf-20251101-034836
+    config:
+      conf_threshold: 0.25
+      iou_threshold: 0.45
+      device: cpu
+      save_txt: true
+      save_img: true
+      classes: null
+      batch_size: 16
+    status: completed
+    stats:
+      total_images: 1
+      total_detections: 1
+      avg_inference_time_ms: 133.89
+      classes_detected:
+      - bear
